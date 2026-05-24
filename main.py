@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from openai import OpenAI
-from dotenv import load_dotenv
+import osfrom dotenv import load_dotenv
 import os
 
 load_dotenv()
@@ -18,7 +18,7 @@ class ChatRequest(BaseModel):
 @app.post("/v1/chat")
 def chat(req: ChatRequest, api_key: str):
 
-    if api_key != "nexaflow-secret-key":
+    if api_key != os.getenv("CLIENT_API_KEY"):
         return {
             "error": "Invalid API Key"
         }
