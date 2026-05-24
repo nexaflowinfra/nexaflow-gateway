@@ -1,0 +1,11 @@
+{
+  "client_001": {
+    "api_key": "abc123",
+    "credits": 100000
+  },
+
+  "client_002": {
+    "api_key": "xyz789",
+    "credits": 50000
+  }
+}

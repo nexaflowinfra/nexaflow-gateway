@@ -3,8 +3,12 @@ from pydantic import BaseModel
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
+import json
 
 load_dotenv()
+
+with open("clients.json", "r") as file:
+    clients = json.load(file)
 
 app = FastAPI()
 
@@ -18,8 +22,17 @@ class ChatRequest(BaseModel):
 @app.post("/v1/chat")
 def chat(req: ChatRequest, api_key: str):
 
-    if api_key != os.getenv("CLIENT_API_KEY"):
-        return {
+    valid_client = False
+
+for client_id in clients:
+    if api_key == clients[client_id]["api_key"]:
+        valid_client = True
+        break
+
+if not valid_client:
+    return {
+        "error": "Invalid API key"
+    }
             "error": "Invalid API Key"
         }
 
