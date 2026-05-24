@@ -24,15 +24,15 @@ def chat(req: ChatRequest, api_key: str):
 
     valid_client = False
 
-for client_id in clients:
-    if api_key == clients[client_id]["api_key"]:
-        valid_client = True
-        break
+    for client_id in clients:
+        if api_key == clients[client_id]["api_key"]:
+            valid_client = True
+            break
 
-if not valid_client:
-    return {
-        "error": "Invalid API key"
-    }
+    if not valid_client:
+        return {
+            "error": "Invalid API key"
+        }
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
