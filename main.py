@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from openai import OpenAI
-import osfrom dotenv import load_dotenv
+from dotenv import load_dotenv
 import os
 
 load_dotenv()
