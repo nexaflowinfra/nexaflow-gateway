@@ -16,7 +16,12 @@ class ChatRequest(BaseModel):
     message: str
 
 @app.post("/v1/chat")
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, api_key: str):
+
+    if api_key != "nexaflow-secret-key":
+        return {
+            "error": "Invalid API Key"
+        }
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
