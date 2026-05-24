@@ -33,8 +33,6 @@ if not valid_client:
     return {
         "error": "Invalid API key"
     }
-            "error": "Invalid API Key"
-        }
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
