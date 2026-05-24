@@ -3,9 +3,12 @@
     "api_key": "abc123",
     "credits": 100000
   },
-
   "client_002": {
     "api_key": "xyz789",
     "credits": 50000
+  },
+  "client_003": {
+    "api_key": "D5SMGtvlm7bZhiPQ21cdu4HVNiUr-yZp",
+    "credits": 200000
   }
 }

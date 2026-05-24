@@ -4,6 +4,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import json
+import secrets
 
 load_dotenv()
 
@@ -19,6 +20,29 @@ client = OpenAI(
 class ChatRequest(BaseModel):
     message: str
 
+class CreateClientRequest(BaseModel):
+    client_id: str
+    credits: int = 100000
+
+@app.post("/create-client")
+def create_client(req: CreateClientRequest):
+
+    new_api_key = secrets.token_urlsafe(24)
+
+    clients[req.client_id] = {
+        "api_key": new_api_key,
+        "credits": req.credits
+    }
+
+    with open("clients.json", "w") as file:
+        json.dump(clients, file, indent=2)
+
+    return {
+        "client_id": req.client_id,
+        "api_key": new_api_key,
+        "credits": req.credits
+    }
+    
 @app.post("/v1/chat")
 def chat(req: ChatRequest, api_key: str):
 
