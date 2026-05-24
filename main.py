@@ -42,7 +42,7 @@ def create_client(req: CreateClientRequest):
         "api_key": new_api_key,
         "credits": req.credits
     }
-    
+
 @app.post("/v1/chat")
 def chat(req: ChatRequest, api_key: str):
 
@@ -58,6 +58,14 @@ def chat(req: ChatRequest, api_key: str):
             "error": "Invalid API key"
         }
 
+
+    client_data = clients[client_id]
+
+    if client_data["credits"] <= 0:
+        return {
+            "error": "Insufficient credits"
+     }
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -65,6 +73,12 @@ def chat(req: ChatRequest, api_key: str):
         ]
     )
 
+    client_data["credits"] -= 1
+
+    with open("clients.json", "w") as file:
+        json.dump(clients, file, indent=2)
+
     return {
-        "reply": response.choices[0].message.content
+        "reply": response.choices[0].message.content,
+        "remaining_credits": client_data["credits"]
     }
