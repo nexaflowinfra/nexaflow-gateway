@@ -60,6 +60,16 @@ def client_info(api_key: str):
     return {
         "error": "Invalid API key"
     }
+    
+@app.get("/admin/clients")
+def admin_clients(admin_key: str):
+
+    if admin_key != os.getenv("ADMIN_KEY"):
+        return {
+            "error": "Unauthorized"
+        }
+
+    return clients
 
 @app.post("/topup-credits")
 def topup_credits(api_key: str, amount: int):
