@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import json
 import secrets
+from datetime import datetime
 
 load_dotenv()
 
@@ -43,6 +44,69 @@ def create_client(req: CreateClientRequest):
         "credits": req.credits
     }
 
+@app.get("/client-info")
+def client_info(api_key: str):
+
+    for client_id in clients:
+
+        if api_key == clients[client_id]["api_key"]:
+
+            return {
+                "client_id": client_id,
+                "credits": clients[client_id]["credits"],
+                "api_key": api_key
+            }
+
+    return {
+        "error": "Invalid API key"
+    }
+
+@app.post("/topup-credits")
+def topup_credits(api_key: str, amount: int):
+
+    for client_id in clients:
+
+        if api_key == clients[client_id]["api_key"]:
+
+            clients[client_id]["credits"] += amount
+
+            with open("clients.json", "w") as file:
+                json.dump(clients, file, indent=2)
+
+            return {
+                "client_id": client_id,
+                "new_credits": clients[client_id]["credits"]
+            }
+
+    return {
+        "error": "Invalid API key"
+    }
+
+@app.get("/usage-history")
+def usage_history(api_key: str):
+
+    for client_id in clients:
+        if api_key == clients[client_id]["api_key"]:
+
+            with open("usage_logs.json", "r") as file:
+                logs = json.load(file)
+
+            client_logs = []
+
+            for log in logs:
+                if log["client_id"] == client_id:
+                    client_logs.append(log)
+
+            return {
+                "client_id": client_id,
+                "total_requests": len(client_logs),
+                "logs": client_logs
+            }
+
+    return {
+        "error": "Invalid API key"
+    }
+
 @app.post("/v1/chat")
 def chat(req: ChatRequest, api_key: str):
 
@@ -74,6 +138,18 @@ def chat(req: ChatRequest, api_key: str):
     )
 
     client_data["credits"] -= 1
+
+    with open("usage_logs.json", "r") as file:
+        logs = json.load(file)
+
+    logs.append({
+        "client_id": client_id,
+        "message": req.message,
+        "timestamp": datetime.now().isoformat()
+    })
+
+    with open("usage_logs.json", "w") as file:
+        json.dump(logs, file, indent=2)
 
     with open("clients.json", "w") as file:
         json.dump(clients, file, indent=2)
