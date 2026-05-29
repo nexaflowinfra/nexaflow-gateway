@@ -118,6 +118,7 @@ def test_business_profile_create_and_public_form_loads():
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
     assert "saveMerchantSettings" in inbox.text
+    assert "exportMerchantCsv" in inbox.text
     assert "/admin/dashboard" not in inbox.text
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
@@ -525,6 +526,69 @@ def test_merchant_can_update_own_business_settings_only():
     assert listing.status_code == 200
     saved = next(item for item in listing.json()["enquiries"] if item["id"] == lead.json()["id"])
     assert "6588889999" in saved["whatsapp_url"]
+
+
+def test_merchant_can_export_own_enquiries_csv_only():
+    suffix = uuid.uuid4().hex[:8]
+    slug_one = f"export-one-{suffix}"
+    slug_two = f"export-two-{suffix}"
+    profile_one = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_one,
+            "business_name": "Export One",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    profile_two = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_two,
+            "business_name": "Export Two",
+            "business_type": "beauty",
+            "whatsapp_phone": "6592220000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile_one.status_code == 200
+    assert profile_two.status_code == 200
+    business_key = profile_one.json()["business_access_key"]
+
+    lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug_one,
+            "name": "CSV Buyer",
+            "phone": "6599991111",
+            "email": "csv@example.com",
+            "message": "Need urgent quotation for repair",
+        },
+    )
+    assert lead.status_code == 200
+
+    missing_key = client.get(
+        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug_one}"
+    )
+    assert missing_key.status_code == 401
+
+    blocked = client.get(
+        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug_two}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked.status_code == 403
+
+    exported = client.get(
+        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "attachment;" in exported.headers["content-disposition"]
+    assert "CSV Buyer" in exported.text
+    assert "csv@example.com" in exported.text
+    assert "Need urgent quotation for repair" in exported.text
 
 
 def test_public_enquiry_rate_limit_blocks_repeated_spam():

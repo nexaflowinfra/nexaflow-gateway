@@ -4,6 +4,8 @@ from html import escape as escape_html
 from math import ceil
 from pathlib import Path
 from time import time
+from io import StringIO
+import csv
 import hmac
 import json
 import os
@@ -2634,6 +2636,31 @@ def list_enquiry_records(status=None, business_slug=None, limit=50):
     return [row_to_enquiry(row) for row in rows]
 
 
+def enquiries_to_csv(enquiries):
+    output = StringIO()
+    fieldnames = [
+        "id",
+        "created_at",
+        "business_slug",
+        "name",
+        "phone",
+        "email",
+        "intent",
+        "priority",
+        "estimated_value",
+        "status",
+        "message",
+        "reply_draft",
+        "whatsapp_url",
+        "source",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    for enquiry in enquiries:
+        writer.writerow({key: enquiry.get(key, "") for key in fieldnames})
+    return output.getvalue()
+
+
 def enquiry_stats(business_slug=None):
     query = "SELECT status, priority, intent FROM enquiries"
     params = []
@@ -4510,6 +4537,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div class="toolbar">
                 <label>Business access key<input id="businessKey" type="password" placeholder="biz_..."></label>
                 <button class="btn" onclick="loadMerchantInbox()">Load Leads</button>
+                <button class="btn secondary" onclick="exportMerchantCsv()">Export CSV</button>
             </div>
             <div class="status" id="merchantStatus">Enter your business access key to load this inbox.</div>
         </section>
@@ -4578,6 +4606,14 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 }}
                 return response.json();
             }}
+            async function merchantDownload(path) {{
+                const businessKey = document.getElementById("businessKey").value;
+                const response = await fetch(path, {{ headers: {{ "X-Business-Key": businessKey }} }});
+                if (!response.ok) {{
+                    throw new Error(await response.text());
+                }}
+                return response.blob();
+            }}
             function fillMerchantSettings(profile) {{
                 document.getElementById("settingsBusinessName").value = profile.business_name || "";
                 document.getElementById("settingsBusinessType").value = profile.business_type || "general";
@@ -4607,6 +4643,24 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     fillMerchantSettings(profile);
                     status.textContent = "Saved. Your public enquiry page and WhatsApp follow-up are updated.";
                     await loadMerchantInbox();
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+            async function exportMerchantCsv() {{
+                const status = document.getElementById("merchantStatus");
+                status.textContent = "Preparing CSV export...";
+                try {{
+                    const blob = await merchantDownload(`/apps/enquiry/api/merchant/enquiries/export.csv?business_slug=${{businessSlug}}&limit=500`);
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `${{businessSlug}}-enquiries.csv`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(url);
+                    status.textContent = "CSV export ready.";
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -6045,6 +6099,30 @@ def list_merchant_enquiries(
         "stats": enquiry_stats(business_slug=profile["slug"]),
         "enquiries": list_enquiry_records(status=status, business_slug=profile["slug"], limit=limit),
     }
+
+
+@app.get("/apps/enquiry/api/merchant/enquiries/export.csv")
+def export_merchant_enquiries_csv(
+    business_slug: str,
+    status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
+    limit: int = Query(default=500, ge=1, le=1000),
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    enquiries = list_enquiry_records(status=status, business_slug=profile["slug"], limit=limit)
+    filename = f"{profile['slug']}-enquiries.csv"
+    return Response(
+        enquiries_to_csv(enquiries),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.patch("/apps/enquiry/api/merchant/profile")
