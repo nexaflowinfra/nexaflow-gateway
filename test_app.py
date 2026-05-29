@@ -79,15 +79,24 @@ def test_business_profile_create_and_public_form_loads():
     assert create.status_code == 200
     assert create.json()["slug"] == slug
     assert create.json()["form_url"] == f"/apps/enquiry/form/{slug}"
+    assert create.json()["inbox_url"] == f"/apps/enquiry/inbox/{slug}"
+    assert create.json()["business_access_key"].startswith("biz_")
+    assert "access_key_hash" not in create.json()
 
     public_profile = client.get(f"/apps/enquiry/api/business-profiles/{slug}")
     assert public_profile.status_code == 200
     assert public_profile.json()["business_name"] == "Demo Reno"
+    assert "business_access_key" not in public_profile.json()
+    assert "access_key_prefix" not in public_profile.json()
 
     form = client.get(f"/apps/enquiry/form/{slug}")
     assert form.status_code == 200
     assert "Demo Reno" in form.text
     assert slug in form.text
+
+    inbox = client.get(f"/apps/enquiry/inbox/{slug}")
+    assert inbox.status_code == 200
+    assert "loadMerchantInbox" in inbox.text
 
 
 def test_business_profile_requires_admin_key():
@@ -119,8 +128,16 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     body = response.json()
     assert body["intent"] == "quotation"
     assert body["priority"] == "hot"
-    assert "Jamie" in body["reply_draft"]
-    assert body["whatsapp_url"].startswith("https://wa.me/6591234567")
+    assert "reply_draft" not in body
+    assert "whatsapp_url" not in body
+
+    listing = client.get(
+        "/apps/enquiry/api/enquiries",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    saved = next(item for item in listing.json()["enquiries"] if item["id"] == body["id"])
+    assert "Jamie" in saved["reply_draft"]
+    assert saved["whatsapp_url"].startswith("https://wa.me/6591234567")
 
 
 def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
@@ -153,10 +170,17 @@ def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
     assert response.status_code == 200
     body = response.json()
     assert body["business_slug"] == slug
-    assert body["business_type"] == "tuition"
     assert body["intent"] == "booking"
-    assert "Bright Tuition" in body["reply_draft"]
-    assert body["whatsapp_url"].startswith("https://wa.me/6588889999")
+    assert "reply_draft" not in body
+
+    listing = client.get(
+        f"/apps/enquiry/api/enquiries?business_slug={slug}",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    saved = next(item for item in listing.json()["enquiries"] if item["id"] == body["id"])
+    assert saved["business_type"] == "tuition"
+    assert "Bright Tuition" in saved["reply_draft"]
+    assert saved["whatsapp_url"].startswith("https://wa.me/6588889999")
 
 
 def test_enquiry_admin_requires_key_and_can_update_status():
@@ -222,6 +246,112 @@ def test_enquiry_admin_can_filter_by_business_slug():
     assert listing.status_code == 200
     assert listing.json()["stats"]["total"] >= 1
     assert all(item["business_slug"] == slug for item in listing.json()["enquiries"])
+
+
+def test_merchant_key_can_only_access_own_enquiries_and_update_status():
+    suffix = uuid.uuid4().hex[:8]
+    slug_one = f"merchant-one-{suffix}"
+    slug_two = f"merchant-two-{suffix}"
+    profile_one = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_one,
+            "business_name": "Merchant One",
+            "business_type": "retail",
+            "whatsapp_phone": "6591110000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    profile_two = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_two,
+            "business_name": "Merchant Two",
+            "business_type": "beauty",
+            "whatsapp_phone": "6592220000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile_one.status_code == 200
+    assert profile_two.status_code == 200
+    business_key = profile_one.json()["business_access_key"]
+
+    lead_one = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug_one,
+            "name": "Own Lead",
+            "phone": "6591112222",
+            "message": "Need price quote",
+        },
+    )
+    lead_two = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug_two,
+            "name": "Other Lead",
+            "phone": "6593334444",
+            "message": "Need booking",
+        },
+    )
+    assert lead_one.status_code == 200
+    assert lead_two.status_code == 200
+
+    own_listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert own_listing.status_code == 200
+    assert own_listing.json()["stats"]["total"] >= 1
+    assert all(item["business_slug"] == slug_one for item in own_listing.json()["enquiries"])
+
+    blocked_listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug_two}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked_listing.status_code == 403
+
+    own_update = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{lead_one.json()['id']}?business_slug={slug_one}",
+        json={"status": "quoted"},
+        headers={"X-Business-Key": business_key},
+    )
+    assert own_update.status_code == 200
+    assert own_update.json()["status"] == "quoted"
+
+    blocked_update = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{lead_two.json()['id']}?business_slug={slug_one}",
+        json={"status": "won"},
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked_update.status_code == 404
+
+
+def test_public_enquiry_rate_limit_blocks_repeated_spam():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"rate-{suffix}"
+    assert client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Rate Limited",
+            "business_type": "repair",
+            "whatsapp_phone": "6594440000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    ).status_code == 200
+
+    payload = {
+        "business_slug": slug,
+        "name": "Repeat Lead",
+        "phone": "6595550000",
+        "message": "Need repair quote",
+    }
+    for _ in range(10):
+        assert client.post("/apps/enquiry/api/enquiries", json=payload).status_code == 200
+
+    blocked = client.post("/apps/enquiry/api/enquiries", json=payload)
+    assert blocked.status_code == 429
 
 
 def test_legal_pages_load_and_are_linked():

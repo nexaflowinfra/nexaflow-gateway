@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from hashlib import sha256
+from html import escape as escape_html
 from math import ceil
 from pathlib import Path
 from time import time
@@ -119,6 +120,7 @@ CREDIT_UNIT_TOKENS = 1000
 OUTPUT_TOKEN_WEIGHT = 4
 
 request_windows = {}
+enquiry_windows = {}
 backup_scheduler_state = {
     "enabled": AUTO_BACKUP_ENABLED,
     "interval_seconds": AUTO_BACKUP_INTERVAL_SECONDS,
@@ -217,6 +219,7 @@ class BusinessProfileRequest(BaseModel):
     reply_tone: str = Field(default="friendly and professional", max_length=120)
     opening_hours: str = Field(default="", max_length=200)
     status: str = Field(default="active", pattern="^(active|paused)$")
+    rotate_access_key: bool = False
 
 
 class EnquiryStatusUpdate(BaseModel):
@@ -694,11 +697,15 @@ def init_db():
                 reply_tone TEXT,
                 opening_hours TEXT,
                 status TEXT NOT NULL DEFAULT 'active',
+                access_key_hash TEXT,
+                access_key_prefix TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
             """
         )
+        ensure_column(connection, "business_profiles", "access_key_hash", "TEXT")
+        ensure_column(connection, "business_profiles", "access_key_prefix", "TEXT")
 
 
 def migration_applied(connection, name):
@@ -916,6 +923,10 @@ def api_key_digest(api_key):
 
 def generate_api_key():
     return f"nf_{secrets.token_urlsafe(32)}"
+
+
+def generate_business_access_key():
+    return f"biz_{secrets.token_urlsafe(32)}"
 
 
 def generate_client_id(email):
@@ -2091,7 +2102,9 @@ def row_to_business_profile(row):
         "reply_tone": row["reply_tone"] or "friendly and professional",
         "opening_hours": row["opening_hours"] or "",
         "status": row["status"],
+        "access_key_prefix": row["access_key_prefix"],
         "form_url": f"/apps/enquiry/form/{row['slug']}",
+        "inbox_url": f"/apps/enquiry/inbox/{row['slug']}",
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -2108,7 +2121,9 @@ def default_enquiry_profile():
         "reply_tone": "friendly and professional",
         "opening_hours": "",
         "status": "active",
+        "access_key_prefix": None,
         "form_url": "/apps/enquiry/form/demo",
+        "inbox_url": "/apps/enquiry/inbox/demo",
         "created_at": None,
         "updated_at": None,
     }
@@ -2143,18 +2158,26 @@ def list_business_profiles():
 def upsert_business_profile(req):
     slug = normalize_slug(req.slug)
     timestamp = now_iso()
+    raw_access_key = None
     with db_connection() as connection:
         existing = connection.execute(
-            "SELECT created_at FROM business_profiles WHERE slug = ?",
+            "SELECT created_at, access_key_hash, access_key_prefix FROM business_profiles WHERE slug = ?",
             (slug,),
         ).fetchone()
         created_at = existing["created_at"] if existing else timestamp
+        access_key_hash = existing["access_key_hash"] if existing else None
+        access_key_prefix = existing["access_key_prefix"] if existing else None
+        if not access_key_hash or req.rotate_access_key:
+            raw_access_key = generate_business_access_key()
+            access_key_hash = api_key_digest(raw_access_key)
+            access_key_prefix = raw_access_key[:12]
         connection.execute(
             """
             INSERT OR REPLACE INTO business_profiles (
                 slug, business_name, business_type, whatsapp_phone, contact_email,
-                offer_summary, reply_tone, opening_hours, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                offer_summary, reply_tone, opening_hours, status, access_key_hash,
+                access_key_prefix, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 slug,
@@ -2166,6 +2189,8 @@ def upsert_business_profile(req):
                 req.reply_tone.strip() or "friendly and professional",
                 req.opening_hours.strip(),
                 req.status,
+                access_key_hash,
+                access_key_prefix,
                 created_at,
                 timestamp,
             ),
@@ -2175,7 +2200,49 @@ def upsert_business_profile(req):
             (slug,),
         ).fetchone()
 
-    return row_to_business_profile(row)
+    profile = row_to_business_profile(row)
+    if raw_access_key:
+        profile["business_access_key"] = raw_access_key
+    return profile
+
+
+def extract_bearer_token(authorization):
+    if not authorization:
+        return None
+    prefix = "Bearer "
+    if authorization.startswith(prefix):
+        return authorization[len(prefix):].strip()
+    return None
+
+
+def get_business_profile_for_access_key(access_key):
+    if not access_key:
+        raise HTTPException(status_code=401, detail="Business access key required")
+    digest = api_key_digest(access_key)
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM business_profiles WHERE access_key_hash = ?",
+            (digest,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid business access key")
+    profile = row_to_business_profile(row)
+    if profile["status"] != "active":
+        raise HTTPException(status_code=403, detail="Business profile is paused")
+    return profile
+
+
+def business_guard(
+    business_slug,
+    business_key=None,
+    x_business_key=None,
+    authorization=None,
+):
+    supplied = x_business_key or business_key or extract_bearer_token(authorization)
+    profile = get_business_profile_for_access_key(supplied)
+    if normalize_slug(business_slug) != profile["slug"]:
+        raise HTTPException(status_code=403, detail="Business key cannot access this inbox")
+    return profile
 
 
 def classify_enquiry(message):
@@ -2244,6 +2311,21 @@ def whatsapp_reply_url(phone, reply_draft):
     return f"https://wa.me/{digits}?text={quote(reply_draft)}"
 
 
+def enforce_enquiry_rate_limit(business_slug, phone, limit=10, window_seconds=3600):
+    identity = normalize_phone_for_whatsapp(phone) or "unknown"
+    key = f"{business_slug}:{identity}"
+    current_time = time()
+    window_start = current_time - window_seconds
+    timestamps = [ts for ts in enquiry_windows.get(key, []) if ts >= window_start]
+    if len(timestamps) >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many enquiries submitted. Please try again later.",
+        )
+    timestamps.append(current_time)
+    enquiry_windows[key] = timestamps
+
+
 def row_to_enquiry(row):
     return {
         "id": row["id"],
@@ -2265,10 +2347,22 @@ def row_to_enquiry(row):
     }
 
 
+def public_enquiry_response(enquiry):
+    return {
+        "id": enquiry["id"],
+        "business_slug": enquiry["business_slug"],
+        "intent": enquiry["intent"],
+        "priority": enquiry["priority"],
+        "status": enquiry["status"],
+        "created_at": enquiry["created_at"],
+    }
+
+
 def create_enquiry_record(req):
     profile = get_business_profile(req.business_slug) if req.business_slug else default_enquiry_profile()
     if profile["status"] != "active":
         raise HTTPException(status_code=403, detail="This enquiry form is not accepting new enquiries.")
+    enforce_enquiry_rate_limit(profile["slug"], req.phone)
 
     classification = classify_enquiry(req.message)
     business_type = profile.get("business_type") or req.business_type
@@ -3180,13 +3274,14 @@ def base_html(title, body):
                     vertical-align: top;
                 }}
                 th {{ color: var(--muted); font-weight: 700; }}
-                input, select {{
+                input, select, textarea {{
                     width: 100%;
                     border: 1px solid var(--line);
                     border-radius: 6px;
                     padding: 10px;
                     font: inherit;
                 }}
+                textarea {{ min-height: 110px; resize: vertical; }}
                 label {{
                     display: grid;
                     gap: 6px;
@@ -3664,12 +3759,17 @@ def enquiry_app_page():
 @app.get("/apps/enquiry/form/{business_slug}", response_class=HTMLResponse)
 def public_enquiry_form_page(business_slug: str):
     profile = get_business_profile(business_slug)
+    business_name = escape_html(profile["business_name"])
+    offer_summary = escape_html(profile["offer_summary"] or "Send an enquiry and the team will follow up.")
+    opening_hours = escape_html(profile["opening_hours"] or "Submit your enquiry below.")
+    slug = escape_html(profile["slug"])
+    business_type = escape_html(profile["business_type"])
     return base_html(
-        f"{profile['business_name']} Enquiry Form",
+        f"{business_name} Enquiry Form",
         f"""
-        <h1>{profile['business_name']}</h1>
-        <p>{profile['offer_summary'] or 'Send an enquiry and the team will follow up.'}</p>
-        <div class="status">{profile['opening_hours'] or 'Submit your enquiry below.'}</div>
+        <h1>{business_name}</h1>
+        <p>{offer_summary}</p>
+        <div class="status">{opening_hours}</div>
         <h2>Send Enquiry</h2>
         <div class="toolbar">
             <label>Name<input id="leadName" autocomplete="name"></label>
@@ -3697,11 +3797,11 @@ def public_enquiry_form_page(business_slug: str):
                         method: "POST",
                         headers: {{ "Content-Type": "application/json" }},
                         body: JSON.stringify({{
-                            business_slug: "{profile['slug']}",
+                            business_slug: "{slug}",
                             name: document.getElementById("leadName").value,
                             phone: document.getElementById("leadPhone").value,
                             email: document.getElementById("leadEmail").value,
-                            business_type: "{profile['business_type']}",
+                            business_type: "{business_type}",
                             message: document.getElementById("leadMessage").value,
                             source: "public-form"
                         }})
@@ -3711,6 +3811,99 @@ def public_enquiry_form_page(business_slug: str):
                     }}
                     const result = await response.json();
                     status.innerHTML = `Enquiry sent. Reference #${{result.id}}. Priority: ${{escapeHtml(result.priority)}}`;
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+        </script>
+        """
+    )
+
+
+@app.get("/apps/enquiry/inbox/{business_slug}", response_class=HTMLResponse)
+def merchant_enquiry_inbox_page(business_slug: str):
+    profile = get_business_profile(business_slug)
+    business_name = escape_html(profile["business_name"])
+    slug = escape_html(profile["slug"])
+    return base_html(
+        f"{business_name} Inbox",
+        f"""
+        <h1>{business_name} Inbox</h1>
+        <p>Review leads, reply drafts, and WhatsApp follow-up links for this business only.</p>
+        <div class="toolbar">
+            <label>Business access key<input id="businessKey" type="password" placeholder="biz_..."></label>
+            <button class="btn" onclick="loadMerchantInbox()">Refresh</button>
+        </div>
+        <div class="status" id="merchantStatus">Enter your business access key to load your enquiry inbox.</div>
+        <section class="grid" id="merchantStats"></section>
+        <table>
+            <thead>
+                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody id="merchantRows"></tbody>
+        </table>
+        <script>
+            const businessSlug = "{slug}";
+            function escapeHtml(value) {{
+                return String(value ?? "").replace(/[&<>"']/g, char => ({{
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }}[char]));
+            }}
+            async function merchantApi(path, options = {{}}) {{
+                const businessKey = document.getElementById("businessKey").value;
+                const headers = {{ "X-Business-Key": businessKey, ...(options.headers || {{}}) }};
+                const response = await fetch(path, {{ ...options, headers }});
+                if (!response.ok) {{
+                    throw new Error(await response.text());
+                }}
+                return response.json();
+            }}
+            async function setMerchantStatus(id, status) {{
+                try {{
+                    await merchantApi(`/apps/enquiry/api/merchant/enquiries/${{id}}?business_slug=${{businessSlug}}`, {{
+                        method: "PATCH",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{ status }})
+                    }});
+                    await loadMerchantInbox();
+                }} catch (error) {{
+                    document.getElementById("merchantStatus").textContent = error.message;
+                }}
+            }}
+            async function loadMerchantInbox() {{
+                const status = document.getElementById("merchantStatus");
+                status.textContent = "Loading enquiries...";
+                try {{
+                    const data = await merchantApi(`/apps/enquiry/api/merchant/enquiries?business_slug=${{businessSlug}}&limit=100`);
+                    const stats = data.stats || {{}};
+                    document.getElementById("merchantStats").innerHTML = `
+                        <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
+                        <section class="card"><h3>Hot</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
+                        <section class="card"><h3>Won</h3><div class="price">${{(stats.by_status || {{}}).won || 0}}</div></section>
+                    `;
+                    document.getElementById("merchantRows").innerHTML = data.enquiries.map(item => `
+                        <tr>
+                            <td>${{escapeHtml(item.created_at)}}</td>
+                            <td>${{escapeHtml(item.name)}}<br>${{escapeHtml(item.phone)}}<br>${{escapeHtml(item.email || "")}}</td>
+                            <td>${{escapeHtml(item.intent)}}</td>
+                            <td>${{escapeHtml(item.priority)}}</td>
+                            <td>${{escapeHtml(item.message)}}</td>
+                            <td>${{escapeHtml(item.reply_draft)}}</td>
+                            <td>${{escapeHtml(item.status)}}</td>
+                            <td>
+                                ${{item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${{escapeHtml(item.whatsapp_url)}}">WhatsApp</a>` : ""}}
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">Contacted</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">Quoted</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">Won</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'lost')">Lost</button>
+                            </td>
+                        </tr>
+                    `).join("");
+                    status.textContent = "Loaded.";
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -3741,9 +3934,10 @@ def enquiry_admin_page():
             <button class="btn" onclick="saveProfile()">Save Profile</button>
             <button class="btn secondary" onclick="loadProfiles()">Load Profiles</button>
         </div>
+        <label><input id="rotateAccessKey" type="checkbox"> Generate a new business access key</label>
         <div class="status" id="profileStatus">Create a business profile to get a dedicated public enquiry link.</div>
         <table>
-            <thead><tr><th>Business</th><th>Slug</th><th>Type</th><th>Status</th><th>Form</th></tr></thead>
+            <thead><tr><th>Business</th><th>Slug</th><th>Type</th><th>Status</th><th>Key Prefix</th><th>Links</th></tr></thead>
             <tbody id="profileRows"></tbody>
         </table>
         <h2>Inbox</h2>
@@ -3793,10 +3987,15 @@ def enquiry_admin_page():
                             offer_summary: document.getElementById("offerSummary").value,
                             reply_tone: "friendly and professional",
                             opening_hours: "Mon-Sat, 9am-6pm",
-                            status: "active"
+                            status: "active",
+                            rotate_access_key: document.getElementById("rotateAccessKey").checked
                         })
                     });
-                    status.innerHTML = `Saved ${escapeHtml(profile.business_name)}. Public form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a>`;
+                    const keyMessage = profile.business_access_key
+                        ? `<br>Business access key: <strong>${escapeHtml(profile.business_access_key)}</strong><br>Store it now. It will not be shown again.`
+                        : "";
+                    status.innerHTML = `Saved ${escapeHtml(profile.business_name)}. Public form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a>. Inbox: <a href="${escapeHtml(profile.inbox_url)}" target="_blank">${escapeHtml(profile.inbox_url)}</a>${keyMessage}`;
+                    document.getElementById("rotateAccessKey").checked = false;
                     await loadProfiles();
                 } catch (error) {
                     status.textContent = error.message;
@@ -3812,7 +4011,11 @@ def enquiry_admin_page():
                             <td>${escapeHtml(profile.slug)}</td>
                             <td>${escapeHtml(profile.business_type)}</td>
                             <td>${escapeHtml(profile.status)}</td>
-                            <td><a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Open Form</a></td>
+                            <td>${escapeHtml(profile.access_key_prefix || "not set")}</td>
+                            <td>
+                                <a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Form</a>
+                                <a class="btn secondary" href="${escapeHtml(profile.inbox_url)}" target="_blank">Inbox</a>
+                            </td>
                         </tr>
                     `).join("");
                     status.textContent = `Loaded ${data.profiles.length} profiles.`;
@@ -4765,7 +4968,7 @@ def admin_action_items(admin_key: str | None = None, x_admin_key: str | None = H
 
 @app.post("/apps/enquiry/api/enquiries")
 def create_enquiry(req: EnquiryCreateRequest):
-    return create_enquiry_record(req)
+    return public_enquiry_response(create_enquiry_record(req))
 
 
 @app.post("/apps/enquiry/api/business-profiles")
@@ -4819,6 +5022,31 @@ def list_enquiries(
     }
 
 
+@app.get("/apps/enquiry/api/merchant/enquiries")
+def list_merchant_enquiries(
+    business_slug: str,
+    status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
+    limit: int = Query(default=50, ge=1, le=200),
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return {
+        "business": {
+            "slug": profile["slug"],
+            "business_name": profile["business_name"],
+        },
+        "stats": enquiry_stats(business_slug=profile["slug"]),
+        "enquiries": list_enquiry_records(status=status, business_slug=profile["slug"], limit=limit),
+    }
+
+
 @app.patch("/apps/enquiry/api/enquiries/{enquiry_id}")
 def update_enquiry_status(
     enquiry_id: int,
@@ -4833,6 +5061,41 @@ def update_enquiry_status(
             (enquiry_id,),
         ).fetchone()
         if not row:
+            raise HTTPException(status_code=404, detail="Enquiry not found")
+
+        connection.execute(
+            "UPDATE enquiries SET status = ?, updated_at = ? WHERE id = ?",
+            (req.status, now_iso(), enquiry_id),
+        )
+        updated = connection.execute(
+            "SELECT * FROM enquiries WHERE id = ?",
+            (enquiry_id,),
+        ).fetchone()
+
+    return row_to_enquiry(updated)
+
+
+@app.patch("/apps/enquiry/api/merchant/enquiries/{enquiry_id}")
+def update_merchant_enquiry_status(
+    enquiry_id: int,
+    req: EnquiryStatusUpdate,
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM enquiries WHERE id = ?",
+            (enquiry_id,),
+        ).fetchone()
+        if not row or row["business_slug"] != profile["slug"]:
             raise HTTPException(status_code=404, detail="Enquiry not found")
 
         connection.execute(
