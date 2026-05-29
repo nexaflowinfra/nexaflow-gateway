@@ -109,6 +109,8 @@ def test_admin_dashboard_loads():
     assert "Test Offsite" in response.text
     assert "Revenue Report" in response.text
     assert "/admin/revenue-report" in response.text
+    assert "Action Items" in response.text
+    assert "/admin/action-items" in response.text
 
 
 def test_customer_portal_loads():
@@ -137,6 +139,11 @@ def test_admin_revenue_report_requires_key():
     assert response.status_code == 401
 
 
+def test_admin_action_items_requires_key():
+    response = client.get("/admin/action-items")
+    assert response.status_code == 401
+
+
 def test_admin_revenue_report_summarizes_mrr_and_risk():
     suffix = uuid.uuid4().hex[:8]
     client_id = f"report_customer_{suffix}"
@@ -159,6 +166,55 @@ def test_admin_revenue_report_summarizes_mrr_and_risk():
     assert report["mrr"]["active_customers"] >= 1
     assert any(item["client_id"] == client_id for item in report["risk"]["low_credit_clients"])
     assert "month_to_date" in report["usage"]
+
+
+def test_admin_action_items_flags_low_credit_customer():
+    suffix = uuid.uuid4().hex[:8]
+    client_id = f"action_low_credit_{suffix}"
+    create = client.post(
+        "/admin/clients",
+        json={
+            "client_id": client_id,
+            "plan": "starter",
+            "credits": 50,
+            "billing_email": f"action-low-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+
+    response = client.get("/admin/action-items", headers={"X-Admin-Key": "test-admin"})
+    assert response.status_code == 200
+    assert response.json()["counts"]["total"] >= 1
+    assert any(
+        item["category"] == "credits" and item["client_id"] == client_id
+        for item in response.json()["items"]
+    )
+
+
+def test_admin_action_items_flags_pending_delivery_notification():
+    suffix = uuid.uuid4().hex[:8]
+    client_id = f"action_notify_{suffix}"
+    create = client.post(
+        "/admin/clients",
+        json={
+            "client_id": client_id,
+            "plan": "starter",
+            "credits": 50,
+            "billing_email": f"action-notify-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+    clients = main.load_clients()
+    assert main.maybe_send_low_credit_notice(client_id, clients[client_id])["status"] == "pending_email_setup"
+
+    response = client.get("/admin/action-items", headers={"X-Admin-Key": "test-admin"})
+    assert response.status_code == 200
+    assert any(
+        item["category"] == "notification" and item["client_id"] == client_id
+        for item in response.json()["items"]
+    )
 
 
 def test_customer_api_requires_key():

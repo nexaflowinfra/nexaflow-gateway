@@ -1829,6 +1829,141 @@ def admin_revenue_report_data():
     }
 
 
+def delivery_needs_attention(status):
+    return status not in {None, "", "sent", "not_required", "not_needed", "already_sent"}
+
+
+def action_item(item_id, severity, category, title, detail, client_id=None, action=None):
+    return {
+        "id": item_id,
+        "severity": severity,
+        "category": category,
+        "title": title,
+        "detail": detail,
+        "client_id": client_id,
+        "action": action,
+    }
+
+
+def admin_action_items_data():
+    report = admin_revenue_report_data()
+    items = []
+
+    for event in list_payment_events_from_db(limit=100):
+        if delivery_needs_attention(event.get("delivery_status")):
+            items.append(
+                action_item(
+                    f"payment-event:{event['event_id']}",
+                    "high",
+                    "fulfillment",
+                    "Payment processed but delivery needs attention",
+                    f"{event.get('event_type')} for {event.get('billing_email') or event.get('client_id')} has delivery status {event.get('delivery_status')}.",
+                    event.get("client_id"),
+                    "Rotate and resend API key from the admin client table.",
+                )
+            )
+
+    with db_connection() as connection:
+        notification_rows = connection.execute(
+            "SELECT * FROM client_notifications ORDER BY created_at DESC LIMIT 100"
+        ).fetchall()
+
+    for notification in [row_to_client_notification(row) for row in notification_rows]:
+        if delivery_needs_attention(notification.get("delivery_status")):
+            items.append(
+                action_item(
+                    f"notification:{notification['id']}",
+                    "medium",
+                    "notification",
+                    "Customer notification needs attention",
+                    f"{notification.get('notification_type')} for {notification.get('client_id')} has delivery status {notification.get('delivery_status')}.",
+                    notification.get("client_id"),
+                    "Check Resend configuration or contact the customer directly.",
+                )
+            )
+
+    for client in report["risk"]["low_credit_clients"]:
+        items.append(
+            action_item(
+                f"low-credit:{client['client_id']}",
+                "medium",
+                "credits",
+                "Customer credits are low",
+                f"{client['client_id']} has {client['credits']} credits remaining; threshold is {client['threshold']}.",
+                client["client_id"],
+                "Confirm the low-credit email was delivered or offer an upgrade/top-up.",
+            )
+        )
+
+    for client in report["risk"]["high_usage_clients"]:
+        items.append(
+            action_item(
+                f"high-usage:{client['client_id']}",
+                "high",
+                "usage",
+                "Customer is close to daily guardrail",
+                f"{client['client_id']} used {client['daily_usage']['credits_spent']} credits and {client['daily_usage']['requests']} requests today.",
+                client["client_id"],
+                "Review usage pattern and consider upgrade, custom limits, or abuse review.",
+            )
+        )
+
+    for client in report["risk"]["negative_margin_clients"]:
+        items.append(
+            action_item(
+                f"negative-margin:{client['client_id']}",
+                "critical",
+                "margin",
+                "Customer has negative gross margin",
+                f"{client['client_id']} has gross margin {client['gross_margin_usd']:.6f} USD.",
+                client["client_id"],
+                "Review model route, pricing, and plan limits before scaling this customer.",
+            )
+        )
+
+    for client in report["risk"]["paused_or_cancelled_clients"]:
+        items.append(
+            action_item(
+                f"account-status:{client['client_id']}",
+                "medium",
+                "account",
+                "Customer account is not active",
+                f"{client['client_id']} is {client['status']} with subscription status {client.get('subscription_status') or 'unknown'}.",
+                client["client_id"],
+                "Check Stripe status and decide whether to restore, follow up, or leave disabled.",
+            )
+        )
+
+    failed_checks = [check for check in deployment_check_items() if not check["ok"]]
+    for check in failed_checks:
+        items.append(
+            action_item(
+                f"deploy-check:{check['name']}",
+                "critical",
+                "readiness",
+                f"Readiness check failed: {check['name']}",
+                check["detail"],
+                None,
+                "Fix the production configuration before public traffic increases.",
+            )
+        )
+
+    severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    items = sorted(items, key=lambda item: (severity_order.get(item["severity"], 9), item["category"], item["id"]))
+
+    return {
+        "generated_at": now_iso(),
+        "counts": {
+            "total": len(items),
+            "critical": sum(1 for item in items if item["severity"] == "critical"),
+            "high": sum(1 for item in items if item["severity"] == "high"),
+            "medium": sum(1 for item in items if item["severity"] == "medium"),
+            "low": sum(1 for item in items if item["severity"] == "low"),
+        },
+        "items": items,
+    }
+
+
 def row_to_payment_event(row):
     response = json.loads(row["response_json"]) if row["response_json"] else None
     return {
@@ -3201,6 +3336,14 @@ def admin_dashboard():
         </section>
         <h2>Revenue Report</h2>
         <div class="status" id="revenueReport">Revenue report will appear here.</div>
+        <h2>Action Items</h2>
+        <div class="status" id="actionItemSummary">Action items will appear here.</div>
+        <table>
+            <thead>
+                <tr><th>Severity</th><th>Category</th><th>Client</th><th>Issue</th><th>Action</th></tr>
+            </thead>
+            <tbody id="actionItems"></tbody>
+        </table>
         <h2>Clients</h2>
         <div class="status" id="status">Enter the admin key and refresh.</div>
         <table>
@@ -3325,10 +3468,11 @@ def admin_dashboard():
                 const status = document.getElementById("status");
                 status.textContent = "Loading...";
                 try {
-                    const [clients, stats, report, events, notifications, checks, backups] = await Promise.all([
+                    const [clients, stats, report, actions, events, notifications, checks, backups] = await Promise.all([
                         api("/admin/clients", adminKey),
                         api("/admin/usage-stats", adminKey),
                         api("/admin/revenue-report", adminKey),
+                        api("/admin/action-items", adminKey),
                         api("/admin/payment-events?limit=12", adminKey),
                         api("/admin/notifications?limit=12", adminKey),
                         api("/admin/deploy-check", adminKey),
@@ -3362,6 +3506,22 @@ def admin_dashboard():
                         `Negative margin customers: ${report.risk.negative_margin_clients.length}`,
                         `Paused/cancelled customers: ${report.risk.paused_or_cancelled_clients.length}`
                     ].join("\\n");
+                    document.getElementById("actionItemSummary").textContent = [
+                        `Total: ${actions.counts.total}`,
+                        `Critical: ${actions.counts.critical}`,
+                        `High: ${actions.counts.high}`,
+                        `Medium: ${actions.counts.medium}`,
+                        `Low: ${actions.counts.low}`
+                    ].join("\\n");
+                    document.getElementById("actionItems").innerHTML = actions.items.map(item => `
+                        <tr>
+                            <td>${escapeHtml(item.severity)}</td>
+                            <td>${escapeHtml(item.category)}</td>
+                            <td>${escapeHtml(item.client_id || "")}</td>
+                            <td><strong>${escapeHtml(item.title)}</strong><br>${escapeHtml(item.detail)}</td>
+                            <td>${escapeHtml(item.action || "")}</td>
+                        </tr>
+                    `).join("");
                     document.getElementById("clients").innerHTML = clients.clients.map(client => `
                         <tr>
                             <td>${client.client_id}</td>
@@ -3818,6 +3978,12 @@ def usage_stats(admin_key: str | None = None, x_admin_key: str | None = Header(d
 def admin_revenue_report(admin_key: str | None = None, x_admin_key: str | None = Header(default=None)):
     admin_guard(admin_key, x_admin_key)
     return admin_revenue_report_data()
+
+
+@app.get("/admin/action-items")
+def admin_action_items(admin_key: str | None = None, x_admin_key: str | None = Header(default=None)):
+    admin_guard(admin_key, x_admin_key)
+    return admin_action_items_data()
 
 
 @app.get("/client-info")
