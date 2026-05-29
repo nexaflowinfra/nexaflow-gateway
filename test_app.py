@@ -120,6 +120,7 @@ def test_business_profile_create_and_public_form_loads():
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
     assert "saveMerchantNote" in inbox.text
+    assert "Pipeline Value" in inbox.text
     assert "/admin/dashboard" not in inbox.text
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
@@ -447,12 +448,18 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
 
     note_update = client.patch(
         f"/apps/enquiry/api/merchant/enquiries/{lead_one.json()['id']}?business_slug={slug_one}",
-        json={"internal_note": "Quoted 800, follow up on Friday."},
+        json={
+            "internal_note": "Quoted 800, follow up on Friday.",
+            "follow_up_at": "Friday 3pm",
+            "deal_value": 800,
+        },
         headers={"X-Business-Key": business_key},
     )
     assert note_update.status_code == 200
     assert note_update.json()["status"] == "quoted"
     assert note_update.json()["internal_note"] == "Quoted 800, follow up on Friday."
+    assert note_update.json()["follow_up_at"] == "Friday 3pm"
+    assert note_update.json()["deal_value"] == 800
 
     blocked_update = client.patch(
         f"/apps/enquiry/api/merchant/enquiries/{lead_two.json()['id']}?business_slug={slug_one}",
@@ -460,6 +467,13 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
         headers={"X-Business-Key": business_key},
     )
     assert blocked_update.status_code == 404
+
+    updated_listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert updated_listing.status_code == 200
+    assert updated_listing.json()["stats"]["pipeline_value"] >= 800
 
 
 def test_merchant_can_update_own_business_settings_only():
@@ -579,7 +593,11 @@ def test_merchant_can_export_own_enquiries_csv_only():
     assert lead.status_code == 200
     note = client.patch(
         f"/apps/enquiry/api/merchant/enquiries/{lead.json()['id']}?business_slug={slug_one}",
-        json={"internal_note": "Export this note for the sales team."},
+        json={
+            "internal_note": "Export this note for the sales team.",
+            "follow_up_at": "Tomorrow morning",
+            "deal_value": 1200.50,
+        },
         headers={"X-Business-Key": business_key},
     )
     assert note.status_code == 200
@@ -606,6 +624,8 @@ def test_merchant_can_export_own_enquiries_csv_only():
     assert "csv@example.com" in exported.text
     assert "Need urgent quotation for repair" in exported.text
     assert "Export this note for the sales team." in exported.text
+    assert "Tomorrow morning" in exported.text
+    assert "1200.5" in exported.text
 
 
 def test_public_enquiry_rate_limit_blocks_repeated_spam():

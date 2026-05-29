@@ -241,6 +241,8 @@ class EnquiryStatusUpdate(BaseModel):
 class MerchantEnquiryUpdate(BaseModel):
     status: str | None = Field(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$")
     internal_note: str | None = Field(default=None, max_length=1000)
+    follow_up_at: str | None = Field(default=None, max_length=80)
+    deal_value: float | None = Field(default=None, ge=0, le=1000000000)
 
 
 def now_iso():
@@ -698,6 +700,8 @@ def init_db():
                 merchant_notification_status TEXT,
                 merchant_notification_error TEXT,
                 internal_note TEXT,
+                follow_up_at TEXT,
+                deal_value REAL,
                 status TEXT NOT NULL DEFAULT 'new',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -708,6 +712,8 @@ def init_db():
         ensure_column(connection, "enquiries", "merchant_notification_status", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_error", "TEXT")
         ensure_column(connection, "enquiries", "internal_note", "TEXT")
+        ensure_column(connection, "enquiries", "follow_up_at", "TEXT")
+        ensure_column(connection, "enquiries", "deal_value", "REAL")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS business_profiles (
@@ -2498,6 +2504,8 @@ def row_to_enquiry(row):
         "merchant_notification_status": row["merchant_notification_status"],
         "merchant_notification_error": row["merchant_notification_error"],
         "internal_note": row["internal_note"] or "",
+        "follow_up_at": row["follow_up_at"] or "",
+        "deal_value": row["deal_value"],
         "status": row["status"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -2661,6 +2669,8 @@ def enquiries_to_csv(enquiries):
         "reply_draft",
         "whatsapp_url",
         "internal_note",
+        "follow_up_at",
+        "deal_value",
         "source",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
@@ -2671,7 +2681,7 @@ def enquiries_to_csv(enquiries):
 
 
 def enquiry_stats(business_slug=None):
-    query = "SELECT status, priority, intent FROM enquiries"
+    query = "SELECT status, priority, intent, deal_value FROM enquiries"
     params = []
     if business_slug:
         query += " WHERE business_slug = ?"
@@ -2684,11 +2694,18 @@ def enquiry_stats(business_slug=None):
         "by_status": {},
         "by_priority": {},
         "by_intent": {},
+        "pipeline_value": 0,
+        "won_value": 0,
     }
     for row in rows:
         stats["by_status"][row["status"]] = stats["by_status"].get(row["status"], 0) + 1
         stats["by_priority"][row["priority"]] = stats["by_priority"].get(row["priority"], 0) + 1
         stats["by_intent"][row["intent"]] = stats["by_intent"].get(row["intent"], 0) + 1
+        value = float(row["deal_value"] or 0)
+        if row["status"] != "lost":
+            stats["pipeline_value"] += value
+        if row["status"] == "won":
+            stats["won_value"] += value
 
     return stats
 
@@ -4591,7 +4608,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <section class="grid" id="merchantStats"></section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Note</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody id="merchantRows"></tbody>
         </table>
@@ -4689,12 +4706,16 @@ def merchant_enquiry_inbox_page(business_slug: str):
             async function saveMerchantNote(id) {{
                 try {{
                     const note = document.getElementById(`note-${{id}}`).value;
+                    const followUpAt = document.getElementById(`follow-up-${{id}}`).value;
+                    const dealValueText = document.getElementById(`deal-value-${{id}}`).value;
+                    const dealValue = dealValueText === "" ? null : Number(dealValueText);
                     await merchantApi(`/apps/enquiry/api/merchant/enquiries/${{id}}?business_slug=${{businessSlug}}`, {{
                         method: "PATCH",
                         headers: {{ "Content-Type": "application/json" }},
-                        body: JSON.stringify({{ internal_note: note }})
+                        body: JSON.stringify({{ internal_note: note, follow_up_at: followUpAt, deal_value: dealValue }})
                     }});
-                    document.getElementById("merchantStatus").textContent = "Note saved.";
+                    document.getElementById("merchantStatus").textContent = "Lead details saved.";
+                    await loadMerchantInbox();
                 }} catch (error) {{
                     document.getElementById("merchantStatus").textContent = error.message;
                 }}
@@ -4709,7 +4730,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     document.getElementById("merchantStats").innerHTML = `
                         <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
                         <section class="card"><h3>Hot</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
-                        <section class="card"><h3>Won</h3><div class="price">${{(stats.by_status || {{}}).won || 0}}</div></section>
+                        <section class="card"><h3>Pipeline Value</h3><div class="price">${{Number(stats.pipeline_value || 0).toLocaleString()}}</div></section>
                     `;
                     document.getElementById("merchantRows").innerHTML = data.enquiries.map(item => `
                         <tr>
@@ -4719,9 +4740,11 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <td>${{escapeHtml(item.priority)}}</td>
                             <td>${{escapeHtml(item.message)}}</td>
                             <td>${{escapeHtml(item.reply_draft)}}</td>
+                            <td><input id="follow-up-${{item.id}}" value="${{escapeHtml(item.follow_up_at || "")}}" placeholder="Tomorrow 3pm"></td>
+                            <td><input id="deal-value-${{item.id}}" type="number" min="0" step="0.01" value="${{item.deal_value ?? ""}}" placeholder="0"></td>
                             <td>
                                 <textarea id="note-${{item.id}}" placeholder="Internal follow-up note">${{escapeHtml(item.internal_note || "")}}</textarea>
-                                <button class="btn secondary" onclick="saveMerchantNote(${{item.id}})">Save Note</button>
+                                <button class="btn secondary" onclick="saveMerchantNote(${{item.id}})">Save Details</button>
                             </td>
                             <td>${{escapeHtml(item.status)}}</td>
                             <td>
@@ -6205,8 +6228,13 @@ def update_merchant_enquiry_status(
     x_business_key: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
 ):
-    if req.status is None and req.internal_note is None:
-        raise HTTPException(status_code=400, detail="Status or internal_note is required")
+    if (
+        req.status is None
+        and req.internal_note is None
+        and req.follow_up_at is None
+        and req.deal_value is None
+    ):
+        raise HTTPException(status_code=400, detail="Status, note, follow-up, or deal value is required")
 
     profile = business_guard(
         business_slug,
@@ -6224,9 +6252,11 @@ def update_merchant_enquiry_status(
 
         next_status = req.status if req.status is not None else row["status"]
         next_note = req.internal_note.strip() if req.internal_note is not None else (row["internal_note"] or "")
+        next_follow_up = req.follow_up_at.strip() if req.follow_up_at is not None else (row["follow_up_at"] or "")
+        next_deal_value = req.deal_value if req.deal_value is not None else row["deal_value"]
         connection.execute(
-            "UPDATE enquiries SET status = ?, internal_note = ?, updated_at = ? WHERE id = ?",
-            (next_status, next_note, now_iso(), enquiry_id),
+            "UPDATE enquiries SET status = ?, internal_note = ?, follow_up_at = ?, deal_value = ?, updated_at = ? WHERE id = ?",
+            (next_status, next_note, next_follow_up, next_deal_value, now_iso(), enquiry_id),
         )
         updated = connection.execute(
             "SELECT * FROM enquiries WHERE id = ?",
