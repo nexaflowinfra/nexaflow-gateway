@@ -238,6 +238,11 @@ class EnquiryStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(new|contacted|quoted|won|lost|spam)$")
 
 
+class MerchantEnquiryUpdate(BaseModel):
+    status: str | None = Field(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$")
+    internal_note: str | None = Field(default=None, max_length=1000)
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -692,6 +697,7 @@ def init_db():
                 whatsapp_url TEXT,
                 merchant_notification_status TEXT,
                 merchant_notification_error TEXT,
+                internal_note TEXT,
                 status TEXT NOT NULL DEFAULT 'new',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -701,6 +707,7 @@ def init_db():
         ensure_column(connection, "enquiries", "business_slug", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_status", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_error", "TEXT")
+        ensure_column(connection, "enquiries", "internal_note", "TEXT")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS business_profiles (
@@ -2490,6 +2497,7 @@ def row_to_enquiry(row):
         "whatsapp_url": row["whatsapp_url"],
         "merchant_notification_status": row["merchant_notification_status"],
         "merchant_notification_error": row["merchant_notification_error"],
+        "internal_note": row["internal_note"] or "",
         "status": row["status"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -2652,6 +2660,7 @@ def enquiries_to_csv(enquiries):
         "message",
         "reply_draft",
         "whatsapp_url",
+        "internal_note",
         "source",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
@@ -4582,7 +4591,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <section class="grid" id="merchantStats"></section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Note</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody id="merchantRows"></tbody>
         </table>
@@ -4677,6 +4686,19 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     document.getElementById("merchantStatus").textContent = error.message;
                 }}
             }}
+            async function saveMerchantNote(id) {{
+                try {{
+                    const note = document.getElementById(`note-${{id}}`).value;
+                    await merchantApi(`/apps/enquiry/api/merchant/enquiries/${{id}}?business_slug=${{businessSlug}}`, {{
+                        method: "PATCH",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{ internal_note: note }})
+                    }});
+                    document.getElementById("merchantStatus").textContent = "Note saved.";
+                }} catch (error) {{
+                    document.getElementById("merchantStatus").textContent = error.message;
+                }}
+            }}
             async function loadMerchantInbox() {{
                 const status = document.getElementById("merchantStatus");
                 status.textContent = "Loading enquiries...";
@@ -4697,6 +4719,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <td>${{escapeHtml(item.priority)}}</td>
                             <td>${{escapeHtml(item.message)}}</td>
                             <td>${{escapeHtml(item.reply_draft)}}</td>
+                            <td>
+                                <textarea id="note-${{item.id}}" placeholder="Internal follow-up note">${{escapeHtml(item.internal_note || "")}}</textarea>
+                                <button class="btn secondary" onclick="saveMerchantNote(${{item.id}})">Save Note</button>
+                            </td>
                             <td>${{escapeHtml(item.status)}}</td>
                             <td>
                                 ${{item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${{escapeHtml(item.whatsapp_url)}}">WhatsApp</a>` : ""}}
@@ -6173,12 +6199,15 @@ def update_enquiry_status(
 @app.patch("/apps/enquiry/api/merchant/enquiries/{enquiry_id}")
 def update_merchant_enquiry_status(
     enquiry_id: int,
-    req: EnquiryStatusUpdate,
+    req: MerchantEnquiryUpdate,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
 ):
+    if req.status is None and req.internal_note is None:
+        raise HTTPException(status_code=400, detail="Status or internal_note is required")
+
     profile = business_guard(
         business_slug,
         business_key=business_key,
@@ -6193,9 +6222,11 @@ def update_merchant_enquiry_status(
         if not row or row["business_slug"] != profile["slug"]:
             raise HTTPException(status_code=404, detail="Enquiry not found")
 
+        next_status = req.status if req.status is not None else row["status"]
+        next_note = req.internal_note.strip() if req.internal_note is not None else (row["internal_note"] or "")
         connection.execute(
-            "UPDATE enquiries SET status = ?, updated_at = ? WHERE id = ?",
-            (req.status, now_iso(), enquiry_id),
+            "UPDATE enquiries SET status = ?, internal_note = ?, updated_at = ? WHERE id = ?",
+            (next_status, next_note, now_iso(), enquiry_id),
         )
         updated = connection.execute(
             "SELECT * FROM enquiries WHERE id = ?",

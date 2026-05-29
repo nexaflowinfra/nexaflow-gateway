@@ -119,6 +119,7 @@ def test_business_profile_create_and_public_form_loads():
     assert "loadMerchantInbox" in inbox.text
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
+    assert "saveMerchantNote" in inbox.text
     assert "/admin/dashboard" not in inbox.text
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
@@ -444,6 +445,15 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
     assert own_update.status_code == 200
     assert own_update.json()["status"] == "quoted"
 
+    note_update = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{lead_one.json()['id']}?business_slug={slug_one}",
+        json={"internal_note": "Quoted 800, follow up on Friday."},
+        headers={"X-Business-Key": business_key},
+    )
+    assert note_update.status_code == 200
+    assert note_update.json()["status"] == "quoted"
+    assert note_update.json()["internal_note"] == "Quoted 800, follow up on Friday."
+
     blocked_update = client.patch(
         f"/apps/enquiry/api/merchant/enquiries/{lead_two.json()['id']}?business_slug={slug_one}",
         json={"status": "won"},
@@ -567,6 +577,12 @@ def test_merchant_can_export_own_enquiries_csv_only():
         },
     )
     assert lead.status_code == 200
+    note = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{lead.json()['id']}?business_slug={slug_one}",
+        json={"internal_note": "Export this note for the sales team."},
+        headers={"X-Business-Key": business_key},
+    )
+    assert note.status_code == 200
 
     missing_key = client.get(
         f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug_one}"
@@ -589,6 +605,7 @@ def test_merchant_can_export_own_enquiries_csv_only():
     assert "CSV Buyer" in exported.text
     assert "csv@example.com" in exported.text
     assert "Need urgent quotation for repair" in exported.text
+    assert "Export this note for the sales team." in exported.text
 
 
 def test_public_enquiry_rate_limit_blocks_repeated_spam():
