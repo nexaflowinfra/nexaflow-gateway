@@ -2206,6 +2206,80 @@ def upsert_business_profile(req):
     return profile
 
 
+def rotate_business_access_key(slug):
+    normalized_slug = normalize_slug(slug)
+    raw_access_key = generate_business_access_key()
+    access_key_hash = api_key_digest(raw_access_key)
+    access_key_prefix = raw_access_key[:12]
+    timestamp = now_iso()
+
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM business_profiles WHERE slug = ?",
+            (normalized_slug,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Business profile not found")
+
+        connection.execute(
+            "UPDATE business_profiles SET access_key_hash = ?, access_key_prefix = ?, updated_at = ? WHERE slug = ?",
+            (access_key_hash, access_key_prefix, timestamp, normalized_slug),
+        )
+        updated = connection.execute(
+            "SELECT * FROM business_profiles WHERE slug = ?",
+            (normalized_slug,),
+        ).fetchone()
+
+    profile = row_to_business_profile(updated)
+    profile["business_access_key"] = raw_access_key
+    return profile
+
+
+def merchant_onboarding_email(profile, access_key):
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    form_url = f"{site_url}{profile['form_url']}"
+    inbox_url = f"{site_url}{profile['inbox_url']}"
+    return f"""Hi {profile['business_name']},
+
+Your NexaFlow Enquiry Inbox is ready.
+
+Customer enquiry form:
+{form_url}
+
+Private merchant inbox:
+{inbox_url}
+
+Business access key:
+{access_key}
+
+How to use it:
+1. Share the customer enquiry form with customers or place it on your website.
+2. Open the merchant inbox when you want to review leads.
+3. Paste the business access key into the inbox to load your leads.
+4. Use the WhatsApp follow-up link and mark each lead as contacted, quoted, won, or lost.
+
+Keep this access key private. If it is exposed or lost, ask the NexaFlow operator to rotate it.
+"""
+
+
+def send_business_onboarding(slug):
+    profile = rotate_business_access_key(slug)
+    if not profile.get("contact_email"):
+        raise HTTPException(status_code=400, detail="Business profile is missing contact_email.")
+
+    delivery = send_resend_email(
+        profile["contact_email"],
+        f"{profile['business_name']} NexaFlow Enquiry Inbox is ready",
+        merchant_onboarding_email(profile, profile["business_access_key"]),
+    )
+    return {
+        "profile": {key: value for key, value in profile.items() if key != "business_access_key"},
+        "delivery": delivery,
+        "rotated": True,
+        "message": "A new business access key was generated and sent to the merchant contact email.",
+    }
+
+
 def extract_bearer_token(authorization):
     if not authorization:
         return None
@@ -4292,6 +4366,7 @@ def enquiry_admin_page():
                 <label>Slug<input id="profileSlug" value="demo-renovation"></label>
                 <label>Business Name<input id="businessName" value="Demo Renovation"></label>
                 <label>Type<input id="businessType" value="renovation"></label>
+                <label>Contact Email<input id="businessEmail" value="merchant@example.com"></label>
                 <label>WhatsApp Phone<input id="businessWhatsapp" value="6591234567"></label>
                 <label>Offer Summary<input id="offerSummary" value="renovation quotation and consultation"></label>
                 <label><input id="rotateAccessKey" type="checkbox"> Generate a new business access key</label>
@@ -4359,6 +4434,7 @@ def enquiry_admin_page():
                             slug: document.getElementById("profileSlug").value,
                             business_name: document.getElementById("businessName").value,
                             business_type: document.getElementById("businessType").value,
+                            contact_email: document.getElementById("businessEmail").value,
                             whatsapp_phone: document.getElementById("businessWhatsapp").value,
                             offer_summary: document.getElementById("offerSummary").value,
                             reply_tone: "friendly and professional",
@@ -4372,6 +4448,19 @@ def enquiry_admin_page():
                         : "";
                     status.innerHTML = `Saved ${escapeHtml(profile.business_name)}. Public form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a>. Inbox: <a href="${escapeHtml(profile.inbox_url)}" target="_blank">${escapeHtml(profile.inbox_url)}</a>${keyMessage}`;
                     document.getElementById("rotateAccessKey").checked = false;
+                    await loadProfiles();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+            async function sendOnboarding(slug) {
+                const status = document.getElementById("profileStatus");
+                status.textContent = "Sending onboarding email...";
+                try {
+                    const result = await adminApi(`/apps/enquiry/api/business-profiles/${slug}/send-onboarding`, {
+                        method: "POST"
+                    });
+                    status.textContent = `Onboarding email ${result.delivery.status}. A new business access key was generated for ${result.profile.business_name}.`;
                     await loadProfiles();
                 } catch (error) {
                     status.textContent = error.message;
@@ -4391,6 +4480,7 @@ def enquiry_admin_page():
                             <td>
                                 <a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Form</a>
                                 <a class="btn secondary" href="${escapeHtml(profile.inbox_url)}" target="_blank">Inbox</a>
+                                <button class="btn secondary" onclick="sendOnboarding('${escapeHtml(profile.slug)}')">Send Email</button>
                             </td>
                         </tr>
                     `).join("");
@@ -5366,6 +5456,16 @@ def get_business_profiles(
     return {
         "profiles": list_business_profiles(),
     }
+
+
+@app.post("/apps/enquiry/api/business-profiles/{business_slug}/send-onboarding")
+def send_business_profile_onboarding(
+    business_slug: str,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return send_business_onboarding(business_slug)
 
 
 @app.get("/apps/enquiry/api/business-profiles/{business_slug}")

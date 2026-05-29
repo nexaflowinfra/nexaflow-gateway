@@ -125,6 +125,58 @@ def test_business_profile_requires_admin_key():
     assert response.status_code == 401
 
 
+def test_business_profile_onboarding_rotates_and_sends_key_without_exposing_secret():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"onboard-{suffix}"
+    create = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Onboard Merchant",
+            "business_type": "retail",
+            "contact_email": "merchant@example.com",
+            "whatsapp_phone": "6591234567",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+    original_prefix = create.json()["access_key_prefix"]
+
+    send = client.post(
+        f"/apps/enquiry/api/business-profiles/{slug}/send-onboarding",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert send.status_code == 200
+    body = send.json()
+    assert body["rotated"] is True
+    assert body["delivery"]["status"] == "pending_email_setup"
+    assert body["profile"]["access_key_prefix"] != original_prefix
+    assert "business_access_key" not in json.dumps(body)
+    assert "access_key_hash" not in json.dumps(body)
+
+
+def test_business_profile_onboarding_requires_contact_email():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"no-email-{suffix}"
+    create = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "No Email Merchant",
+            "business_type": "retail",
+            "whatsapp_phone": "6591234567",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+
+    send = client.post(
+        f"/apps/enquiry/api/business-profiles/{slug}/send-onboarding",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert send.status_code == 400
+
+
 def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     response = client.post(
         "/apps/enquiry/api/enquiries",
