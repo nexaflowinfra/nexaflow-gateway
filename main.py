@@ -3605,6 +3605,20 @@ def merchant_html(title, business_name, body):
                     align-items: center;
                     padding: 18px 0 34px;
                 }}
+                .hero.product-hero {{
+                    position: relative;
+                    padding: 52px 0 46px;
+                }}
+                .hero.product-hero::before {{
+                    content: "";
+                    position: absolute;
+                    inset: -20px -20px auto auto;
+                    width: 280px;
+                    height: 180px;
+                    background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(34,197,94,.10), transparent 72%);
+                    filter: blur(16px);
+                    pointer-events: none;
+                }}
                 .hero.compact {{ grid-template-columns: minmax(0, 1fr); max-width: 820px; }}
                 h1 {{ font-size: 44px; line-height: 1.08; margin: 0 0 12px; letter-spacing: 0; }}
                 h2 {{ font-size: 24px; margin: 30px 0 14px; }}
@@ -3619,6 +3633,29 @@ def merchant_html(title, business_name, body):
                     text-transform: uppercase;
                 }}
                 .actions {{ display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }}
+                .language-toggle {{
+                    display: inline-flex;
+                    gap: 6px;
+                    border: 1px solid var(--line);
+                    border-radius: 999px;
+                    padding: 4px;
+                    margin-bottom: 18px;
+                    background: rgba(255,255,255,.03);
+                }}
+                .language-toggle button {{
+                    border: 0;
+                    border-radius: 999px;
+                    padding: 7px 11px;
+                    background: transparent;
+                    color: var(--muted);
+                    cursor: pointer;
+                    font-weight: 700;
+                }}
+                .language-toggle button.active {{
+                    background: #ffffff;
+                    color: #000000;
+                }}
+                .lang-hidden {{ display: none !important; }}
                 .btn {{
                     display: inline-flex;
                     align-items: center;
@@ -3698,6 +3735,11 @@ def merchant_html(title, business_name, body):
                     padding: 18px;
                     background: var(--surface);
                 }}
+                .card.accent-card {{
+                    background:
+                        linear-gradient(135deg, rgba(255,255,255,.08), transparent 56%),
+                        var(--surface);
+                }}
                 .card p:last-child {{ margin-bottom: 0; }}
                 .steps {{
                     display: grid;
@@ -3709,7 +3751,7 @@ def merchant_html(title, business_name, body):
                     border: 1px solid var(--line);
                     border-radius: 8px;
                     padding: 16px;
-                    background: white;
+                    background: var(--surface);
                 }}
                 .step::before {{
                     counter-increment: steps;
@@ -4126,56 +4168,63 @@ def enquiry_app_page():
         "NexaFlow AI Enquiry Inbox",
         "NexaFlow Enquiry",
         """
-        <section class="hero">
+        <section class="hero product-hero">
             <div>
+                <div class="language-toggle" aria-label="Language">
+                    <button type="button" class="active" onclick="setProductLang('en')" id="langEn">EN</button>
+                    <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
+                </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
-                <h1>Simple AI lead inbox for small businesses</h1>
-                <p class="lead">Capture enquiries, identify buyer intent, draft the next reply, and move every lead through a clear follow-up pipeline.</p>
+                <h1><span data-lang="en">AI enquiry system for local businesses</span><span data-lang="zh" class="lang-hidden">给本地商家的 AI 询盘系统</span></h1>
+                <p class="lead">
+                    <span data-lang="en">Collect enquiries, understand buyer intent, notify the business, and prepare a WhatsApp-ready reply.</span>
+                    <span data-lang="zh" class="lang-hidden">自动收集客户询问、判断客户想要什么、通知商家，并准备好 WhatsApp 回复。</span>
+                </p>
                 <div class="actions">
-                    <a class="btn" href="#enquiry-form">Try Demo</a>
-                    <a class="btn secondary" href="/enquiry-admin">Open Admin</a>
+                    <a class="btn" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
+                    <a class="btn secondary" href="/pricing"><span data-lang="en">View Pricing</span><span data-lang="zh" class="lang-hidden">查看价格</span></a>
                 </div>
             </div>
             <div class="product-panel">
-                <div class="panel-top"><span>Today</span><span class="pill good">WhatsApp-ready</span></div>
+                <div class="panel-top"><span data-lang="en">Today</span><span data-lang="zh" class="lang-hidden">今日询盘</span><span class="pill good">WhatsApp-ready</span></div>
                 <div class="signal-list">
                     <div class="signal-row">
                         <span class="pill hot">Hot</span>
-                        <div><strong>Renovation quote</strong><span>Urgent price request for this week.</span></div>
-                        <span>Reply draft</span>
+                        <div><strong><span data-lang="en">Quotation request</span><span data-lang="zh" class="lang-hidden">报价询问</span></strong><span data-lang="en">Urgent price request for this week.</span><span data-lang="zh" class="lang-hidden">客户想本周获得报价。</span></div>
+                        <span data-lang="en">Reply draft</span><span data-lang="zh" class="lang-hidden">回复草稿</span>
                     </div>
                     <div class="signal-row">
                         <span class="pill">Warm</span>
-                        <div><strong>Booking request</strong><span>Customer asked for available slots.</span></div>
-                        <span>Follow up</span>
+                        <div><strong><span data-lang="en">Booking request</span><span data-lang="zh" class="lang-hidden">预约询问</span></strong><span data-lang="en">Customer asked for available slots.</span><span data-lang="zh" class="lang-hidden">客户想知道可预约时间。</span></div>
+                        <span data-lang="en">Follow up</span><span data-lang="zh" class="lang-hidden">跟进</span>
                     </div>
                     <div class="signal-row">
                         <span class="pill">Normal</span>
-                        <div><strong>Stock enquiry</strong><span>Customer asked if an item is available.</span></div>
-                        <span>Check stock</span>
+                        <div><strong><span data-lang="en">General enquiry</span><span data-lang="zh" class="lang-hidden">普通询问</span></strong><span data-lang="en">Customer asked for service details.</span><span data-lang="zh" class="lang-hidden">客户想了解服务详情。</span></div>
+                        <span data-lang="en">Check</span><span data-lang="zh" class="lang-hidden">查看</span>
                     </div>
                 </div>
             </div>
         </section>
         <section class="grid">
-            <div class="card"><h3>Capture leads</h3><p>Give each merchant a clean enquiry form that works on desktop and mobile.</p></div>
-            <div class="card"><h3>Sort intent</h3><p>Automatically labels quote, booking, inventory, and general enquiries.</p></div>
-            <div class="card"><h3>Reply faster</h3><p>Generates a practical reply draft and opens WhatsApp follow-up from the inbox.</p></div>
+            <div class="card accent-card"><h3><span data-lang="en">One link</span><span data-lang="zh" class="lang-hidden">一个链接</span></h3><p><span data-lang="en">Works as a mini landing page for businesses without a website.</span><span data-lang="zh" class="lang-hidden">没有网站的商家，也可以直接用这个链接接收客户询问。</span></p></div>
+            <div class="card"><h3><span data-lang="en">Auto sorting</span><span data-lang="zh" class="lang-hidden">自动分类</span></h3><p><span data-lang="en">Labels quotation, booking, inventory, and general leads.</span><span data-lang="zh" class="lang-hidden">自动判断客户是在问报价、预约、库存，还是普通问题。</span></p></div>
+            <div class="card"><h3><span data-lang="en">Fast follow-up</span><span data-lang="zh" class="lang-hidden">快速跟进</span></h3><p><span data-lang="en">Sends merchant alerts and prepares a reply draft for WhatsApp.</span><span data-lang="zh" class="lang-hidden">自动通知商家，并准备好可用于 WhatsApp 的回复草稿。</span></p></div>
         </section>
         <div class="section-head" id="enquiry-form">
             <div>
-                <h2>Try the demo</h2>
-                <p>Submit a sample enquiry and see the classification result.</p>
+                <h2><span data-lang="en">Try the demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></h2>
+                <p><span data-lang="en">Submit a sample enquiry and see the classification result.</span><span data-lang="zh" class="lang-hidden">提交一个示例询问，看看系统如何自动判断客户意向。</span></p>
             </div>
         </div>
         <section class="form-card">
             <div class="toolbar">
-                <label>Name<input id="leadName" value="Alex Tan"></label>
-                <label>Phone<input id="leadPhone" value="6591234567"></label>
+                <label><span data-lang="en">Name</span><span data-lang="zh" class="lang-hidden">姓名</span><input id="leadName" value="Alex Tan"></label>
+                <label><span data-lang="en">Phone</span><span data-lang="zh" class="lang-hidden">电话</span><input id="leadPhone" value="6591234567"></label>
             </div>
             <div class="toolbar">
                 <label>Email<input id="leadEmail" value="alex@example.com"></label>
-                <label>Business Type
+                <label><span data-lang="en">Business Type</span><span data-lang="zh" class="lang-hidden">业务类型</span>
                     <select id="businessType">
                         <option value="renovation">Renovation</option>
                         <option value="tuition">Tuition</option>
@@ -4190,18 +4239,20 @@ def enquiry_app_page():
                 <textarea id="leadMessage">Hi, I need a quotation urgently for this week. How much is your package?</textarea>
             </label>
             <div class="actions">
-                <button class="btn" onclick="submitEnquiry()">Submit Enquiry</button>
-                <a class="btn secondary" href="/enquiry-admin">Open Admin</a>
+                <button class="btn" onclick="submitEnquiry()"><span data-lang="en">Submit Enquiry</span><span data-lang="zh" class="lang-hidden">提交询问</span></button>
             </div>
             <div class="status" id="enquiryStatus">Submit the demo form to create an enquiry and classification result.</div>
         </section>
-        <h2>How it is sold</h2>
-        <section class="steps">
-            <div class="step"><h3>Create merchant</h3><p>Set business name, WhatsApp number, offer summary, and opening hours.</p></div>
-            <div class="step"><h3>Share links</h3><p>Send the public form link to customers and the inbox link to the merchant.</p></div>
-            <div class="step"><h3>Follow up</h3><p>Merchant checks new leads, uses reply drafts, and marks contacted, quoted, won, or lost.</p></div>
-        </section>
         <script>
+            function setProductLang(lang) {
+                document.querySelectorAll("[data-lang]").forEach(item => {
+                    item.classList.toggle("lang-hidden", item.dataset.lang !== lang);
+                });
+                document.getElementById("langEn").classList.toggle("active", lang === "en");
+                document.getElementById("langZh").classList.toggle("active", lang === "zh");
+                localStorage.setItem("nexaflow_enquiry_lang", lang);
+            }
+            setProductLang(localStorage.getItem("nexaflow_enquiry_lang") || "en");
             function escapeHtml(value) {
                 return String(value ?? "").replace(/[&<>"']/g, char => ({
                     "&": "&amp;",

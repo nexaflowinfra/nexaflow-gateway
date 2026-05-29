@@ -57,6 +57,10 @@ def test_enquiry_app_pages_load():
     assert public_page.status_code == 200
     assert "AI Enquiry Inbox" in public_page.text
     assert "submitEnquiry" in public_page.text
+    assert "setProductLang" in public_page.text
+    assert "给本地商家的 AI 询盘系统" in public_page.text
+    assert "View Pricing" in public_page.text
+    assert "Open Admin" not in public_page.text
     assert "/admin/dashboard" not in public_page.text
     assert admin_page.status_code == 200
     assert "loadInbox" in admin_page.text
