@@ -201,9 +201,22 @@ class EnquiryCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     phone: str = Field(..., min_length=5, max_length=40)
     email: str | None = Field(default=None, max_length=200)
+    business_slug: str | None = Field(default=None, max_length=80)
     business_type: str = Field(default="general", max_length=80)
     message: str = Field(..., min_length=3, max_length=4000)
     source: str = Field(default="web", max_length=80)
+
+
+class BusinessProfileRequest(BaseModel):
+    slug: str = Field(..., min_length=3, max_length=80)
+    business_name: str = Field(..., min_length=1, max_length=160)
+    business_type: str = Field(default="general", max_length=80)
+    whatsapp_phone: str = Field(..., min_length=5, max_length=40)
+    contact_email: str | None = Field(default=None, max_length=200)
+    offer_summary: str = Field(default="", max_length=600)
+    reply_tone: str = Field(default="friendly and professional", max_length=120)
+    opening_hours: str = Field(default="", max_length=200)
+    status: str = Field(default="active", pattern="^(active|paused)$")
 
 
 class EnquiryStatusUpdate(BaseModel):
@@ -650,6 +663,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS enquiries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                business_slug TEXT,
                 name TEXT NOT NULL,
                 phone TEXT NOT NULL,
                 email TEXT,
@@ -662,6 +676,24 @@ def init_db():
                 reply_draft TEXT,
                 whatsapp_url TEXT,
                 status TEXT NOT NULL DEFAULT 'new',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        ensure_column(connection, "enquiries", "business_slug", "TEXT")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS business_profiles (
+                slug TEXT PRIMARY KEY,
+                business_name TEXT NOT NULL,
+                business_type TEXT NOT NULL,
+                whatsapp_phone TEXT NOT NULL,
+                contact_email TEXT,
+                offer_summary TEXT,
+                reply_tone TEXT,
+                opening_hours TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -2040,6 +2072,112 @@ def normalize_phone_for_whatsapp(phone):
     return "".join(char for char in phone if char.isdigit())
 
 
+def normalize_slug(value):
+    slug = "".join(char.lower() if char.isalnum() else "-" for char in value.strip())
+    slug = "-".join(part for part in slug.split("-") if part)
+    if not 3 <= len(slug) <= 80:
+        raise HTTPException(status_code=400, detail="Business slug must be 3-80 URL-safe characters.")
+    return slug
+
+
+def row_to_business_profile(row):
+    return {
+        "slug": row["slug"],
+        "business_name": row["business_name"],
+        "business_type": row["business_type"],
+        "whatsapp_phone": row["whatsapp_phone"],
+        "contact_email": row["contact_email"],
+        "offer_summary": row["offer_summary"] or "",
+        "reply_tone": row["reply_tone"] or "friendly and professional",
+        "opening_hours": row["opening_hours"] or "",
+        "status": row["status"],
+        "form_url": f"/apps/enquiry/form/{row['slug']}",
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def default_enquiry_profile():
+    return {
+        "slug": "demo",
+        "business_name": "Demo Business",
+        "business_type": "general",
+        "whatsapp_phone": "",
+        "contact_email": None,
+        "offer_summary": "General customer enquiries.",
+        "reply_tone": "friendly and professional",
+        "opening_hours": "",
+        "status": "active",
+        "form_url": "/apps/enquiry/form/demo",
+        "created_at": None,
+        "updated_at": None,
+    }
+
+
+def get_business_profile(slug):
+    if not slug:
+        return default_enquiry_profile()
+
+    normalized_slug = normalize_slug(slug)
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM business_profiles WHERE slug = ?",
+            (normalized_slug,),
+        ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Business profile not found")
+
+    return row_to_business_profile(row)
+
+
+def list_business_profiles():
+    with db_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM business_profiles ORDER BY business_name"
+        ).fetchall()
+
+    return [row_to_business_profile(row) for row in rows]
+
+
+def upsert_business_profile(req):
+    slug = normalize_slug(req.slug)
+    timestamp = now_iso()
+    with db_connection() as connection:
+        existing = connection.execute(
+            "SELECT created_at FROM business_profiles WHERE slug = ?",
+            (slug,),
+        ).fetchone()
+        created_at = existing["created_at"] if existing else timestamp
+        connection.execute(
+            """
+            INSERT OR REPLACE INTO business_profiles (
+                slug, business_name, business_type, whatsapp_phone, contact_email,
+                offer_summary, reply_tone, opening_hours, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                slug,
+                req.business_name.strip(),
+                req.business_type.strip() or "general",
+                req.whatsapp_phone.strip(),
+                normalize_email(req.contact_email),
+                req.offer_summary.strip(),
+                req.reply_tone.strip() or "friendly and professional",
+                req.opening_hours.strip(),
+                req.status,
+                created_at,
+                timestamp,
+            ),
+        )
+        row = connection.execute(
+            "SELECT * FROM business_profiles WHERE slug = ?",
+            (slug,),
+        ).fetchone()
+
+    return row_to_business_profile(row)
+
+
 def classify_enquiry(message):
     text = message.lower()
     urgent_keywords = ["urgent", "asap", "today", "tonight", "emergency", "now", "immediately", "紧急", "今天", "马上", "急"]
@@ -2077,8 +2215,12 @@ def classify_enquiry(message):
     }
 
 
-def enquiry_reply_draft(name, business_type, message, classification):
-    service_label = business_type.replace("_", " ").strip() or "service"
+def enquiry_reply_draft(name, business_type, message, classification, profile=None):
+    profile = profile or default_enquiry_profile()
+    service_label = (profile.get("offer_summary") or business_type.replace("_", " ").strip() or "service").strip()
+    business_name = profile.get("business_name") or "us"
+    tone = profile.get("reply_tone") or "friendly and professional"
+    hours = f" Our opening hours are {profile['opening_hours']}." if profile.get("opening_hours") else ""
     if classification["intent"] == "quotation":
         next_step = "Can you share your preferred date, budget range, and any photos or details so we can prepare a more accurate quote?"
     elif classification["intent"] == "booking":
@@ -2090,8 +2232,8 @@ def enquiry_reply_draft(name, business_type, message, classification):
 
     urgency = " We can prioritize this because it looks time-sensitive." if classification["priority"] == "hot" else ""
     return (
-        f"Hi {name}, thanks for your enquiry about our {service_label}.{urgency} "
-        f"{next_step} We will review your message and get back to you shortly."
+        f"Hi {name}, thanks for contacting {business_name} about {service_label}.{urgency} "
+        f"{next_step}{hours} We will reply in a {tone} way shortly."
     )
 
 
@@ -2105,6 +2247,7 @@ def whatsapp_reply_url(phone, reply_draft):
 def row_to_enquiry(row):
     return {
         "id": row["id"],
+        "business_slug": row["business_slug"],
         "name": row["name"],
         "phone": row["phone"],
         "email": row["email"],
@@ -2123,25 +2266,32 @@ def row_to_enquiry(row):
 
 
 def create_enquiry_record(req):
+    profile = get_business_profile(req.business_slug) if req.business_slug else default_enquiry_profile()
+    if profile["status"] != "active":
+        raise HTTPException(status_code=403, detail="This enquiry form is not accepting new enquiries.")
+
     classification = classify_enquiry(req.message)
-    reply_draft = enquiry_reply_draft(req.name, req.business_type, req.message, classification)
-    whatsapp_url = whatsapp_reply_url(req.phone, reply_draft)
+    business_type = profile.get("business_type") or req.business_type
+    reply_draft = enquiry_reply_draft(req.name, business_type, req.message, classification, profile)
+    reply_phone = profile.get("whatsapp_phone") or req.phone
+    whatsapp_url = whatsapp_reply_url(reply_phone, reply_draft)
     timestamp = now_iso()
 
     with db_connection() as connection:
         cursor = connection.execute(
             """
             INSERT INTO enquiries (
-                name, phone, email, business_type, message, source, intent,
+                business_slug, name, phone, email, business_type, message, source, intent,
                 priority, estimated_value, reply_draft, whatsapp_url, status,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                profile["slug"],
                 req.name.strip(),
                 req.phone.strip(),
                 normalize_email(req.email),
-                req.business_type.strip() or "general",
+                business_type.strip() or "general",
                 req.message.strip(),
                 req.source.strip() or "web",
                 classification["intent"],
@@ -2162,12 +2312,18 @@ def create_enquiry_record(req):
     return row_to_enquiry(row)
 
 
-def list_enquiry_records(status=None, limit=50):
+def list_enquiry_records(status=None, business_slug=None, limit=50):
     query = "SELECT * FROM enquiries"
     params = []
+    filters = []
     if status:
-        query += " WHERE status = ?"
+        filters.append("status = ?")
         params.append(status)
+    if business_slug:
+        filters.append("business_slug = ?")
+        params.append(normalize_slug(business_slug))
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
     query += " ORDER BY id DESC LIMIT ?"
     params.append(limit)
 
@@ -2177,11 +2333,14 @@ def list_enquiry_records(status=None, limit=50):
     return [row_to_enquiry(row) for row in rows]
 
 
-def enquiry_stats():
+def enquiry_stats(business_slug=None):
+    query = "SELECT status, priority, intent FROM enquiries"
+    params = []
+    if business_slug:
+        query += " WHERE business_slug = ?"
+        params.append(normalize_slug(business_slug))
     with db_connection() as connection:
-        rows = connection.execute(
-            "SELECT status, priority, intent FROM enquiries"
-        ).fetchall()
+        rows = connection.execute(query, params).fetchall()
 
     stats = {
         "total": len(rows),
@@ -3502,6 +3661,65 @@ def enquiry_app_page():
     )
 
 
+@app.get("/apps/enquiry/form/{business_slug}", response_class=HTMLResponse)
+def public_enquiry_form_page(business_slug: str):
+    profile = get_business_profile(business_slug)
+    return base_html(
+        f"{profile['business_name']} Enquiry Form",
+        f"""
+        <h1>{profile['business_name']}</h1>
+        <p>{profile['offer_summary'] or 'Send an enquiry and the team will follow up.'}</p>
+        <div class="status">{profile['opening_hours'] or 'Submit your enquiry below.'}</div>
+        <h2>Send Enquiry</h2>
+        <div class="toolbar">
+            <label>Name<input id="leadName" autocomplete="name"></label>
+            <label>Phone<input id="leadPhone" autocomplete="tel"></label>
+        </div>
+        <label>Email<input id="leadEmail" autocomplete="email"></label>
+        <label>Message<input id="leadMessage" value="Hi, I would like to enquire about your service."></label>
+        <button class="btn" onclick="submitEnquiry()">Send</button>
+        <div class="status" id="enquiryStatus">We will prepare a reply draft for the business owner.</div>
+        <script>
+            function escapeHtml(value) {{
+                return String(value ?? "").replace(/[&<>"']/g, char => ({{
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }}[char]));
+            }}
+            async function submitEnquiry() {{
+                const status = document.getElementById("enquiryStatus");
+                status.textContent = "Sending...";
+                try {{
+                    const response = await fetch("/apps/enquiry/api/enquiries", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            business_slug: "{profile['slug']}",
+                            name: document.getElementById("leadName").value,
+                            phone: document.getElementById("leadPhone").value,
+                            email: document.getElementById("leadEmail").value,
+                            business_type: "{profile['business_type']}",
+                            message: document.getElementById("leadMessage").value,
+                            source: "public-form"
+                        }})
+                    }});
+                    if (!response.ok) {{
+                        throw new Error(await response.text());
+                    }}
+                    const result = await response.json();
+                    status.innerHTML = `Enquiry sent. Reference #${{result.id}}. Priority: ${{escapeHtml(result.priority)}}`;
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+        </script>
+        """
+    )
+
+
 @app.get("/apps/enquiry/admin", response_class=HTMLResponse)
 def enquiry_admin_page():
     return base_html(
@@ -3509,6 +3727,26 @@ def enquiry_admin_page():
         """
         <h1>AI Enquiry Inbox</h1>
         <p>Review incoming leads, reply drafts, and WhatsApp follow-up links.</p>
+        <h2>Business Profile</h2>
+        <div class="toolbar">
+            <label>Slug<input id="profileSlug" value="demo-renovation"></label>
+            <label>Business Name<input id="businessName" value="Demo Renovation"></label>
+        </div>
+        <div class="toolbar">
+            <label>Type<input id="businessType" value="renovation"></label>
+            <label>WhatsApp Phone<input id="businessWhatsapp" value="6591234567"></label>
+        </div>
+        <label>Offer Summary<input id="offerSummary" value="renovation quotation and consultation"></label>
+        <div class="toolbar">
+            <button class="btn" onclick="saveProfile()">Save Profile</button>
+            <button class="btn secondary" onclick="loadProfiles()">Load Profiles</button>
+        </div>
+        <div class="status" id="profileStatus">Create a business profile to get a dedicated public enquiry link.</div>
+        <table>
+            <thead><tr><th>Business</th><th>Slug</th><th>Type</th><th>Status</th><th>Form</th></tr></thead>
+            <tbody id="profileRows"></tbody>
+        </table>
+        <h2>Inbox</h2>
         <div class="toolbar">
             <label>Admin key<input id="adminKey" type="password" placeholder="X-Admin-Key"></label>
             <button class="btn" onclick="loadInbox()">Refresh</button>
@@ -3539,6 +3777,48 @@ def enquiry_admin_page():
                     throw new Error(await response.text());
                 }
                 return response.json();
+            }
+            async function saveProfile() {
+                const status = document.getElementById("profileStatus");
+                status.textContent = "Saving profile...";
+                try {
+                    const profile = await adminApi("/apps/enquiry/api/business-profiles", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            slug: document.getElementById("profileSlug").value,
+                            business_name: document.getElementById("businessName").value,
+                            business_type: document.getElementById("businessType").value,
+                            whatsapp_phone: document.getElementById("businessWhatsapp").value,
+                            offer_summary: document.getElementById("offerSummary").value,
+                            reply_tone: "friendly and professional",
+                            opening_hours: "Mon-Sat, 9am-6pm",
+                            status: "active"
+                        })
+                    });
+                    status.innerHTML = `Saved ${escapeHtml(profile.business_name)}. Public form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a>`;
+                    await loadProfiles();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+            async function loadProfiles() {
+                const status = document.getElementById("profileStatus");
+                try {
+                    const data = await adminApi("/apps/enquiry/api/business-profiles");
+                    document.getElementById("profileRows").innerHTML = data.profiles.map(profile => `
+                        <tr>
+                            <td>${escapeHtml(profile.business_name)}</td>
+                            <td>${escapeHtml(profile.slug)}</td>
+                            <td>${escapeHtml(profile.business_type)}</td>
+                            <td>${escapeHtml(profile.status)}</td>
+                            <td><a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Open Form</a></td>
+                        </tr>
+                    `).join("");
+                    status.textContent = `Loaded ${data.profiles.length} profiles.`;
+                } catch (error) {
+                    status.textContent = error.message;
+                }
             }
             async function setStatus(id, status) {
                 try {
@@ -4488,17 +4768,54 @@ def create_enquiry(req: EnquiryCreateRequest):
     return create_enquiry_record(req)
 
 
+@app.post("/apps/enquiry/api/business-profiles")
+def create_or_update_business_profile(
+    req: BusinessProfileRequest,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return upsert_business_profile(req)
+
+
+@app.get("/apps/enquiry/api/business-profiles")
+def get_business_profiles(
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return {
+        "profiles": list_business_profiles(),
+    }
+
+
+@app.get("/apps/enquiry/api/business-profiles/{business_slug}")
+def get_public_business_profile(business_slug: str):
+    profile = get_business_profile(business_slug)
+    if profile["status"] != "active":
+        raise HTTPException(status_code=404, detail="Business profile not found")
+    return {
+        "slug": profile["slug"],
+        "business_name": profile["business_name"],
+        "business_type": profile["business_type"],
+        "offer_summary": profile["offer_summary"],
+        "opening_hours": profile["opening_hours"],
+        "form_url": profile["form_url"],
+    }
+
+
 @app.get("/apps/enquiry/api/enquiries")
 def list_enquiries(
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
+    business_slug: str | None = None,
     limit: int = Query(default=50, ge=1, le=200),
     admin_key: str | None = None,
     x_admin_key: str | None = Header(default=None),
 ):
     admin_guard(admin_key, x_admin_key)
     return {
-        "stats": enquiry_stats(),
-        "enquiries": list_enquiry_records(status=status, limit=limit),
+        "stats": enquiry_stats(business_slug=business_slug),
+        "enquiries": list_enquiry_records(status=status, business_slug=business_slug, limit=limit),
     }
 
 
