@@ -3382,22 +3382,33 @@ def merchant_html(title, business_name, body):
             <title>{safe_title}</title>
             <style>
                 :root {{
-                    --brand: #2563eb;
-                    --ink: #172033;
-                    --muted: #667085;
-                    --line: #d9e0ea;
-                    --soft: #f6f8fb;
+                    color-scheme: dark;
+                    --bg: #000000;
+                    --surface: #0b0b0d;
+                    --surface-2: #121214;
+                    --ink: #f5f5f5;
+                    --muted: #a3a3a3;
+                    --line: #262626;
+                    --soft: #161616;
+                    --brand: #ffffff;
+                    --brand-strong: #e5e5e5;
+                    --accent: #22c55e;
+                    --danger: #ef4444;
                 }}
                 * {{ box-sizing: border-box; }}
                 body {{
                     margin: 0;
                     font-family: Inter, Segoe UI, Arial, sans-serif;
-                    background: #ffffff;
+                    background: var(--bg);
                     color: var(--ink);
+                    line-height: 1.5;
                 }}
                 header {{
                     border-bottom: 1px solid var(--line);
-                    background: white;
+                    background: rgba(0, 0, 0, .92);
+                    position: sticky;
+                    top: 0;
+                    z-index: 10;
                 }}
                 nav {{
                     max-width: 1120px;
@@ -3419,8 +3430,8 @@ def merchant_html(title, business_name, body):
                 .mark {{
                     width: 28px;
                     height: 28px;
-                    border-radius: 8px;
-                    background: var(--brand);
+                    border-radius: 6px;
+                    background: linear-gradient(135deg, #ffffff, #707070);
                     display: inline-block;
                 }}
                 main {{
@@ -3428,9 +3439,27 @@ def merchant_html(title, business_name, body):
                     margin: 0 auto;
                     padding: 34px 20px 48px;
                 }}
-                h1 {{ font-size: 38px; margin: 0 0 10px; letter-spacing: 0; }}
-                h2 {{ margin-top: 28px; }}
-                p {{ color: var(--muted); line-height: 1.6; }}
+                .hero {{
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+                    gap: 28px;
+                    align-items: center;
+                    padding: 18px 0 34px;
+                }}
+                .hero.compact {{ grid-template-columns: minmax(0, 1fr); max-width: 820px; }}
+                h1 {{ font-size: 44px; line-height: 1.08; margin: 0 0 12px; letter-spacing: 0; }}
+                h2 {{ font-size: 24px; margin: 30px 0 14px; }}
+                h3 {{ margin: 0 0 8px; }}
+                p {{ color: var(--muted); line-height: 1.6; margin: 0 0 14px; }}
+                .lead {{ font-size: 18px; max-width: 720px; }}
+                .eyebrow {{
+                    color: var(--muted);
+                    font-size: 13px;
+                    font-weight: 800;
+                    margin-bottom: 10px;
+                    text-transform: uppercase;
+                }}
+                .actions {{ display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }}
                 .btn {{
                     display: inline-flex;
                     align-items: center;
@@ -3439,23 +3468,120 @@ def merchant_html(title, business_name, body):
                     border-radius: 6px;
                     padding: 10px 14px;
                     background: var(--brand);
-                    color: white;
+                    color: #000000;
                     font-weight: 700;
                     text-decoration: none;
                     cursor: pointer;
                     min-height: 40px;
                 }}
+                .btn:hover {{ background: var(--brand-strong); }}
                 .btn.secondary {{
-                    background: var(--soft);
+                    background: transparent;
                     color: var(--ink);
                     border: 1px solid var(--line);
                 }}
-                input, textarea {{
+                .btn.secondary:hover {{ background: var(--soft); }}
+                .product-panel, .form-card {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    background: var(--surface);
+                    box-shadow: none;
+                }}
+                .panel-top {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px 14px;
+                    background: var(--surface-2);
+                    border-bottom: 1px solid var(--line);
+                    color: var(--muted);
+                    font-size: 13px;
+                }}
+                .signal-list {{
+                    display: grid;
+                    gap: 1px;
+                    background: var(--line);
+                }}
+                .signal-row {{
+                    display: grid;
+                    grid-template-columns: 88px 1fr auto;
+                    gap: 12px;
+                    align-items: start;
+                    background: var(--surface);
+                    padding: 14px;
+                    font-size: 14px;
+                }}
+                .signal-row strong {{ display: block; color: var(--ink); }}
+                .pill {{
+                    display: inline-flex;
+                    align-items: center;
+                    border: 1px solid var(--line);
+                    border-radius: 999px;
+                    padding: 4px 9px;
+                    background: #0a0a0a;
+                    color: var(--muted);
+                    font-size: 12px;
+                    font-weight: 700;
+                    white-space: nowrap;
+                }}
+                .pill.hot {{ color: #ffffff; border-color: #525252; background: #1f1f1f; }}
+                .pill.good {{ color: var(--accent); border-color: #1f5132; background: #07140b; }}
+                .grid {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 16px;
+                }}
+                .card {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 18px;
+                    background: var(--surface);
+                }}
+                .card p:last-child {{ margin-bottom: 0; }}
+                .steps {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 12px;
+                    counter-reset: steps;
+                }}
+                .step {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 16px;
+                    background: white;
+                }}
+                .step::before {{
+                    counter-increment: steps;
+                    content: counter(steps);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 999px;
+                    background: var(--ink);
+                    color: #000000;
+                    font-weight: 800;
+                    margin-bottom: 10px;
+                }}
+                input, select, textarea {{
                     width: 100%;
                     border: 1px solid var(--line);
                     border-radius: 6px;
                     padding: 10px;
                     font: inherit;
+                    background: #050505;
+                    color: var(--ink);
+                }}
+                input:focus, select:focus, textarea:focus {{
+                    outline: 2px solid rgba(255, 255, 255, .14);
+                    border-color: #737373;
+                }}
+                input[type="checkbox"] {{
+                    width: auto;
+                    margin-right: 8px;
                 }}
                 textarea {{ min-height: 110px; resize: vertical; }}
                 label {{
@@ -3474,7 +3600,7 @@ def merchant_html(title, business_name, body):
                 }}
                 .status {{
                     white-space: pre-wrap;
-                    background: var(--soft);
+                    background: var(--surface-2);
                     border: 1px solid var(--line);
                     border-radius: 8px;
                     padding: 12px;
@@ -3482,22 +3608,26 @@ def merchant_html(title, business_name, body):
                     color: var(--muted);
                     font-size: 13px;
                 }}
-                .grid {{
-                    display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
-                    gap: 16px;
-                }}
-                .card {{
-                    border: 1px solid var(--line);
-                    border-radius: 8px;
-                    padding: 18px;
-                    background: white;
-                }}
                 .price {{
                     font-size: 34px;
                     font-weight: 800;
                     color: var(--ink);
                     margin: 10px 0;
+                }}
+                .section-head {{
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 16px;
+                    align-items: end;
+                    margin: 28px 0 12px;
+                }}
+                .section-head h2 {{ margin: 0; }}
+                .form-card {{ padding: 18px; overflow: visible; }}
+                .admin-split {{
+                    display: grid;
+                    grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+                    gap: 18px;
+                    align-items: start;
                 }}
                 table {{
                     width: 100%;
@@ -3521,9 +3651,10 @@ def merchant_html(title, business_name, body):
                     font-size: 13px;
                 }}
                 @media (max-width: 820px) {{
-                    .grid, .toolbar {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .steps, .toolbar, .admin-split {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
+                    .signal-row {{ grid-template-columns: 1fr; }}
                 }}
             </style>
         </head>
@@ -3838,53 +3969,79 @@ def enquiry_app_page():
         """
         <section class="hero">
             <div>
-                <h1>AI Enquiry Inbox for local businesses</h1>
-                <p>Capture website or WhatsApp enquiries, classify buyer intent, generate reply drafts, and follow up from one simple inbox.</p>
+                <div class="eyebrow">NexaFlow Enquiry</div>
+                <h1>Simple AI lead inbox for small businesses</h1>
+                <p class="lead">Capture enquiries, identify buyer intent, draft the next reply, and move every lead through a clear follow-up pipeline.</p>
                 <div class="actions">
                     <a class="btn" href="#enquiry-form">Try Demo</a>
                     <a class="btn secondary" href="/enquiry-admin">Open Admin</a>
                 </div>
             </div>
             <div class="product-panel">
-                <div class="panel-top"><span>Lead Capture</span><span>WhatsApp-ready</span></div>
-                <div class="metrics">
-                    <div class="metric"><span>Intent</span><strong>Auto</strong><span>quote, booking, stock</span></div>
-                    <div class="metric"><span>Priority</span><strong>Hot</strong><span>urgent leads first</span></div>
-                    <div class="metric"><span>Reply</span><strong>Draft</strong><span>one-click WhatsApp</span></div>
-                </div>
-                <div class="flow">
-                    <div class="flow-row"><span>Customer</span><div class="bar"><span style="width:100%"></span></div><span>asks</span></div>
-                    <div class="flow-row"><span>AI Inbox</span><div class="bar"><span style="width:86%;background:var(--gold)"></span></div><span>sorts</span></div>
-                    <div class="flow-row"><span>Sales</span><div class="bar"><span style="width:72%;background:var(--accent)"></span></div><span>replies</span></div>
+                <div class="panel-top"><span>Today</span><span class="pill good">WhatsApp-ready</span></div>
+                <div class="signal-list">
+                    <div class="signal-row">
+                        <span class="pill hot">Hot</span>
+                        <div><strong>Renovation quote</strong><span>Urgent price request for this week.</span></div>
+                        <span>Reply draft</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="pill">Warm</span>
+                        <div><strong>Booking request</strong><span>Customer asked for available slots.</span></div>
+                        <span>Follow up</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="pill">Normal</span>
+                        <div><strong>Stock enquiry</strong><span>Customer asked if an item is available.</span></div>
+                        <span>Check stock</span>
+                    </div>
                 </div>
             </div>
         </section>
-        <h2 id="enquiry-form">Send Demo Enquiry</h2>
-        <div class="toolbar">
-            <label>Name<input id="leadName" value="Alex Tan"></label>
-            <label>Phone<input id="leadPhone" value="6591234567"></label>
+        <section class="grid">
+            <div class="card"><h3>Capture leads</h3><p>Give each merchant a clean enquiry form that works on desktop and mobile.</p></div>
+            <div class="card"><h3>Sort intent</h3><p>Automatically labels quote, booking, inventory, and general enquiries.</p></div>
+            <div class="card"><h3>Reply faster</h3><p>Generates a practical reply draft and opens WhatsApp follow-up from the inbox.</p></div>
+        </section>
+        <div class="section-head" id="enquiry-form">
+            <div>
+                <h2>Try the demo</h2>
+                <p>Submit a sample enquiry and see the classification result.</p>
+            </div>
         </div>
-        <div class="toolbar">
-            <label>Email<input id="leadEmail" value="alex@example.com"></label>
-            <label>Business Type
-                <select id="businessType">
-                    <option value="renovation">Renovation</option>
-                    <option value="tuition">Tuition</option>
-                    <option value="retail">Retail</option>
-                    <option value="beauty">Beauty</option>
-                    <option value="repair">Repair</option>
-                    <option value="general">General</option>
-                </select>
+        <section class="form-card">
+            <div class="toolbar">
+                <label>Name<input id="leadName" value="Alex Tan"></label>
+                <label>Phone<input id="leadPhone" value="6591234567"></label>
+            </div>
+            <div class="toolbar">
+                <label>Email<input id="leadEmail" value="alex@example.com"></label>
+                <label>Business Type
+                    <select id="businessType">
+                        <option value="renovation">Renovation</option>
+                        <option value="tuition">Tuition</option>
+                        <option value="retail">Retail</option>
+                        <option value="beauty">Beauty</option>
+                        <option value="repair">Repair</option>
+                        <option value="general">General</option>
+                    </select>
+                </label>
+            </div>
+            <label>Message
+                <textarea id="leadMessage">Hi, I need a quotation urgently for this week. How much is your package?</textarea>
             </label>
-        </div>
-        <label>Message
-            <input id="leadMessage" value="Hi, I need a quotation urgently for this week. How much is your package?">
-        </label>
-        <div class="actions">
-            <button class="btn" onclick="submitEnquiry()">Submit Enquiry</button>
-            <a class="btn secondary" href="/enquiry-admin">Open Admin</a>
-        </div>
-        <div class="status" id="enquiryStatus">Submit the demo form to create an enquiry and classification result.</div>
+            <div class="actions">
+                <button class="btn" onclick="submitEnquiry()">Submit Enquiry</button>
+                <a class="btn secondary" href="/enquiry-admin">Open Admin</a>
+            </div>
+            <div class="status" id="enquiryStatus">Submit the demo form to create an enquiry and classification result.</div>
+        </section>
+        <h2>How it is sold</h2>
+        <section class="steps">
+            <div class="step"><h3>Create merchant</h3><p>Set business name, WhatsApp number, offer summary, and opening hours.</p></div>
+            <div class="step"><h3>Share links</h3><p>Send the public form link to customers and the inbox link to the merchant.</p></div>
+            <div class="step"><h3>Follow up</h3><p>Merchant checks new leads, uses reply drafts, and marks contacted, quoted, won, or lost.</p></div>
+        </section>
         <script>
             function escapeHtml(value) {
                 return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -3942,18 +4099,28 @@ def public_enquiry_form_page(business_slug: str):
         f"{business_name} Enquiry Form",
         profile["business_name"],
         f"""
-        <h1>{business_name}</h1>
-        <p>{offer_summary}</p>
-        <div class="status">{opening_hours}</div>
-        <h2>Send Enquiry</h2>
-        <div class="toolbar">
-            <label>Name<input id="leadName" autocomplete="name"></label>
-            <label>Phone<input id="leadPhone" autocomplete="tel"></label>
-        </div>
-        <label>Email<input id="leadEmail" autocomplete="email"></label>
-        <label>Message<textarea id="leadMessage">Hi, I would like to enquire about your service.</textarea></label>
-        <button class="btn" onclick="submitEnquiry()">Send</button>
-        <div class="status" id="enquiryStatus">Send your enquiry and the business will follow up.</div>
+        <section class="hero compact">
+            <div>
+                <div class="eyebrow">Enquiry form</div>
+                <h1>{business_name}</h1>
+                <p class="lead">{offer_summary}</p>
+                <div class="status">{opening_hours}</div>
+            </div>
+        </section>
+        <section class="form-card">
+            <h2>Send an enquiry</h2>
+            <p>Leave your details and the team will follow up.</p>
+            <div class="toolbar">
+                <label>Name<input id="leadName" autocomplete="name" placeholder="Your name"></label>
+                <label>Phone<input id="leadPhone" autocomplete="tel" placeholder="+65 9123 4567"></label>
+            </div>
+            <label>Email<input id="leadEmail" autocomplete="email" placeholder="you@example.com"></label>
+            <label>Message<textarea id="leadMessage">Hi, I would like to enquire about your service.</textarea></label>
+            <div class="actions">
+                <button class="btn" onclick="submitEnquiry()">Send Enquiry</button>
+            </div>
+            <div class="status" id="enquiryStatus">Ready when you are.</div>
+        </section>
         <script>
             function escapeHtml(value) {{
                 return String(value ?? "").replace(/[&<>"']/g, char => ({{
@@ -4005,13 +4172,26 @@ def merchant_enquiry_inbox_page(business_slug: str):
         f"{business_name} Inbox",
         profile["business_name"],
         f"""
-        <h1>{business_name} Inbox</h1>
-        <p>Review leads, reply drafts, and WhatsApp follow-up links for this business only.</p>
-        <div class="toolbar">
-            <label>Business access key<input id="businessKey" type="password" placeholder="biz_..."></label>
-            <button class="btn" onclick="loadMerchantInbox()">Refresh</button>
+        <section class="hero compact">
+            <div>
+                <div class="eyebrow">Merchant inbox</div>
+                <h1>{business_name} Leads</h1>
+                <p class="lead">Open new enquiries, use AI reply drafts, and keep every lead moving.</p>
+            </div>
+        </section>
+        <section class="form-card">
+            <div class="toolbar">
+                <label>Business access key<input id="businessKey" type="password" placeholder="biz_..."></label>
+                <button class="btn" onclick="loadMerchantInbox()">Load Leads</button>
+            </div>
+            <div class="status" id="merchantStatus">Enter your business access key to load this inbox.</div>
+        </section>
+        <div class="section-head">
+            <div>
+                <h2>Pipeline</h2>
+                <p>Prioritize hot leads first, then mark each one as contacted, quoted, won, or lost.</p>
+            </div>
         </div>
-        <div class="status" id="merchantStatus">Enter your business access key to load your enquiry inbox.</div>
         <section class="grid" id="merchantStats"></section>
         <table>
             <thead>
@@ -4097,34 +4277,51 @@ def enquiry_admin_page():
         "NexaFlow Enquiry Inbox",
         "NexaFlow Enquiry Admin",
         """
-        <h1>AI Enquiry Inbox</h1>
-        <p>Review incoming leads, reply drafts, and WhatsApp follow-up links.</p>
-        <h2>Business Profile</h2>
-        <div class="toolbar">
-            <label>Slug<input id="profileSlug" value="demo-renovation"></label>
-            <label>Business Name<input id="businessName" value="Demo Renovation"></label>
-        </div>
-        <div class="toolbar">
-            <label>Type<input id="businessType" value="renovation"></label>
-            <label>WhatsApp Phone<input id="businessWhatsapp" value="6591234567"></label>
-        </div>
-        <label>Offer Summary<input id="offerSummary" value="renovation quotation and consultation"></label>
-        <div class="toolbar">
-            <button class="btn" onclick="saveProfile()">Save Profile</button>
-            <button class="btn secondary" onclick="loadProfiles()">Load Profiles</button>
-        </div>
-        <label><input id="rotateAccessKey" type="checkbox"> Generate a new business access key</label>
-        <div class="status" id="profileStatus">Create a business profile to get a dedicated public enquiry link.</div>
-        <table>
-            <thead><tr><th>Business</th><th>Slug</th><th>Type</th><th>Status</th><th>Key Prefix</th><th>Links</th></tr></thead>
-            <tbody id="profileRows"></tbody>
-        </table>
-        <h2>Inbox</h2>
-        <div class="toolbar">
-            <label>Admin key<input id="adminKey" type="password" placeholder="X-Admin-Key"></label>
+        <section class="hero compact">
+            <div>
+                <div class="eyebrow">Owner admin</div>
+                <h1>Set up and manage merchant inboxes</h1>
+                <p class="lead">Create a merchant profile once, then give them a public enquiry link and private inbox link.</p>
+            </div>
+        </section>
+        <section class="admin-split">
+            <div class="form-card">
+                <h2>Create merchant</h2>
+                <p>Use a short slug such as <strong>demo-renovation</strong>. The WhatsApp phone receives follow-up links.</p>
+                <label>Admin key<input id="adminKey" type="password" placeholder="X-Admin-Key"></label>
+                <label>Slug<input id="profileSlug" value="demo-renovation"></label>
+                <label>Business Name<input id="businessName" value="Demo Renovation"></label>
+                <label>Type<input id="businessType" value="renovation"></label>
+                <label>WhatsApp Phone<input id="businessWhatsapp" value="6591234567"></label>
+                <label>Offer Summary<input id="offerSummary" value="renovation quotation and consultation"></label>
+                <label><input id="rotateAccessKey" type="checkbox"> Generate a new business access key</label>
+                <div class="actions">
+                    <button class="btn" onclick="saveProfile()">Save Profile</button>
+                    <button class="btn secondary" onclick="loadProfiles()">Load Profiles</button>
+                </div>
+                <div class="status" id="profileStatus">Create a business profile to get dedicated links.</div>
+            </div>
+            <div>
+                <div class="section-head">
+                    <div>
+                        <h2>Merchant links</h2>
+                        <p>Share only the Form and Inbox links with merchants.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead><tr><th>Business</th><th>Slug</th><th>Type</th><th>Status</th><th>Key Prefix</th><th>Links</th></tr></thead>
+                    <tbody id="profileRows"></tbody>
+                </table>
+            </div>
+        </section>
+        <div class="section-head">
+            <div>
+                <h2>All enquiries</h2>
+                <p>Owner view across every merchant profile.</p>
+            </div>
             <button class="btn" onclick="loadInbox()">Refresh</button>
         </div>
-        <div class="status" id="inboxStatus">Enter admin key to load enquiries.</div>
+        <div class="status" id="inboxStatus">Enter admin key above to load enquiries.</div>
         <section class="grid" id="inboxStats"></section>
         <table>
             <thead>
