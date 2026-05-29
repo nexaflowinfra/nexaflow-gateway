@@ -1,4 +1,4 @@
-import os
+﻿import os
 import uuid
 import hmac
 import json
@@ -58,7 +58,7 @@ def test_enquiry_app_pages_load():
     assert "AI Enquiry Inbox" in public_page.text
     assert "submitEnquiry" in public_page.text
     assert "setProductLang" in public_page.text
-    assert "给本地商家的 AI 询盘系统" in public_page.text
+    assert "AI WhatsApp enquiry assistant for local service businesses" in public_page.text
     assert "View Pricing" in public_page.text
     assert "radial-gradient(circle at 18% 8%" in public_page.text
     assert "repeating-linear-gradient(122deg" in public_page.text
@@ -117,6 +117,7 @@ def test_business_profile_create_and_public_form_loads():
     inbox = client.get(f"/inbox/{slug}")
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
+    assert "saveMerchantSettings" in inbox.text
     assert "/admin/dashboard" not in inbox.text
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
@@ -448,6 +449,82 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
         headers={"X-Business-Key": business_key},
     )
     assert blocked_update.status_code == 404
+
+
+def test_merchant_can_update_own_business_settings_only():
+    suffix = uuid.uuid4().hex[:8]
+    slug_one = f"settings-one-{suffix}"
+    slug_two = f"settings-two-{suffix}"
+    profile_one = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_one,
+            "business_name": "Settings One",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    profile_two = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_two,
+            "business_name": "Settings Two",
+            "business_type": "beauty",
+            "whatsapp_phone": "6592220000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile_one.status_code == 200
+    assert profile_two.status_code == 200
+    business_key = profile_one.json()["business_access_key"]
+
+    updated = client.patch(
+        f"/apps/enquiry/api/merchant/profile?business_slug={slug_one}",
+        json={
+            "business_name": "Apex Repair",
+            "business_type": "repair",
+            "whatsapp_phone": "6588889999",
+            "contact_email": "OWNER@EXAMPLE.COM",
+            "offer_summary": "Emergency repair and maintenance.",
+            "reply_tone": "fast and reassuring",
+            "opening_hours": "Mon-Sat, 9am-7pm",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["business_name"] == "Apex Repair"
+    assert updated.json()["contact_email"] == "owner@example.com"
+    assert updated.json()["access_key_prefix"] == profile_one.json()["access_key_prefix"]
+
+    blocked = client.patch(
+        f"/apps/enquiry/api/merchant/profile?business_slug={slug_two}",
+        json={
+            "business_name": "Wrong Business",
+            "business_type": "beauty",
+            "whatsapp_phone": "6577778888",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked.status_code == 403
+
+    lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug_one,
+            "name": "Repair Buyer",
+            "phone": "6512345678",
+            "message": "Urgent repair quote please",
+        },
+    )
+    assert lead.status_code == 200
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    saved = next(item for item in listing.json()["enquiries"] if item["id"] == lead.json()["id"])
+    assert "6588889999" in saved["whatsapp_url"]
 
 
 def test_public_enquiry_rate_limit_blocks_repeated_spam():

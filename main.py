@@ -222,6 +222,16 @@ class BusinessProfileRequest(BaseModel):
     rotate_access_key: bool = False
 
 
+class BusinessProfileSettingsUpdate(BaseModel):
+    business_name: str = Field(..., min_length=1, max_length=160)
+    business_type: str = Field(default="general", max_length=80)
+    whatsapp_phone: str = Field(..., min_length=5, max_length=40)
+    contact_email: str | None = Field(default=None, max_length=200)
+    offer_summary: str = Field(default="", max_length=600)
+    reply_tone: str = Field(default="friendly and professional", max_length=120)
+    opening_hours: str = Field(default="", max_length=200)
+
+
 class EnquiryStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(new|contacted|quoted|won|lost|spam)$")
 
@@ -2258,6 +2268,44 @@ def rotate_business_access_key(slug, owner_client_id=None):
     return profile
 
 
+def update_business_profile_settings(slug, req):
+    normalized_slug = normalize_slug(slug)
+    timestamp = now_iso()
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM business_profiles WHERE slug = ?",
+            (normalized_slug,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Business profile not found")
+
+        connection.execute(
+            """
+            UPDATE business_profiles
+            SET business_name = ?, business_type = ?, whatsapp_phone = ?, contact_email = ?,
+                offer_summary = ?, reply_tone = ?, opening_hours = ?, updated_at = ?
+            WHERE slug = ?
+            """,
+            (
+                req.business_name.strip(),
+                req.business_type.strip() or "general",
+                req.whatsapp_phone.strip(),
+                normalize_email(req.contact_email),
+                req.offer_summary.strip(),
+                req.reply_tone.strip() or "friendly and professional",
+                req.opening_hours.strip(),
+                timestamp,
+                normalized_slug,
+            ),
+        )
+        updated = connection.execute(
+            "SELECT * FROM business_profiles WHERE slug = ?",
+            (normalized_slug,),
+        ).fetchone()
+
+    return row_to_business_profile(updated)
+
+
 def merchant_onboarding_email(profile, access_key):
     site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
     form_url = f"{site_url}{profile['form_url']}"
@@ -4215,10 +4263,10 @@ def enquiry_app_page():
                     <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
                 </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
-                <h1><span data-lang="en">AI enquiry system for local businesses</span><span data-lang="zh" class="lang-hidden">给本地商家的 AI 询盘系统</span></h1>
+                <h1><span data-lang="en">AI WhatsApp enquiry assistant for local service businesses</span><span data-lang="zh" class="lang-hidden">给本地服务商家的 AI WhatsApp 询盘助手</span></h1>
                 <p class="lead">
-                    <span data-lang="en">Collect enquiries, understand buyer intent, notify the business, and prepare a WhatsApp-ready reply.</span>
-                    <span data-lang="zh" class="lang-hidden">自动收集客户询问、判断客户想要什么、通知商家，并准备好 WhatsApp 回复。</span>
+                    <span data-lang="en">Collect customer enquiries, understand buyer intent, alert the merchant, and prepare a WhatsApp-ready reply.</span>
+                    <span data-lang="zh" class="lang-hidden">自动收集客户询问、判断客户想要什么、通知商家，并准备好可直接用于 WhatsApp 的回复。</span>
                 </p>
                 <div class="actions">
                     <a class="btn" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
@@ -4467,6 +4515,38 @@ def merchant_enquiry_inbox_page(business_slug: str):
         </section>
         <div class="section-head">
             <div>
+                <h2>Business settings</h2>
+                <p>Keep your WhatsApp follow-up, customer notifications, and enquiry page details up to date.</p>
+            </div>
+        </div>
+        <section class="form-card">
+            <div class="toolbar">
+                <label>Business Name<input id="settingsBusinessName" placeholder="Your business"></label>
+                <label>Business Type
+                    <select id="settingsBusinessType">
+                        <option value="renovation">Renovation</option>
+                        <option value="repair">Repair</option>
+                        <option value="tuition">Tuition</option>
+                        <option value="beauty">Beauty</option>
+                        <option value="retail">Retail</option>
+                        <option value="general">General Service</option>
+                    </select>
+                </label>
+            </div>
+            <div class="toolbar">
+                <label>WhatsApp Phone<input id="settingsWhatsapp" placeholder="+65 9123 4567"></label>
+                <label>Notification Email<input id="settingsEmail" placeholder="owner@example.com"></label>
+            </div>
+            <label>Service Summary<textarea id="settingsOffer" placeholder="Tell customers what service you provide."></textarea></label>
+            <div class="toolbar">
+                <label>Reply Tone<input id="settingsTone" placeholder="friendly and professional"></label>
+                <label>Opening Hours<input id="settingsHours" placeholder="Mon-Sat, 9am-6pm"></label>
+            </div>
+            <button class="btn" onclick="saveMerchantSettings()">Save Settings</button>
+            <div class="status" id="settingsStatus">Load leads first, then update your business settings here.</div>
+        </section>
+        <div class="section-head">
+            <div>
                 <h2>Pipeline</h2>
                 <p>Prioritize hot leads first, then mark each one as contacted, quoted, won, or lost.</p>
             </div>
@@ -4498,6 +4578,39 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 }}
                 return response.json();
             }}
+            function fillMerchantSettings(profile) {{
+                document.getElementById("settingsBusinessName").value = profile.business_name || "";
+                document.getElementById("settingsBusinessType").value = profile.business_type || "general";
+                document.getElementById("settingsWhatsapp").value = profile.whatsapp_phone || "";
+                document.getElementById("settingsEmail").value = profile.contact_email || "";
+                document.getElementById("settingsOffer").value = profile.offer_summary || "";
+                document.getElementById("settingsTone").value = profile.reply_tone || "friendly and professional";
+                document.getElementById("settingsHours").value = profile.opening_hours || "";
+            }}
+            async function saveMerchantSettings() {{
+                const status = document.getElementById("settingsStatus");
+                status.textContent = "Saving business settings...";
+                try {{
+                    const profile = await merchantApi(`/apps/enquiry/api/merchant/profile?business_slug=${{businessSlug}}`, {{
+                        method: "PATCH",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            business_name: document.getElementById("settingsBusinessName").value,
+                            business_type: document.getElementById("settingsBusinessType").value,
+                            whatsapp_phone: document.getElementById("settingsWhatsapp").value,
+                            contact_email: document.getElementById("settingsEmail").value,
+                            offer_summary: document.getElementById("settingsOffer").value,
+                            reply_tone: document.getElementById("settingsTone").value,
+                            opening_hours: document.getElementById("settingsHours").value
+                        }})
+                    }});
+                    fillMerchantSettings(profile);
+                    status.textContent = "Saved. Your public enquiry page and WhatsApp follow-up are updated.";
+                    await loadMerchantInbox();
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
             async function setMerchantStatus(id, status) {{
                 try {{
                     await merchantApi(`/apps/enquiry/api/merchant/enquiries/${{id}}?business_slug=${{businessSlug}}`, {{
@@ -4515,6 +4628,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 status.textContent = "Loading enquiries...";
                 try {{
                     const data = await merchantApi(`/apps/enquiry/api/merchant/enquiries?business_slug=${{businessSlug}}&limit=100`);
+                    fillMerchantSettings(data.business);
                     const stats = data.stats || {{}};
                     document.getElementById("merchantStats").innerHTML = `
                         <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
@@ -5927,13 +6041,27 @@ def list_merchant_enquiries(
         authorization=authorization,
     )
     return {
-        "business": {
-            "slug": profile["slug"],
-            "business_name": profile["business_name"],
-        },
+        "business": profile,
         "stats": enquiry_stats(business_slug=profile["slug"]),
         "enquiries": list_enquiry_records(status=status, business_slug=profile["slug"], limit=limit),
     }
+
+
+@app.patch("/apps/enquiry/api/merchant/profile")
+def update_merchant_business_profile(
+    req: BusinessProfileSettingsUpdate,
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return update_business_profile_settings(profile["slug"], req)
 
 
 @app.patch("/apps/enquiry/api/enquiries/{enquiry_id}")
