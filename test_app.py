@@ -48,6 +48,71 @@ def test_pricing_page_loads():
     assert "/terms" in response.text
 
 
+def test_enquiry_app_pages_load():
+    public_page = client.get("/apps/enquiry")
+    admin_page = client.get("/apps/enquiry/admin")
+
+    assert public_page.status_code == 200
+    assert "AI Enquiry Inbox" in public_page.text
+    assert "submitEnquiry" in public_page.text
+    assert admin_page.status_code == 200
+    assert "loadInbox" in admin_page.text
+
+
+def test_enquiry_create_classifies_and_generates_whatsapp_reply():
+    response = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "name": "Jamie",
+            "phone": "+65 9123 4567",
+            "email": "jamie@example.com",
+            "business_type": "renovation",
+            "message": "Need urgent quotation for this week. How much is your package?",
+            "source": "test",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["intent"] == "quotation"
+    assert body["priority"] == "hot"
+    assert "Jamie" in body["reply_draft"]
+    assert body["whatsapp_url"].startswith("https://wa.me/6591234567")
+
+
+def test_enquiry_admin_requires_key_and_can_update_status():
+    create = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "name": "Priya",
+            "phone": "6598887777",
+            "business_type": "tuition",
+            "message": "Can I book a class next Monday?",
+        },
+    )
+    assert create.status_code == 200
+    enquiry_id = create.json()["id"]
+
+    missing = client.get("/apps/enquiry/api/enquiries")
+    assert missing.status_code == 401
+
+    listing = client.get(
+        "/apps/enquiry/api/enquiries",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert listing.status_code == 200
+    assert listing.json()["stats"]["total"] >= 1
+    assert any(item["id"] == enquiry_id for item in listing.json()["enquiries"])
+
+    update = client.patch(
+        f"/apps/enquiry/api/enquiries/{enquiry_id}",
+        json={"status": "contacted"},
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert update.status_code == 200
+    assert update.json()["status"] == "contacted"
+
+
 def test_legal_pages_load_and_are_linked():
     pages = [
         ("/terms", "Terms of Service"),

@@ -197,6 +197,19 @@ class PaymentWebhookRequest(BaseModel):
     stripe_subscription_status: str | None = None
 
 
+class EnquiryCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    phone: str = Field(..., min_length=5, max_length=40)
+    email: str | None = Field(default=None, max_length=200)
+    business_type: str = Field(default="general", max_length=80)
+    message: str = Field(..., min_length=3, max_length=4000)
+    source: str = Field(default="web", max_length=80)
+
+
+class EnquiryStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(new|contacted|quoted|won|lost|spam)$")
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -630,6 +643,27 @@ def init_db():
                 delivery_provider TEXT,
                 response_json TEXT,
                 created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS enquiries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                email TEXT,
+                business_type TEXT,
+                message TEXT NOT NULL,
+                source TEXT,
+                intent TEXT,
+                priority TEXT,
+                estimated_value TEXT,
+                reply_draft TEXT,
+                whatsapp_url TEXT,
+                status TEXT NOT NULL DEFAULT 'new',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             )
             """
         )
@@ -2002,6 +2036,167 @@ def provider_is_configured(provider_key):
     return provider_status(provider_key)["configured"]
 
 
+def normalize_phone_for_whatsapp(phone):
+    return "".join(char for char in phone if char.isdigit())
+
+
+def classify_enquiry(message):
+    text = message.lower()
+    urgent_keywords = ["urgent", "asap", "today", "tonight", "emergency", "now", "immediately", "紧急", "今天", "马上", "急"]
+    quote_keywords = ["price", "quote", "quotation", "cost", "how much", "budget", "package", "多少钱", "价格", "报价", "费用"]
+    booking_keywords = ["book", "appointment", "schedule", "reserve", "available", "slot", "预约", "安排", "时间"]
+    inventory_keywords = ["stock", "available", "inventory", "in stock", "quantity", "库存", "现货", "数量"]
+
+    if any(keyword in text for keyword in urgent_keywords):
+        priority = "hot"
+    elif any(keyword in text for keyword in quote_keywords + booking_keywords):
+        priority = "warm"
+    else:
+        priority = "normal"
+
+    if any(keyword in text for keyword in quote_keywords):
+        intent = "quotation"
+    elif any(keyword in text for keyword in booking_keywords):
+        intent = "booking"
+    elif any(keyword in text for keyword in inventory_keywords):
+        intent = "inventory"
+    else:
+        intent = "general"
+
+    if priority == "hot":
+        estimated_value = "high"
+    elif intent in {"quotation", "booking"}:
+        estimated_value = "medium"
+    else:
+        estimated_value = "unknown"
+
+    return {
+        "intent": intent,
+        "priority": priority,
+        "estimated_value": estimated_value,
+    }
+
+
+def enquiry_reply_draft(name, business_type, message, classification):
+    service_label = business_type.replace("_", " ").strip() or "service"
+    if classification["intent"] == "quotation":
+        next_step = "Can you share your preferred date, budget range, and any photos or details so we can prepare a more accurate quote?"
+    elif classification["intent"] == "booking":
+        next_step = "Can you share your preferred date and time so we can check availability?"
+    elif classification["intent"] == "inventory":
+        next_step = "Can you confirm the item/model and quantity you need so we can check availability?"
+    else:
+        next_step = "Can you share a few more details so we can recommend the best next step?"
+
+    urgency = " We can prioritize this because it looks time-sensitive." if classification["priority"] == "hot" else ""
+    return (
+        f"Hi {name}, thanks for your enquiry about our {service_label}.{urgency} "
+        f"{next_step} We will review your message and get back to you shortly."
+    )
+
+
+def whatsapp_reply_url(phone, reply_draft):
+    digits = normalize_phone_for_whatsapp(phone)
+    if not digits:
+        return None
+    return f"https://wa.me/{digits}?text={quote(reply_draft)}"
+
+
+def row_to_enquiry(row):
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "phone": row["phone"],
+        "email": row["email"],
+        "business_type": row["business_type"],
+        "message": row["message"],
+        "source": row["source"],
+        "intent": row["intent"],
+        "priority": row["priority"],
+        "estimated_value": row["estimated_value"],
+        "reply_draft": row["reply_draft"],
+        "whatsapp_url": row["whatsapp_url"],
+        "status": row["status"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def create_enquiry_record(req):
+    classification = classify_enquiry(req.message)
+    reply_draft = enquiry_reply_draft(req.name, req.business_type, req.message, classification)
+    whatsapp_url = whatsapp_reply_url(req.phone, reply_draft)
+    timestamp = now_iso()
+
+    with db_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO enquiries (
+                name, phone, email, business_type, message, source, intent,
+                priority, estimated_value, reply_draft, whatsapp_url, status,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                req.name.strip(),
+                req.phone.strip(),
+                normalize_email(req.email),
+                req.business_type.strip() or "general",
+                req.message.strip(),
+                req.source.strip() or "web",
+                classification["intent"],
+                classification["priority"],
+                classification["estimated_value"],
+                reply_draft,
+                whatsapp_url,
+                "new",
+                timestamp,
+                timestamp,
+            ),
+        )
+        row = connection.execute(
+            "SELECT * FROM enquiries WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+
+    return row_to_enquiry(row)
+
+
+def list_enquiry_records(status=None, limit=50):
+    query = "SELECT * FROM enquiries"
+    params = []
+    if status:
+        query += " WHERE status = ?"
+        params.append(status)
+    query += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+
+    with db_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+
+    return [row_to_enquiry(row) for row in rows]
+
+
+def enquiry_stats():
+    with db_connection() as connection:
+        rows = connection.execute(
+            "SELECT status, priority, intent FROM enquiries"
+        ).fetchall()
+
+    stats = {
+        "total": len(rows),
+        "by_status": {},
+        "by_priority": {},
+        "by_intent": {},
+    }
+    for row in rows:
+        stats["by_status"][row["status"]] = stats["by_status"].get(row["status"], 0) + 1
+        stats["by_priority"][row["priority"]] = stats["by_priority"].get(row["priority"], 0) + 1
+        stats["by_intent"][row["intent"]] = stats["by_intent"].get(row["intent"], 0) + 1
+
+    return stats
+
+
 def stripe_secret_key():
     return (os.getenv("STRIPE_SECRET_KEY") or "").strip()
 
@@ -2896,6 +3091,7 @@ def base_html(title, body):
                     <a class="brand" href="/"><span class="mark"></span><span>NexaFlow</span></a>
                     <div class="nav-links">
                         <a href="/pricing">Pricing</a>
+                        <a href="/apps/enquiry">Enquiry App</a>
                         <a href="/portal">Portal</a>
                         <a href="/admin/dashboard">Admin</a>
                         <a href="/docs">API Docs</a>
@@ -3203,6 +3399,193 @@ def pricing_page():
             </thead>
             <tbody>{rows}</tbody>
         </table>
+        """
+    )
+
+
+@app.get("/apps/enquiry", response_class=HTMLResponse)
+def enquiry_app_page():
+    return base_html(
+        "NexaFlow AI Enquiry Inbox",
+        """
+        <section class="hero">
+            <div>
+                <h1>AI Enquiry Inbox for local businesses</h1>
+                <p>Capture website or WhatsApp enquiries, classify buyer intent, generate reply drafts, and follow up from one simple inbox.</p>
+                <div class="actions">
+                    <a class="btn" href="#enquiry-form">Try Demo</a>
+                    <a class="btn secondary" href="/apps/enquiry/admin">Open Inbox</a>
+                </div>
+            </div>
+            <div class="product-panel">
+                <div class="panel-top"><span>Lead Capture</span><span>WhatsApp-ready</span></div>
+                <div class="metrics">
+                    <div class="metric"><span>Intent</span><strong>Auto</strong><span>quote, booking, stock</span></div>
+                    <div class="metric"><span>Priority</span><strong>Hot</strong><span>urgent leads first</span></div>
+                    <div class="metric"><span>Reply</span><strong>Draft</strong><span>one-click WhatsApp</span></div>
+                </div>
+                <div class="flow">
+                    <div class="flow-row"><span>Customer</span><div class="bar"><span style="width:100%"></span></div><span>asks</span></div>
+                    <div class="flow-row"><span>AI Inbox</span><div class="bar"><span style="width:86%;background:var(--gold)"></span></div><span>sorts</span></div>
+                    <div class="flow-row"><span>Sales</span><div class="bar"><span style="width:72%;background:var(--accent)"></span></div><span>replies</span></div>
+                </div>
+            </div>
+        </section>
+        <h2 id="enquiry-form">Send Demo Enquiry</h2>
+        <div class="toolbar">
+            <label>Name<input id="leadName" value="Alex Tan"></label>
+            <label>Phone<input id="leadPhone" value="6591234567"></label>
+        </div>
+        <div class="toolbar">
+            <label>Email<input id="leadEmail" value="alex@example.com"></label>
+            <label>Business Type
+                <select id="businessType">
+                    <option value="renovation">Renovation</option>
+                    <option value="tuition">Tuition</option>
+                    <option value="retail">Retail</option>
+                    <option value="beauty">Beauty</option>
+                    <option value="repair">Repair</option>
+                    <option value="general">General</option>
+                </select>
+            </label>
+        </div>
+        <label>Message
+            <input id="leadMessage" value="Hi, I need a quotation urgently for this week. How much is your package?">
+        </label>
+        <div class="actions">
+            <button class="btn" onclick="submitEnquiry()">Submit Enquiry</button>
+            <a class="btn secondary" href="/apps/enquiry/admin">Open Inbox</a>
+        </div>
+        <div class="status" id="enquiryStatus">Submit the demo form to create an enquiry and AI reply draft.</div>
+        <script>
+            function escapeHtml(value) {
+                return String(value ?? "").replace(/[&<>"']/g, char => ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }[char]));
+            }
+            async function submitEnquiry() {
+                const status = document.getElementById("enquiryStatus");
+                status.textContent = "Submitting enquiry...";
+                try {
+                    const response = await fetch("/apps/enquiry/api/enquiries", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: document.getElementById("leadName").value,
+                            phone: document.getElementById("leadPhone").value,
+                            email: document.getElementById("leadEmail").value,
+                            business_type: document.getElementById("businessType").value,
+                            message: document.getElementById("leadMessage").value,
+                            source: "demo"
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+                    const result = await response.json();
+                    status.innerHTML = `
+                        Created enquiry #${result.id}<br>
+                        Intent: ${escapeHtml(result.intent)} | Priority: ${escapeHtml(result.priority)}<br>
+                        Draft: ${escapeHtml(result.reply_draft)}<br>
+                        ${result.whatsapp_url ? `<a href="${escapeHtml(result.whatsapp_url)}" target="_blank">Open WhatsApp reply</a>` : ""}
+                    `;
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+        </script>
+        """
+    )
+
+
+@app.get("/apps/enquiry/admin", response_class=HTMLResponse)
+def enquiry_admin_page():
+    return base_html(
+        "NexaFlow Enquiry Inbox",
+        """
+        <h1>AI Enquiry Inbox</h1>
+        <p>Review incoming leads, reply drafts, and WhatsApp follow-up links.</p>
+        <div class="toolbar">
+            <label>Admin key<input id="adminKey" type="password" placeholder="X-Admin-Key"></label>
+            <button class="btn" onclick="loadInbox()">Refresh</button>
+        </div>
+        <div class="status" id="inboxStatus">Enter admin key to load enquiries.</div>
+        <section class="grid" id="inboxStats"></section>
+        <table>
+            <thead>
+                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody id="enquiryRows"></tbody>
+        </table>
+        <script>
+            function escapeHtml(value) {
+                return String(value ?? "").replace(/[&<>"']/g, char => ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }[char]));
+            }
+            async function adminApi(path, options = {}) {
+                const adminKey = document.getElementById("adminKey").value;
+                const headers = { "X-Admin-Key": adminKey, ...(options.headers || {}) };
+                const response = await fetch(path, { ...options, headers });
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+                return response.json();
+            }
+            async function setStatus(id, status) {
+                try {
+                    await adminApi(`/apps/enquiry/api/enquiries/${id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status })
+                    });
+                    await loadInbox();
+                } catch (error) {
+                    document.getElementById("inboxStatus").textContent = error.message;
+                }
+            }
+            async function loadInbox() {
+                const status = document.getElementById("inboxStatus");
+                status.textContent = "Loading enquiries...";
+                try {
+                    const data = await adminApi("/apps/enquiry/api/enquiries?limit=50");
+                    const stats = data.stats || {};
+                    document.getElementById("inboxStats").innerHTML = `
+                        <section class="card"><h3>Total</h3><div class="price">${stats.total || 0}</div></section>
+                        <section class="card"><h3>Hot</h3><div class="price">${(stats.by_priority || {}).hot || 0}</div></section>
+                        <section class="card"><h3>New</h3><div class="price">${(stats.by_status || {}).new || 0}</div></section>
+                    `;
+                    document.getElementById("enquiryRows").innerHTML = data.enquiries.map(item => `
+                        <tr>
+                            <td>${escapeHtml(item.created_at)}</td>
+                            <td>${escapeHtml(item.name)}<br>${escapeHtml(item.phone)}<br>${escapeHtml(item.email || "")}</td>
+                            <td>${escapeHtml(item.intent)}</td>
+                            <td>${escapeHtml(item.priority)}</td>
+                            <td>${escapeHtml(item.message)}</td>
+                            <td>${escapeHtml(item.reply_draft)}</td>
+                            <td>${escapeHtml(item.status)}</td>
+                            <td>
+                                ${item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.whatsapp_url)}">WhatsApp</a>` : ""}
+                                <button class="btn secondary" onclick="setStatus(${item.id}, 'contacted')">Contacted</button>
+                                <button class="btn secondary" onclick="setStatus(${item.id}, 'won')">Won</button>
+                                <button class="btn secondary" onclick="setStatus(${item.id}, 'lost')">Lost</button>
+                            </td>
+                        </tr>
+                    `).join("");
+                    status.textContent = "Loaded.";
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+        </script>
         """
     )
 
@@ -4098,6 +4481,53 @@ def admin_revenue_report(admin_key: str | None = None, x_admin_key: str | None =
 def admin_action_items(admin_key: str | None = None, x_admin_key: str | None = Header(default=None)):
     admin_guard(admin_key, x_admin_key)
     return admin_action_items_data()
+
+
+@app.post("/apps/enquiry/api/enquiries")
+def create_enquiry(req: EnquiryCreateRequest):
+    return create_enquiry_record(req)
+
+
+@app.get("/apps/enquiry/api/enquiries")
+def list_enquiries(
+    status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
+    limit: int = Query(default=50, ge=1, le=200),
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return {
+        "stats": enquiry_stats(),
+        "enquiries": list_enquiry_records(status=status, limit=limit),
+    }
+
+
+@app.patch("/apps/enquiry/api/enquiries/{enquiry_id}")
+def update_enquiry_status(
+    enquiry_id: int,
+    req: EnquiryStatusUpdate,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM enquiries WHERE id = ?",
+            (enquiry_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Enquiry not found")
+
+        connection.execute(
+            "UPDATE enquiries SET status = ?, updated_at = ? WHERE id = ?",
+            (req.status, now_iso(), enquiry_id),
+        )
+        updated = connection.execute(
+            "SELECT * FROM enquiries WHERE id = ?",
+            (enquiry_id,),
+        ).fetchone()
+
+    return row_to_enquiry(updated)
 
 
 @app.get("/client-info")
