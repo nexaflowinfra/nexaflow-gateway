@@ -3345,7 +3345,7 @@ def base_html(title, body):
                     <a class="brand" href="/"><span class="mark"></span><span>NexaFlow</span></a>
                     <div class="nav-links">
                         <a href="/pricing">Pricing</a>
-                        <a href="/apps/enquiry">Enquiry App</a>
+                        <a href="/ai-enquiry">Enquiry App</a>
                         <a href="/portal">Portal</a>
                         <a href="/admin/dashboard">Admin</a>
                         <a href="/docs">API Docs</a>
@@ -3829,10 +3829,12 @@ def pricing_page():
     )
 
 
+@app.get("/ai-enquiry", response_class=HTMLResponse)
 @app.get("/apps/enquiry", response_class=HTMLResponse)
 def enquiry_app_page():
-    return base_html(
+    return merchant_html(
         "NexaFlow AI Enquiry Inbox",
+        "NexaFlow Enquiry",
         """
         <section class="hero">
             <div>
@@ -3840,7 +3842,7 @@ def enquiry_app_page():
                 <p>Capture website or WhatsApp enquiries, classify buyer intent, generate reply drafts, and follow up from one simple inbox.</p>
                 <div class="actions">
                     <a class="btn" href="#enquiry-form">Try Demo</a>
-                    <a class="btn secondary" href="/apps/enquiry/admin">Open Inbox</a>
+                    <a class="btn secondary" href="/enquiry-admin">Open Admin</a>
                 </div>
             </div>
             <div class="product-panel">
@@ -3880,9 +3882,9 @@ def enquiry_app_page():
         </label>
         <div class="actions">
             <button class="btn" onclick="submitEnquiry()">Submit Enquiry</button>
-            <a class="btn secondary" href="/apps/enquiry/admin">Open Inbox</a>
+            <a class="btn secondary" href="/enquiry-admin">Open Admin</a>
         </div>
-        <div class="status" id="enquiryStatus">Submit the demo form to create an enquiry and AI reply draft.</div>
+        <div class="status" id="enquiryStatus">Submit the demo form to create an enquiry and classification result.</div>
         <script>
             function escapeHtml(value) {
                 return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -3916,8 +3918,7 @@ def enquiry_app_page():
                     status.innerHTML = `
                         Created enquiry #${result.id}<br>
                         Intent: ${escapeHtml(result.intent)} | Priority: ${escapeHtml(result.priority)}<br>
-                        Draft: ${escapeHtml(result.reply_draft)}<br>
-                        ${result.whatsapp_url ? `<a href="${escapeHtml(result.whatsapp_url)}" target="_blank">Open WhatsApp reply</a>` : ""}
+                        Internal reply drafts are shown only inside the business inbox.
                     `;
                 } catch (error) {
                     status.textContent = error.message;
@@ -4089,10 +4090,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
     )
 
 
+@app.get("/enquiry-admin", response_class=HTMLResponse)
 @app.get("/apps/enquiry/admin", response_class=HTMLResponse)
 def enquiry_admin_page():
-    return base_html(
+    return merchant_html(
         "NexaFlow Enquiry Inbox",
+        "NexaFlow Enquiry Admin",
         """
         <h1>AI Enquiry Inbox</h1>
         <p>Review incoming leads, reply drafts, and WhatsApp follow-up links.</p>

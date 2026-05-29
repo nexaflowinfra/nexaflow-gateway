@@ -49,15 +49,21 @@ def test_pricing_page_loads():
 
 
 def test_enquiry_app_pages_load():
-    public_page = client.get("/apps/enquiry")
-    admin_page = client.get("/apps/enquiry/admin")
+    public_page = client.get("/ai-enquiry")
+    admin_page = client.get("/enquiry-admin")
+    legacy_public_page = client.get("/apps/enquiry")
+    legacy_admin_page = client.get("/apps/enquiry/admin")
 
     assert public_page.status_code == 200
     assert "AI Enquiry Inbox" in public_page.text
     assert "submitEnquiry" in public_page.text
+    assert "/admin/dashboard" not in public_page.text
     assert admin_page.status_code == 200
     assert "loadInbox" in admin_page.text
     assert "saveProfile" in admin_page.text
+    assert "/admin/dashboard" not in admin_page.text
+    assert legacy_public_page.status_code == 200
+    assert legacy_admin_page.status_code == 200
 
 
 def test_business_profile_create_and_public_form_loads():
