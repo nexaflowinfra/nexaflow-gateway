@@ -4251,24 +4251,53 @@ def public_enquiry_form_page(business_slug: str):
     profile = get_business_profile(business_slug)
     business_name = escape_html(profile["business_name"])
     offer_summary = escape_html(profile["offer_summary"] or "Send an enquiry and the team will follow up.")
-    opening_hours = escape_html(profile["opening_hours"] or "Submit your enquiry below.")
+    opening_hours = escape_html(profile["opening_hours"] or "Send an enquiry any time. The team will follow up as soon as possible.")
     slug = escape_html(profile["slug"])
     business_type = escape_html(profile["business_type"])
+    business_type_label = escape_html(profile["business_type"].replace("_", " ").title())
     return merchant_html(
-        f"{business_name} Enquiry Form",
+        f"{business_name} Enquiry Page",
         profile["business_name"],
         f"""
-        <section class="hero compact">
+        <section class="hero">
             <div>
-                <div class="eyebrow">Enquiry form</div>
+                <div class="eyebrow">{business_type_label}</div>
                 <h1>{business_name}</h1>
                 <p class="lead">{offer_summary}</p>
-                <div class="status">{opening_hours}</div>
+                <div class="actions">
+                    <a class="btn" href="#enquiry-form">Send Enquiry</a>
+                    <a class="btn secondary" href="#details">View Details</a>
+                </div>
+            </div>
+            <div class="product-panel" id="details">
+                <div class="panel-top"><span>Business enquiry page</span><span class="pill good">AI-assisted</span></div>
+                <div class="signal-list">
+                    <div class="signal-row">
+                        <span class="pill">Ask</span>
+                        <div><strong>Price or quotation</strong><span>Share what you need and any important details.</span></div>
+                        <span>Step 1</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="pill">Book</span>
+                        <div><strong>Appointment or service</strong><span>Request a date, time, or callback.</span></div>
+                        <span>Step 2</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="pill">Reply</span>
+                        <div><strong>Fast follow-up</strong><span>The business receives your enquiry and reply draft.</span></div>
+                        <span>Step 3</span>
+                    </div>
+                </div>
             </div>
         </section>
-        <section class="form-card">
+        <section class="grid">
+            <div class="card"><h3>What we do</h3><p>{offer_summary}</p></div>
+            <div class="card"><h3>Response</h3><p>Your enquiry is sent directly to the business for follow-up.</p></div>
+            <div class="card"><h3>Availability</h3><p>{opening_hours}</p></div>
+        </section>
+        <section class="form-card" id="enquiry-form">
             <h2>Send an enquiry</h2>
-            <p>Leave your details and the team will follow up.</p>
+            <p>Leave your contact details and a short message.</p>
             <div class="toolbar">
                 <label>Name<input id="leadName" autocomplete="name" placeholder="Your name"></label>
                 <label>Phone<input id="leadPhone" autocomplete="tel" placeholder="+65 9123 4567"></label>

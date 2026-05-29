@@ -99,6 +99,9 @@ def test_business_profile_create_and_public_form_loads():
     form = client.get(f"/enquiry/{slug}")
     assert form.status_code == 200
     assert "Demo Reno" in form.text
+    assert "Business enquiry page" in form.text
+    assert "kitchen and bathroom renovation quotes" in form.text
+    assert "Send Enquiry" in form.text
     assert slug in form.text
     assert "/admin/dashboard" not in form.text
 
