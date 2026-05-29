@@ -2103,8 +2103,8 @@ def row_to_business_profile(row):
         "opening_hours": row["opening_hours"] or "",
         "status": row["status"],
         "access_key_prefix": row["access_key_prefix"],
-        "form_url": f"/apps/enquiry/form/{row['slug']}",
-        "inbox_url": f"/apps/enquiry/inbox/{row['slug']}",
+        "form_url": f"/enquiry/{row['slug']}",
+        "inbox_url": f"/inbox/{row['slug']}",
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -2122,8 +2122,8 @@ def default_enquiry_profile():
         "opening_hours": "",
         "status": "active",
         "access_key_prefix": None,
-        "form_url": "/apps/enquiry/form/demo",
-        "inbox_url": "/apps/enquiry/inbox/demo",
+        "form_url": "/enquiry/demo",
+        "inbox_url": "/inbox/demo",
         "created_at": None,
         "updated_at": None,
     }
@@ -3369,6 +3369,178 @@ def base_html(title, body):
     )
 
 
+def merchant_html(title, business_name, body):
+    safe_title = escape_html(title)
+    safe_business_name = escape_html(business_name)
+    return HTMLResponse(
+        f"""
+        <!doctype html>
+        <html lang="en">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>{safe_title}</title>
+            <style>
+                :root {{
+                    --brand: #2563eb;
+                    --ink: #172033;
+                    --muted: #667085;
+                    --line: #d9e0ea;
+                    --soft: #f6f8fb;
+                }}
+                * {{ box-sizing: border-box; }}
+                body {{
+                    margin: 0;
+                    font-family: Inter, Segoe UI, Arial, sans-serif;
+                    background: #ffffff;
+                    color: var(--ink);
+                }}
+                header {{
+                    border-bottom: 1px solid var(--line);
+                    background: white;
+                }}
+                nav {{
+                    max-width: 1120px;
+                    margin: 0 auto;
+                    padding: 16px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 16px;
+                    align-items: center;
+                }}
+                .brand {{
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-weight: 800;
+                    color: var(--ink);
+                    text-decoration: none;
+                }}
+                .mark {{
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 8px;
+                    background: var(--brand);
+                    display: inline-block;
+                }}
+                main {{
+                    max-width: 1120px;
+                    margin: 0 auto;
+                    padding: 34px 20px 48px;
+                }}
+                h1 {{ font-size: 38px; margin: 0 0 10px; letter-spacing: 0; }}
+                h2 {{ margin-top: 28px; }}
+                p {{ color: var(--muted); line-height: 1.6; }}
+                .btn {{
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 0;
+                    border-radius: 6px;
+                    padding: 10px 14px;
+                    background: var(--brand);
+                    color: white;
+                    font-weight: 700;
+                    text-decoration: none;
+                    cursor: pointer;
+                    min-height: 40px;
+                }}
+                .btn.secondary {{
+                    background: var(--soft);
+                    color: var(--ink);
+                    border: 1px solid var(--line);
+                }}
+                input, textarea {{
+                    width: 100%;
+                    border: 1px solid var(--line);
+                    border-radius: 6px;
+                    padding: 10px;
+                    font: inherit;
+                }}
+                textarea {{ min-height: 110px; resize: vertical; }}
+                label {{
+                    display: grid;
+                    gap: 6px;
+                    color: var(--muted);
+                    font-size: 13px;
+                    margin-bottom: 10px;
+                }}
+                .toolbar {{
+                    display: grid;
+                    grid-template-columns: minmax(260px, 1fr) auto;
+                    gap: 10px;
+                    align-items: end;
+                    margin-bottom: 18px;
+                }}
+                .status {{
+                    white-space: pre-wrap;
+                    background: var(--soft);
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 12px;
+                    min-height: 46px;
+                    color: var(--muted);
+                    font-size: 13px;
+                }}
+                .grid {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 16px;
+                }}
+                .card {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 18px;
+                    background: white;
+                }}
+                .price {{
+                    font-size: 34px;
+                    font-weight: 800;
+                    color: var(--ink);
+                    margin: 10px 0;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 12px;
+                    font-size: 14px;
+                }}
+                th, td {{
+                    border-bottom: 1px solid var(--line);
+                    text-align: left;
+                    padding: 10px 8px;
+                    vertical-align: top;
+                }}
+                th {{ color: var(--muted); font-weight: 700; }}
+                footer {{
+                    max-width: 1120px;
+                    margin: 0 auto;
+                    padding: 22px 20px 34px;
+                    border-top: 1px solid var(--line);
+                    color: var(--muted);
+                    font-size: 13px;
+                }}
+                @media (max-width: 820px) {{
+                    .grid, .toolbar {{ grid-template-columns: 1fr; }}
+                    h1 {{ font-size: 32px; }}
+                    table {{ display: block; overflow-x: auto; }}
+                }}
+            </style>
+        </head>
+        <body>
+            <header>
+                <nav>
+                    <a class="brand" href="#"><span class="mark"></span><span>{safe_business_name}</span></a>
+                </nav>
+            </header>
+            <main>{body}</main>
+            <footer>Powered by NexaFlow</footer>
+        </body>
+        </html>
+        """
+    )
+
+
 def plan_card(plan_key, plan):
     checkout_url = f"/billing/checkout?plan={plan_key}"
     tiers = ", ".join(plan["allowed_tiers"])
@@ -3756,6 +3928,7 @@ def enquiry_app_page():
     )
 
 
+@app.get("/enquiry/{business_slug}", response_class=HTMLResponse)
 @app.get("/apps/enquiry/form/{business_slug}", response_class=HTMLResponse)
 def public_enquiry_form_page(business_slug: str):
     profile = get_business_profile(business_slug)
@@ -3764,8 +3937,9 @@ def public_enquiry_form_page(business_slug: str):
     opening_hours = escape_html(profile["opening_hours"] or "Submit your enquiry below.")
     slug = escape_html(profile["slug"])
     business_type = escape_html(profile["business_type"])
-    return base_html(
+    return merchant_html(
         f"{business_name} Enquiry Form",
+        profile["business_name"],
         f"""
         <h1>{business_name}</h1>
         <p>{offer_summary}</p>
@@ -3776,9 +3950,9 @@ def public_enquiry_form_page(business_slug: str):
             <label>Phone<input id="leadPhone" autocomplete="tel"></label>
         </div>
         <label>Email<input id="leadEmail" autocomplete="email"></label>
-        <label>Message<input id="leadMessage" value="Hi, I would like to enquire about your service."></label>
+        <label>Message<textarea id="leadMessage">Hi, I would like to enquire about your service.</textarea></label>
         <button class="btn" onclick="submitEnquiry()">Send</button>
-        <div class="status" id="enquiryStatus">We will prepare a reply draft for the business owner.</div>
+        <div class="status" id="enquiryStatus">Send your enquiry and the business will follow up.</div>
         <script>
             function escapeHtml(value) {{
                 return String(value ?? "").replace(/[&<>"']/g, char => ({{
@@ -3820,13 +3994,15 @@ def public_enquiry_form_page(business_slug: str):
     )
 
 
+@app.get("/inbox/{business_slug}", response_class=HTMLResponse)
 @app.get("/apps/enquiry/inbox/{business_slug}", response_class=HTMLResponse)
 def merchant_enquiry_inbox_page(business_slug: str):
     profile = get_business_profile(business_slug)
     business_name = escape_html(profile["business_name"])
     slug = escape_html(profile["slug"])
-    return base_html(
+    return merchant_html(
         f"{business_name} Inbox",
+        profile["business_name"],
         f"""
         <h1>{business_name} Inbox</h1>
         <p>Review leads, reply drafts, and WhatsApp follow-up links for this business only.</p>

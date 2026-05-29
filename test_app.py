@@ -78,8 +78,8 @@ def test_business_profile_create_and_public_form_loads():
     )
     assert create.status_code == 200
     assert create.json()["slug"] == slug
-    assert create.json()["form_url"] == f"/apps/enquiry/form/{slug}"
-    assert create.json()["inbox_url"] == f"/apps/enquiry/inbox/{slug}"
+    assert create.json()["form_url"] == f"/enquiry/{slug}"
+    assert create.json()["inbox_url"] == f"/inbox/{slug}"
     assert create.json()["business_access_key"].startswith("biz_")
     assert "access_key_hash" not in create.json()
 
@@ -89,14 +89,22 @@ def test_business_profile_create_and_public_form_loads():
     assert "business_access_key" not in public_profile.json()
     assert "access_key_prefix" not in public_profile.json()
 
-    form = client.get(f"/apps/enquiry/form/{slug}")
+    form = client.get(f"/enquiry/{slug}")
     assert form.status_code == 200
     assert "Demo Reno" in form.text
     assert slug in form.text
+    assert "/admin/dashboard" not in form.text
 
-    inbox = client.get(f"/apps/enquiry/inbox/{slug}")
+    legacy_form = client.get(f"/apps/enquiry/form/{slug}")
+    assert legacy_form.status_code == 200
+
+    inbox = client.get(f"/inbox/{slug}")
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
+    assert "/admin/dashboard" not in inbox.text
+
+    legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
+    assert legacy_inbox.status_code == 200
 
 
 def test_business_profile_requires_admin_key():
