@@ -107,6 +107,8 @@ def test_admin_dashboard_loads():
     assert "resendApiKey" in response.text
     assert "Create Backup" in response.text
     assert "Test Offsite" in response.text
+    assert "Revenue Report" in response.text
+    assert "/admin/revenue-report" in response.text
 
 
 def test_customer_portal_loads():
@@ -128,6 +130,35 @@ def test_plans_are_public():
 def test_admin_requires_key():
     response = client.get("/admin/clients")
     assert response.status_code == 401
+
+
+def test_admin_revenue_report_requires_key():
+    response = client.get("/admin/revenue-report")
+    assert response.status_code == 401
+
+
+def test_admin_revenue_report_summarizes_mrr_and_risk():
+    suffix = uuid.uuid4().hex[:8]
+    client_id = f"report_customer_{suffix}"
+    create = client.post(
+        "/admin/clients",
+        json={
+            "client_id": client_id,
+            "plan": "pro",
+            "credits": 500,
+            "billing_email": f"report-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+
+    response = client.get("/admin/revenue-report", headers={"X-Admin-Key": "test-admin"})
+    assert response.status_code == 200
+    report = response.json()
+    assert report["mrr"]["active_monthly_recurring_revenue_usd"] >= main.PLANS["pro"]["monthly_price_usd"]
+    assert report["mrr"]["active_customers"] >= 1
+    assert any(item["client_id"] == client_id for item in report["risk"]["low_credit_clients"])
+    assert "month_to_date" in report["usage"]
 
 
 def test_customer_api_requires_key():

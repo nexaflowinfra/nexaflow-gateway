@@ -1655,6 +1655,180 @@ def client_usage_report(client_id, limit=25):
     }
 
 
+def empty_usage_totals():
+    return {
+        "requests": 0,
+        "credits_spent": 0,
+        "provider_cost_usd": 0,
+        "revenue_usd": 0,
+        "gross_margin_usd": 0,
+    }
+
+
+def usage_totals_for_logs(logs):
+    totals = empty_usage_totals()
+    by_client = {}
+    by_provider = {}
+
+    for log in logs:
+        client_id = log.get("client_id") or "unknown"
+        provider = log.get("provider") or "unknown"
+        by_client.setdefault(client_id, empty_usage_totals())
+        by_provider.setdefault(provider, empty_usage_totals())
+
+        for bucket in (totals, by_client[client_id], by_provider[provider]):
+            bucket["requests"] += 1
+            bucket["credits_spent"] += log.get("credits_spent", 0)
+            bucket["provider_cost_usd"] += log.get("provider_cost_usd", 0)
+            bucket["revenue_usd"] += log.get("revenue_usd", 0)
+            bucket["gross_margin_usd"] += log.get("gross_margin_usd", 0)
+
+    totals["gross_margin_ratio"] = (
+        round(totals["gross_margin_usd"] / totals["revenue_usd"], 6)
+        if totals["revenue_usd"] > 0
+        else None
+    )
+
+    return {
+        "totals": totals,
+        "by_client": by_client,
+        "by_provider": by_provider,
+    }
+
+
+def list_payment_events_from_db(limit=500):
+    with db_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM payment_events ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [row_to_payment_event(row) for row in rows]
+
+
+def payment_event_is_success(event):
+    return event.get("processed") and event.get("event_type") in {
+        "payment.succeeded",
+        "checkout.session.completed",
+        "invoice.paid",
+    }
+
+
+def current_month_start():
+    now = datetime.now(timezone.utc)
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def admin_revenue_report_data():
+    clients = load_clients()
+    normalized_clients = {
+        client_id: normalize_client(client_id, client)
+        for client_id, client in clients.items()
+    }
+    logs = load_logs()
+    month_start = current_month_start()
+    monthly_logs = []
+
+    for log in logs:
+        timestamp = parse_log_timestamp(log.get("timestamp"))
+        if timestamp is not None and timestamp >= month_start:
+            monthly_logs.append(log)
+
+    usage_all_time = usage_totals_for_logs(logs)
+    usage_month = usage_totals_for_logs(monthly_logs)
+    payment_events = list_payment_events_from_db()
+    successful_payments = [event for event in payment_events if payment_event_is_success(event)]
+    monthly_successful_payments = [
+        event
+        for event in successful_payments
+        if (parse_log_timestamp(event.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)) >= month_start
+    ]
+
+    status_counts = {}
+    plan_counts = {}
+    active_mrr = 0
+    credits_outstanding = 0
+    low_credit_clients = []
+    paused_or_cancelled_clients = []
+    high_usage_clients = []
+
+    for client_id, client in normalized_clients.items():
+        plan_key = client["plan"]
+        plan = PLANS[plan_key]
+        status_counts[client["status"]] = status_counts.get(client["status"], 0) + 1
+        plan_counts[plan_key] = plan_counts.get(plan_key, 0) + 1
+        credits_outstanding += client.get("credits", 0)
+
+        if client["status"] == "active":
+            active_mrr += plan["monthly_price_usd"]
+
+        threshold = low_credit_threshold(plan_key)
+        if client["status"] == "active" and client["credits"] <= threshold:
+            low_credit_clients.append(
+                {
+                    "client_id": client_id,
+                    "plan": plan_key,
+                    "credits": client["credits"],
+                    "threshold": threshold,
+                    "billing_email": client.get("billing_email"),
+                }
+            )
+
+        if client["status"] in {"paused", "cancelled"}:
+            paused_or_cancelled_clients.append(public_client(client_id, client))
+
+        daily = usage_window_stats(client_id)
+        if (
+            daily["requests"] >= plan["daily_request_limit"] * 0.8
+            or daily["credits_spent"] >= plan["daily_credit_limit"] * 0.8
+        ):
+            high_usage_clients.append(
+                {
+                    "client_id": client_id,
+                    "plan": plan_key,
+                    "daily_usage": daily,
+                    "daily_request_limit": plan["daily_request_limit"],
+                    "daily_credit_limit": plan["daily_credit_limit"],
+                }
+            )
+
+    negative_margin_clients = [
+        {
+            "client_id": client_id,
+            **usage,
+        }
+        for client_id, usage in usage_all_time["by_client"].items()
+        if usage["gross_margin_usd"] < 0
+    ]
+
+    return {
+        "generated_at": now_iso(),
+        "currency": "USD",
+        "month_start": month_start.isoformat(),
+        "mrr": {
+            "active_monthly_recurring_revenue_usd": active_mrr,
+            "active_customers": status_counts.get("active", 0),
+            "status_counts": status_counts,
+            "plan_counts": plan_counts,
+        },
+        "payments": {
+            "successful_events": len(successful_payments),
+            "all_time_volume_usd": round(sum(event.get("amount_usd") or 0 for event in successful_payments), 2),
+            "month_to_date_volume_usd": round(sum(event.get("amount_usd") or 0 for event in monthly_successful_payments), 2),
+        },
+        "usage": {
+            "all_time": usage_all_time,
+            "month_to_date": usage_month,
+        },
+        "risk": {
+            "credits_outstanding": credits_outstanding,
+            "low_credit_clients": low_credit_clients,
+            "paused_or_cancelled_clients": paused_or_cancelled_clients,
+            "high_usage_clients": high_usage_clients,
+            "negative_margin_clients": negative_margin_clients,
+        },
+    }
+
+
 def row_to_payment_event(row):
     response = json.loads(row["response_json"]) if row["response_json"] else None
     return {
@@ -1739,9 +1913,14 @@ def enforce_rate_limit(client_id, limit):
 
 def parse_log_timestamp(value):
     try:
-        return datetime.fromisoformat(value)
+        timestamp = datetime.fromisoformat(value)
     except (TypeError, ValueError):
         return None
+
+    if timestamp.tzinfo is None:
+        return timestamp.replace(tzinfo=timezone.utc)
+
+    return timestamp
 
 
 def usage_window_stats(client_id, window_seconds=86400):
@@ -3016,7 +3195,12 @@ def admin_dashboard():
             <div class="card"><h3>Total Requests</h3><div class="price" id="totalRequests">-</div></div>
             <div class="card"><h3>Revenue</h3><div class="price" id="revenue">-</div></div>
             <div class="card"><h3>Gross Margin</h3><div class="price" id="margin">-</div></div>
+            <div class="card"><h3>MRR Run Rate</h3><div class="price" id="mrr">-</div></div>
+            <div class="card"><h3>Active Customers</h3><div class="price" id="activeCustomers">-</div></div>
+            <div class="card"><h3>Payments MTD</h3><div class="price" id="paymentsMtd">-</div></div>
         </section>
+        <h2>Revenue Report</h2>
+        <div class="status" id="revenueReport">Revenue report will appear here.</div>
         <h2>Clients</h2>
         <div class="status" id="status">Enter the admin key and refresh.</div>
         <table>
@@ -3141,9 +3325,10 @@ def admin_dashboard():
                 const status = document.getElementById("status");
                 status.textContent = "Loading...";
                 try {
-                    const [clients, stats, events, notifications, checks, backups] = await Promise.all([
+                    const [clients, stats, report, events, notifications, checks, backups] = await Promise.all([
                         api("/admin/clients", adminKey),
                         api("/admin/usage-stats", adminKey),
+                        api("/admin/revenue-report", adminKey),
                         api("/admin/payment-events?limit=12", adminKey),
                         api("/admin/notifications?limit=12", adminKey),
                         api("/admin/deploy-check", adminKey),
@@ -3159,6 +3344,24 @@ def admin_dashboard():
                     document.getElementById("totalRequests").textContent = totalRequests;
                     document.getElementById("revenue").textContent = money(revenue);
                     document.getElementById("margin").textContent = money(margin);
+                    document.getElementById("mrr").textContent = money(report.mrr.active_monthly_recurring_revenue_usd);
+                    document.getElementById("activeCustomers").textContent = report.mrr.active_customers;
+                    document.getElementById("paymentsMtd").textContent = money(report.payments.month_to_date_volume_usd);
+                    document.getElementById("revenueReport").textContent = [
+                        `Generated: ${report.generated_at}`,
+                        `MRR run rate: ${money(report.mrr.active_monthly_recurring_revenue_usd)}`,
+                        `Payment volume MTD: ${money(report.payments.month_to_date_volume_usd)}`,
+                        `Payment volume all time: ${money(report.payments.all_time_volume_usd)}`,
+                        `Usage revenue MTD: ${money(report.usage.month_to_date.totals.revenue_usd)}`,
+                        `Provider cost MTD: ${money(report.usage.month_to_date.totals.provider_cost_usd)}`,
+                        `Gross margin MTD: ${money(report.usage.month_to_date.totals.gross_margin_usd)}`,
+                        `Gross margin ratio all time: ${report.usage.all_time.totals.gross_margin_ratio ?? "n/a"}`,
+                        `Credits outstanding: ${fmt.format(report.risk.credits_outstanding || 0)}`,
+                        `Low credit customers: ${report.risk.low_credit_clients.length}`,
+                        `High usage customers: ${report.risk.high_usage_clients.length}`,
+                        `Negative margin customers: ${report.risk.negative_margin_clients.length}`,
+                        `Paused/cancelled customers: ${report.risk.paused_or_cancelled_clients.length}`
+                    ].join("\\n");
                     document.getElementById("clients").innerHTML = clients.clients.map(client => `
                         <tr>
                             <td>${client.client_id}</td>
@@ -3601,30 +3804,20 @@ def send_client_api_key(
 def usage_stats(admin_key: str | None = None, x_admin_key: str | None = Header(default=None)):
     admin_guard(admin_key, x_admin_key)
     logs = load_logs()
-    stats = {}
-
-    for log in logs:
-        client_id = log["client_id"]
-        stats.setdefault(
-            client_id,
-            {
-                "requests": 0,
-                "credits_spent": 0,
-                "provider_cost_usd": 0,
-                "revenue_usd": 0,
-                "gross_margin_usd": 0,
-            },
-        )
-        stats[client_id]["requests"] += 1
-        stats[client_id]["credits_spent"] += log.get("credits_spent", 1)
-        stats[client_id]["provider_cost_usd"] += log.get("provider_cost_usd", 0)
-        stats[client_id]["revenue_usd"] += log.get("revenue_usd", 0)
-        stats[client_id]["gross_margin_usd"] += log.get("gross_margin_usd", 0)
+    usage = usage_totals_for_logs(logs)
 
     return {
         "total_requests": len(logs),
-        "client_usage": stats,
+        "client_usage": usage["by_client"],
+        "provider_usage": usage["by_provider"],
+        "totals": usage["totals"],
     }
+
+
+@app.get("/admin/revenue-report")
+def admin_revenue_report(admin_key: str | None = None, x_admin_key: str | None = Header(default=None)):
+    admin_guard(admin_key, x_admin_key)
+    return admin_revenue_report_data()
 
 
 @app.get("/client-info")
