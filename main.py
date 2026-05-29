@@ -678,6 +678,8 @@ def init_db():
                 estimated_value TEXT,
                 reply_draft TEXT,
                 whatsapp_url TEXT,
+                merchant_notification_status TEXT,
+                merchant_notification_error TEXT,
                 status TEXT NOT NULL DEFAULT 'new',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -685,6 +687,8 @@ def init_db():
             """
         )
         ensure_column(connection, "enquiries", "business_slug", "TEXT")
+        ensure_column(connection, "enquiries", "merchant_notification_status", "TEXT")
+        ensure_column(connection, "enquiries", "merchant_notification_error", "TEXT")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS business_profiles (
@@ -2432,10 +2436,52 @@ def row_to_enquiry(row):
         "estimated_value": row["estimated_value"],
         "reply_draft": row["reply_draft"],
         "whatsapp_url": row["whatsapp_url"],
+        "merchant_notification_status": row["merchant_notification_status"],
+        "merchant_notification_error": row["merchant_notification_error"],
         "status": row["status"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
+
+
+def merchant_enquiry_notification_email(profile, enquiry):
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    inbox_url = f"{site_url}{profile['inbox_url']}"
+    whatsapp_line = f"\nWhatsApp follow-up:\n{enquiry['whatsapp_url']}\n" if enquiry.get("whatsapp_url") else ""
+    return f"""New enquiry for {profile['business_name']}
+
+Lead:
+{enquiry['name']}
+{enquiry['phone']}
+{enquiry.get('email') or ''}
+
+Intent: {enquiry['intent']}
+Priority: {enquiry['priority']}
+Estimated value: {enquiry['estimated_value']}
+
+Message:
+{enquiry['message']}
+
+Suggested reply:
+{enquiry['reply_draft']}
+{whatsapp_line}
+Open your inbox:
+{inbox_url}
+"""
+
+
+def notify_merchant_new_enquiry(profile, enquiry):
+    if not profile.get("contact_email"):
+        return {
+            "status": "skipped",
+            "reason": "Business profile has no contact_email.",
+        }
+
+    return send_resend_email(
+        profile["contact_email"],
+        f"New {enquiry['priority']} enquiry: {enquiry['name']}",
+        merchant_enquiry_notification_email(profile, enquiry),
+    )
 
 
 def public_enquiry_response(enquiry):
@@ -2467,9 +2513,9 @@ def create_enquiry_record(req):
             """
             INSERT INTO enquiries (
                 business_slug, name, phone, email, business_type, message, source, intent,
-                priority, estimated_value, reply_draft, whatsapp_url, status,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                priority, estimated_value, reply_draft, whatsapp_url, merchant_notification_status,
+                merchant_notification_error, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile["slug"],
@@ -2484,6 +2530,8 @@ def create_enquiry_record(req):
                 classification["estimated_value"],
                 reply_draft,
                 whatsapp_url,
+                "pending",
+                None,
                 "new",
                 timestamp,
                 timestamp,
@@ -2494,7 +2542,25 @@ def create_enquiry_record(req):
             (cursor.lastrowid,),
         ).fetchone()
 
-    return row_to_enquiry(row)
+    enquiry = row_to_enquiry(row)
+    delivery = notify_merchant_new_enquiry(profile, enquiry)
+    status = delivery.get("status", "unknown")
+    error = delivery.get("reason") or delivery.get("provider_error")
+    with db_connection() as connection:
+        connection.execute(
+            """
+            UPDATE enquiries
+            SET merchant_notification_status = ?, merchant_notification_error = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (status, error, now_iso(), enquiry["id"]),
+        )
+        updated = connection.execute(
+            "SELECT * FROM enquiries WHERE id = ?",
+            (enquiry["id"],),
+        ).fetchone()
+
+    return row_to_enquiry(updated)
 
 
 def list_enquiry_records(status=None, business_slug=None, limit=50):

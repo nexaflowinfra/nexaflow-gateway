@@ -247,6 +247,46 @@ def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
     assert saved["business_type"] == "tuition"
     assert "Bright Tuition" in saved["reply_draft"]
     assert saved["whatsapp_url"].startswith("https://wa.me/6588889999")
+    assert saved["merchant_notification_status"] == "skipped"
+    assert "contact_email" in saved["merchant_notification_error"]
+
+
+def test_enquiry_create_notifies_business_contact_when_email_configured():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"notify-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Notify Merchant",
+            "business_type": "repair",
+            "contact_email": f"notify-{suffix}@example.com",
+            "whatsapp_phone": "6588889999",
+            "offer_summary": "repair enquiries",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+
+    response = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Notify Lead",
+            "phone": "6591112222",
+            "message": "Need urgent repair quote today",
+        },
+    )
+    assert response.status_code == 200
+
+    listing = client.get(
+        f"/apps/enquiry/api/enquiries?business_slug={slug}",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    saved = next(item for item in listing.json()["enquiries"] if item["id"] == response.json()["id"])
+    assert saved["priority"] == "hot"
+    assert saved["merchant_notification_status"] == "pending_email_setup"
+    assert "RESEND_API_KEY" in saved["merchant_notification_error"]
 
 
 def test_enquiry_admin_requires_key_and_can_update_status():
