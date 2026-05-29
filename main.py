@@ -3558,9 +3558,28 @@ def merchant_html(title, business_name, body):
                 body {{
                     margin: 0;
                     font-family: Inter, Segoe UI, Arial, sans-serif;
-                    background: var(--bg);
+                    background:
+                        radial-gradient(circle at 18% 8%, rgba(255,255,255,.10), transparent 26%),
+                        radial-gradient(circle at 86% 18%, rgba(34,197,94,.10), transparent 24%),
+                        linear-gradient(180deg, #050505 0%, var(--bg) 42%, #050505 100%);
                     color: var(--ink);
                     line-height: 1.5;
+                    overflow-x: hidden;
+                }}
+                body::before {{
+                    content: "";
+                    position: fixed;
+                    inset: 0;
+                    z-index: 0;
+                    pointer-events: none;
+                    background:
+                        linear-gradient(115deg, transparent 0 28%, rgba(255,255,255,.055) 28.2%, transparent 29.4% 48%, rgba(34,197,94,.045) 48.2%, transparent 49.3% 100%),
+                        repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 88px);
+                    mask-image: linear-gradient(180deg, rgba(0,0,0,.86), rgba(0,0,0,.42) 48%, transparent 88%);
+                }}
+                header, main, footer {{
+                    position: relative;
+                    z-index: 1;
                 }}
                 header {{
                     border-bottom: 1px solid var(--line);
@@ -3608,16 +3627,37 @@ def merchant_html(title, business_name, body):
                 .hero.product-hero {{
                     position: relative;
                     padding: 52px 0 46px;
+                    isolation: isolate;
                 }}
                 .hero.product-hero::before {{
                     content: "";
                     position: absolute;
-                    inset: -20px -20px auto auto;
-                    width: 280px;
-                    height: 180px;
-                    background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(34,197,94,.10), transparent 72%);
-                    filter: blur(16px);
+                    inset: -46px -44px auto auto;
+                    width: min(520px, 55vw);
+                    height: 260px;
+                    border-radius: 999px;
+                    background:
+                        radial-gradient(circle at 28% 34%, rgba(255,255,255,.18), transparent 28%),
+                        radial-gradient(circle at 70% 60%, rgba(34,197,94,.16), transparent 34%),
+                        linear-gradient(135deg, rgba(255,255,255,.10), rgba(34,197,94,.05), transparent 72%);
+                    filter: blur(20px);
+                    opacity: .92;
+                    z-index: -1;
                     pointer-events: none;
+                }}
+                .hero.product-hero::after {{
+                    content: "";
+                    position: absolute;
+                    inset: 20px -70px 0 42%;
+                    z-index: -1;
+                    pointer-events: none;
+                    border-radius: 999px;
+                    background:
+                        linear-gradient(122deg, transparent 0 16%, rgba(255,255,255,.18) 16.2%, transparent 17.2% 34%, rgba(255,255,255,.11) 34.2%, transparent 35.4% 54%, rgba(34,197,94,.16) 54.2%, transparent 55.4% 100%),
+                        repeating-linear-gradient(122deg, transparent 0 26px, rgba(255,255,255,.06) 27px, transparent 29px);
+                    mask-image: radial-gradient(ellipse at center, rgba(0,0,0,.86), transparent 72%);
+                    transform: skewY(-6deg);
+                    opacity: .72;
                 }}
                 .hero.compact {{ grid-template-columns: minmax(0, 1fr); max-width: 820px; }}
                 h1 {{ font-size: 44px; line-height: 1.08; margin: 0 0 12px; letter-spacing: 0; }}

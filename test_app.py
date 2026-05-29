@@ -60,6 +60,8 @@ def test_enquiry_app_pages_load():
     assert "setProductLang" in public_page.text
     assert "给本地商家的 AI 询盘系统" in public_page.text
     assert "View Pricing" in public_page.text
+    assert "radial-gradient(circle at 18% 8%" in public_page.text
+    assert "repeating-linear-gradient(122deg" in public_page.text
     assert "Open Admin" not in public_page.text
     assert "/admin/dashboard" not in public_page.text
     assert admin_page.status_code == 200
