@@ -86,6 +86,7 @@ def test_business_profile_create_and_public_form_loads():
     assert create.json()["slug"] == slug
     assert create.json()["form_url"] == f"/enquiry/{slug}"
     assert create.json()["inbox_url"] == f"/inbox/{slug}"
+    assert create.json()["embed_url"] == f"/embed/enquiry/{slug}.js"
     assert create.json()["business_access_key"].startswith("biz_")
     assert "access_key_hash" not in create.json()
 
@@ -111,6 +112,13 @@ def test_business_profile_create_and_public_form_loads():
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
     assert legacy_inbox.status_code == 200
+
+    embed = client.get(f"/embed/enquiry/{slug}.js")
+    assert embed.status_code == 200
+    assert "application/javascript" in embed.headers["content-type"]
+    assert "nexaflow-enquiry-widget" in embed.text
+    assert f"/enquiry/{slug}" in embed.text
+    assert "Demo Reno" in embed.text
 
 
 def test_business_profile_requires_admin_key():

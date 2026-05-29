@@ -17,7 +17,7 @@ from urllib.parse import quote, urlencode, urlparse
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from openai import APIStatusError, OpenAI
 from pydantic import BaseModel, Field
 
@@ -2112,6 +2112,7 @@ def row_to_business_profile(row):
         "access_key_prefix": row["access_key_prefix"],
         "form_url": f"/enquiry/{row['slug']}",
         "inbox_url": f"/inbox/{row['slug']}",
+        "embed_url": f"/embed/enquiry/{row['slug']}.js",
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -2132,6 +2133,7 @@ def default_enquiry_profile():
         "access_key_prefix": None,
         "form_url": "/enquiry/demo",
         "inbox_url": "/inbox/demo",
+        "embed_url": "/embed/enquiry/demo.js",
         "created_at": None,
         "updated_at": None,
     }
@@ -4427,6 +4429,116 @@ def merchant_enquiry_inbox_page(business_slug: str):
     )
 
 
+@app.get("/embed/enquiry/{business_slug}.js")
+def enquiry_embed_script(business_slug: str):
+    profile = get_business_profile(business_slug)
+    if profile["status"] != "active":
+        raise HTTPException(status_code=404, detail="Business profile not found")
+
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    payload = {
+        "slug": profile["slug"],
+        "businessName": profile["business_name"],
+        "formUrl": f"{site_url}{profile['form_url']}",
+    }
+    script = f"""
+(function () {{
+  var config = {json.dumps(payload)};
+  if (document.getElementById("nexaflow-enquiry-widget-" + config.slug)) return;
+
+  var root = document.createElement("div");
+  root.id = "nexaflow-enquiry-widget-" + config.slug;
+  root.style.position = "fixed";
+  root.style.right = "20px";
+  root.style.bottom = "20px";
+  root.style.zIndex = "2147483647";
+  root.style.fontFamily = "Arial, Helvetica, sans-serif";
+
+  var button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Enquire";
+  button.setAttribute("aria-label", "Open enquiry form for " + config.businessName);
+  button.style.border = "1px solid #ffffff";
+  button.style.borderRadius = "999px";
+  button.style.background = "#ffffff";
+  button.style.color = "#000000";
+  button.style.padding = "12px 18px";
+  button.style.fontWeight = "700";
+  button.style.cursor = "pointer";
+  button.style.boxShadow = "0 12px 28px rgba(0,0,0,.22)";
+
+  var panel = document.createElement("div");
+  panel.style.display = "none";
+  panel.style.position = "absolute";
+  panel.style.right = "0";
+  panel.style.bottom = "58px";
+  panel.style.width = "min(420px, calc(100vw - 32px))";
+  panel.style.height = "min(640px, calc(100vh - 96px))";
+  panel.style.border = "1px solid #262626";
+  panel.style.borderRadius = "10px";
+  panel.style.overflow = "hidden";
+  panel.style.background = "#000000";
+  panel.style.boxShadow = "0 18px 42px rgba(0,0,0,.35)";
+
+  var topbar = document.createElement("div");
+  topbar.style.display = "flex";
+  topbar.style.alignItems = "center";
+  topbar.style.justifyContent = "space-between";
+  topbar.style.gap = "12px";
+  topbar.style.padding = "10px 12px";
+  topbar.style.background = "#0b0b0d";
+  topbar.style.color = "#f5f5f5";
+  topbar.style.borderBottom = "1px solid #262626";
+
+  var title = document.createElement("strong");
+  title.textContent = config.businessName;
+  title.style.fontSize = "14px";
+
+  var close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "Close";
+  close.style.border = "1px solid #404040";
+  close.style.borderRadius = "6px";
+  close.style.background = "transparent";
+  close.style.color = "#f5f5f5";
+  close.style.padding = "6px 9px";
+  close.style.cursor = "pointer";
+
+  var iframe = document.createElement("iframe");
+  iframe.title = config.businessName + " enquiry form";
+  iframe.src = config.formUrl;
+  iframe.loading = "lazy";
+  iframe.style.width = "100%";
+  iframe.style.height = "calc(100% - 45px)";
+  iframe.style.border = "0";
+  iframe.style.background = "#000000";
+
+  function toggle(open) {{
+    panel.style.display = open ? "block" : "none";
+    button.textContent = open ? "Close enquiry" : "Enquire";
+  }}
+
+  button.addEventListener("click", function () {{
+    toggle(panel.style.display === "none");
+  }});
+  close.addEventListener("click", function () {{ toggle(false); }});
+
+  topbar.appendChild(title);
+  topbar.appendChild(close);
+  panel.appendChild(topbar);
+  panel.appendChild(iframe);
+  root.appendChild(panel);
+  root.appendChild(button);
+  document.body.appendChild(root);
+}})();
+""".strip()
+    return Response(
+        content=script,
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 @app.get("/enquiry-admin", response_class=HTMLResponse)
 @app.get("/apps/enquiry/admin", response_class=HTMLResponse)
 def enquiry_admin_page():
@@ -4529,7 +4641,7 @@ def enquiry_admin_page():
                     const keyMessage = profile.business_access_key
                         ? `<br>Business access key: <strong>${escapeHtml(profile.business_access_key)}</strong><br>Store it now. It will not be shown again.`
                         : "";
-                    status.innerHTML = `Saved ${escapeHtml(profile.business_name)}. Public form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a>. Inbox: <a href="${escapeHtml(profile.inbox_url)}" target="_blank">${escapeHtml(profile.inbox_url)}</a>${keyMessage}`;
+                    status.innerHTML = `Saved ${escapeHtml(profile.business_name)}. Public form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a>. Inbox: <a href="${escapeHtml(profile.inbox_url)}" target="_blank">${escapeHtml(profile.inbox_url)}</a>. Embed: &lt;script src="${escapeHtml(profile.embed_url)}"&gt;&lt;/script&gt;${keyMessage}`;
                     document.getElementById("rotateAccessKey").checked = false;
                     await loadProfiles();
                 } catch (error) {
@@ -4564,6 +4676,7 @@ def enquiry_admin_page():
                                 <a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Form</a>
                                 <a class="btn secondary" href="${escapeHtml(profile.inbox_url)}" target="_blank">Inbox</a>
                                 <button class="btn secondary" onclick="sendOnboarding('${escapeHtml(profile.slug)}')">Send Email</button>
+                                <br><code>&lt;script src="${escapeHtml(profile.embed_url)}"&gt;&lt;/script&gt;</code>
                             </td>
                         </tr>
                     `).join("");
@@ -4762,6 +4875,8 @@ def customer_portal():
                         <p>Key prefix: ${escapeHtml(profile.access_key_prefix || "not set")}</p>
                         <a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Form</a>
                         <a class="btn secondary" href="${escapeHtml(profile.inbox_url)}" target="_blank">Inbox</a>
+                        <p>Embed code:</p>
+                        <code>&lt;script src="${escapeHtml(profile.embed_url)}"&gt;&lt;/script&gt;</code>
                     </section>
                 `).join("");
             }
@@ -4794,7 +4909,7 @@ def customer_portal():
                             status: "active"
                         })
                     });
-                    status.innerHTML = `Created ${escapeHtml(profile.business_name)}.<br>Form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a><br>Inbox: <a href="${escapeHtml(profile.inbox_url)}" target="_blank">${escapeHtml(profile.inbox_url)}</a>`;
+                    status.innerHTML = `Created ${escapeHtml(profile.business_name)}.<br>Form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a><br>Inbox: <a href="${escapeHtml(profile.inbox_url)}" target="_blank">${escapeHtml(profile.inbox_url)}</a><br>Embed: &lt;script src="${escapeHtml(profile.embed_url)}"&gt;&lt;/script&gt;`;
                     await loadCustomerBusinessProfiles(apiKey);
                 } catch (error) {
                     status.textContent = error.message;
