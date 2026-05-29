@@ -45,6 +45,26 @@ def test_pricing_page_loads():
     response = client.get("/pricing")
     assert response.status_code == 200
     assert "Pricing" in response.text
+    assert "/terms" in response.text
+
+
+def test_legal_pages_load_and_are_linked():
+    pages = [
+        ("/terms", "Terms of Service"),
+        ("/privacy", "Privacy Policy"),
+        ("/refund-policy", "Refund Policy"),
+        ("/acceptable-use", "Acceptable Use Policy"),
+    ]
+
+    home = client.get("/")
+    assert home.status_code == 200
+    assert "/privacy" in home.text
+
+    for path, title in pages:
+        response = client.get(path)
+        assert response.status_code == 200
+        assert title in response.text
+        assert "nexaflowinfra@gmail.com" in response.text
 
 
 def test_checkout_json_and_redirect_modes():

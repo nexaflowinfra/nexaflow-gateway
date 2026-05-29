@@ -2460,6 +2460,30 @@ def base_html(title, body):
                     color: var(--muted);
                     font-size: 13px;
                 }}
+                .legal-doc {{
+                    max-width: 840px;
+                }}
+                .legal-doc ul {{
+                    color: var(--muted);
+                    padding-left: 20px;
+                }}
+                footer {{
+                    max-width: 1120px;
+                    margin: 0 auto;
+                    padding: 22px 20px 34px;
+                    border-top: 1px solid var(--line);
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                    color: var(--muted);
+                    font-size: 13px;
+                }}
+                footer a {{
+                    color: var(--muted);
+                    text-decoration: none;
+                    margin-right: 12px;
+                }}
                 @media (max-width: 820px) {{
                     .hero {{ grid-template-columns: 1fr; }}
                     .grid {{ grid-template-columns: 1fr; }}
@@ -2478,10 +2502,20 @@ def base_html(title, body):
                         <a href="/portal">Portal</a>
                         <a href="/admin/dashboard">Admin</a>
                         <a href="/docs">API Docs</a>
+                        <a href="/terms">Terms</a>
                     </div>
                 </nav>
             </header>
             <main>{body}</main>
+            <footer>
+                <div>NexaFlow AI Gateway</div>
+                <div>
+                    <a href="/terms">Terms</a>
+                    <a href="/privacy">Privacy</a>
+                    <a href="/refund-policy">Refunds</a>
+                    <a href="/acceptable-use">Acceptable Use</a>
+                </div>
+            </footer>
         </body>
         </html>
         """
@@ -2504,6 +2538,210 @@ def plan_card(plan_key, plan):
         <a class="btn" href="{checkout_url}">Checkout</a>
     </section>
     """
+
+
+def legal_page(title, updated, sections):
+    section_html = ""
+    for heading, paragraphs in sections:
+        section_html += f"<h2>{heading}</h2>"
+        for paragraph in paragraphs:
+            if isinstance(paragraph, list):
+                items = "".join(f"<li>{item}</li>" for item in paragraph)
+                section_html += f"<ul>{items}</ul>"
+            else:
+                section_html += f"<p>{paragraph}</p>"
+
+    return base_html(
+        title,
+        f"""
+        <article class="legal-doc">
+            <h1>{title}</h1>
+            <p>Last updated: {updated}</p>
+            {section_html}
+        </article>
+        """
+    )
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms_page():
+    return legal_page(
+        "Terms of Service",
+        "May 29, 2026",
+        [
+            (
+                "Service",
+                [
+                    "NexaFlow AI Gateway provides hosted access to AI model routing, usage tracking, customer credits, and related account tools.",
+                    "You are responsible for how your account, API keys, prompts, outputs, integrations, and downstream applications are used.",
+                ],
+            ),
+            (
+                "Accounts and API Keys",
+                [
+                    [
+                        "Keep API keys secret and rotate them immediately if exposed.",
+                        "You may not resell, share, or abuse access outside your authorized business use.",
+                        "We may suspend accounts for non-payment, suspicious activity, policy violations, or security risk.",
+                    ]
+                ],
+            ),
+            (
+                "Billing",
+                [
+                    "Plans include a monthly credit allowance. Credits are consumed based on estimated and actual token usage, including heavier weighting for model output tokens.",
+                    "Payments are processed by third-party payment providers. NexaFlow does not store payment card data.",
+                ],
+            ),
+            (
+                "Availability and Changes",
+                [
+                    "The service depends on third-party infrastructure and AI model providers. We aim for reliable operation, but do not guarantee uninterrupted availability.",
+                    "We may change model routes, limits, pricing, or provider availability to protect customers, maintain service quality, or preserve sustainable gross margin.",
+                ],
+            ),
+            (
+                "Liability",
+                [
+                    "AI outputs can be inaccurate or incomplete. Customers must review outputs before relying on them for business, legal, financial, medical, or safety-critical decisions.",
+                    "To the maximum extent allowed by law, NexaFlow is not liable for indirect, incidental, special, consequential, or lost-profit damages.",
+                ],
+            ),
+            (
+                "Contact",
+                [
+                    "For account, billing, or compliance questions, contact the operator at nexaflowinfra@gmail.com.",
+                ],
+            ),
+        ],
+    )
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_page():
+    return legal_page(
+        "Privacy Policy",
+        "May 29, 2026",
+        [
+            (
+                "Data We Process",
+                [
+                    [
+                        "Account identifiers, billing email, plan, subscription status, and API key prefix.",
+                        "Usage metadata such as timestamps, provider, model, token counts, credit spend, costs, and request previews.",
+                        "Operational records such as webhook deliveries, customer notifications, backups, and admin actions.",
+                    ]
+                ],
+            ),
+            (
+                "Why We Process Data",
+                [
+                    "We process data to provide the service, bill customers, prevent abuse, monitor reliability, send account notifications, diagnose incidents, and maintain required business records.",
+                ],
+            ),
+            (
+                "Subprocessors",
+                [
+                    "The service may use infrastructure, payment, email, model, and backup providers such as Railway, Stripe, Resend, OpenAI, OpenRouter, Cloudflare, and GitHub.",
+                ],
+            ),
+            (
+                "Retention and Security",
+                [
+                    "API keys are stored as hashes where possible and are not shown again after creation or rotation.",
+                    "Operational data is retained as needed for billing, support, security, taxes, and product improvement. Backups may retain data until their scheduled retention window expires.",
+                ],
+            ),
+            (
+                "Customer Choices",
+                [
+                    "Customers may request account help, correction, export, or deletion where legally and operationally possible by contacting nexaflowinfra@gmail.com.",
+                ],
+            ),
+        ],
+    )
+
+
+@app.get("/refund-policy", response_class=HTMLResponse)
+def refund_policy_page():
+    return legal_page(
+        "Refund Policy",
+        "May 29, 2026",
+        [
+            (
+                "General Policy",
+                [
+                    "Subscription payments cover hosted access, infrastructure, model routing, account automation, and included credits for the selected billing period.",
+                    "Refunds are reviewed case by case. Approved refunds may result in account suspension, credit reversal, or API key deactivation.",
+                ],
+            ),
+            (
+                "Eligible Cases",
+                [
+                    [
+                        "Duplicate accidental payments.",
+                        "A verified service activation failure where no meaningful usage occurred.",
+                        "Billing errors caused by platform configuration.",
+                    ]
+                ],
+            ),
+            (
+                "Usually Not Refundable",
+                [
+                    [
+                        "Used credits, completed API usage, or third-party provider costs already incurred.",
+                        "Policy violations, abuse, spam, fraud, chargebacks, or suspended accounts.",
+                        "Results generated by AI models that require customer review or refinement.",
+                    ]
+                ],
+            ),
+            (
+                "How To Request",
+                [
+                    "Send the payment email, plan, date, and reason to nexaflowinfra@gmail.com within 7 days of the charge.",
+                ],
+            ),
+        ],
+    )
+
+
+@app.get("/acceptable-use", response_class=HTMLResponse)
+def acceptable_use_page():
+    return legal_page(
+        "Acceptable Use Policy",
+        "May 29, 2026",
+        [
+            (
+                "Prohibited Uses",
+                [
+                    [
+                        "Illegal activity, fraud, scams, credential theft, impersonation, or evasion of law enforcement.",
+                        "Malware, phishing, spam, unauthorized scraping, vulnerability exploitation, or abuse of third-party systems.",
+                        "Harassment, hateful abuse, sexual exploitation, or content involving minors in unsafe or exploitative contexts.",
+                        "Attempts to bypass safety systems, rate limits, payment controls, usage limits, or provider policies.",
+                    ]
+                ],
+            ),
+            (
+                "High-Risk Decisions",
+                [
+                    "Do not use the service as the sole basis for legal, medical, financial, employment, housing, insurance, or safety-critical decisions. Human review is required.",
+                ],
+            ),
+            (
+                "Enforcement",
+                [
+                    "We may throttle, suspend, cancel, or permanently remove access when usage creates legal, security, provider, payment, or reputational risk.",
+                ],
+            ),
+            (
+                "Reporting Abuse",
+                [
+                    "Report suspected abuse or security issues to nexaflowinfra@gmail.com.",
+                ],
+            ),
+        ],
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -2561,6 +2799,7 @@ def pricing_page():
         f"""
         <h1>Pricing</h1>
         <p>Credits are token-based and routed for margin-aware model selection.</p>
+        <p>By purchasing or using NexaFlow, customers agree to the <a href="/terms">Terms</a>, <a href="/privacy">Privacy Policy</a>, <a href="/refund-policy">Refund Policy</a>, and <a href="/acceptable-use">Acceptable Use Policy</a>.</p>
         <table>
             <thead>
                 <tr><th>Plan</th><th>Price</th><th>Credits</th><th>Default</th><th>Tiers</th><th></th></tr>
@@ -3067,6 +3306,7 @@ def billing_success(plan: str | None = None):
             <div class="card"><h3>Open Portal</h3><p>Paste your API key into the portal to view credits, usage, and billing links.</p></div>
             <div class="card"><h3>Send Test</h3><p>Use the portal test request to confirm model routing and credit tracking.</p></div>
         </section>
+        <p>Use of the service is subject to the <a href="/terms">Terms</a>, <a href="/privacy">Privacy Policy</a>, <a href="/refund-policy">Refund Policy</a>, and <a href="/acceptable-use">Acceptable Use Policy</a>.</p>
         """
     )
 
