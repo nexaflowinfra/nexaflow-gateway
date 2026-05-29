@@ -1,12 +1,12 @@
 .env
-__pycache__/
 .venv/
-*.zip
-*.log
+__pycache__/
+*.pyc
 *.db
 *.db-shm
 *.db-wal
 *.db.json
+*.log
 clients.json
 usage_logs.json
 backups/
