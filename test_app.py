@@ -403,6 +403,76 @@ def test_credit_calculation_minimum_one_credit():
     assert main.calculate_credits_spent(usage) == 1
 
 
+def test_usage_guard_blocks_request_larger_than_plan_cap():
+    req = main.ChatRequest(message="hello", task="chat")
+    plan = dict(main.PLANS["starter"])
+    plan["max_request_credits"] = 0
+
+    try:
+        main.enforce_usage_guard(
+            "usage_guard_cap",
+            {"credits": 100, "status": "active", "plan": "starter"},
+            plan,
+            req,
+        )
+    except main.HTTPException as exc:
+        assert exc.status_code == 413
+        assert exc.detail["max_request_credits"] == 0
+    else:
+        raise AssertionError("Expected oversized request to be blocked")
+
+
+def test_usage_guard_blocks_estimated_insufficient_credits():
+    req = main.ChatRequest(message="hello", task="chat")
+
+    try:
+        main.enforce_usage_guard(
+            "usage_guard_balance",
+            {"credits": 0, "status": "active", "plan": "starter"},
+            main.PLANS["starter"],
+            req,
+        )
+    except main.HTTPException as exc:
+        assert exc.status_code == 402
+        assert exc.detail["remaining_credits"] == 0
+    else:
+        raise AssertionError("Expected insufficient credits to be blocked")
+
+
+def test_usage_guard_blocks_daily_credit_limit():
+    client_id = f"daily_limit_{uuid.uuid4().hex[:8]}"
+    original_logs = main.load_logs()
+    try:
+        main.save_logs(
+            original_logs
+            + [
+                {
+                    "client_id": client_id,
+                    "credits_spent": 1,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            ]
+        )
+        req = main.ChatRequest(message="hello", task="chat")
+        plan = dict(main.PLANS["starter"])
+        plan["daily_credit_limit"] = 1
+
+        try:
+            main.enforce_usage_guard(
+                client_id,
+                {"credits": 100, "status": "active", "plan": "starter"},
+                plan,
+                req,
+            )
+        except main.HTTPException as exc:
+            assert exc.status_code == 429
+            assert exc.detail["daily_credit_limit"] == 1
+        else:
+            raise AssertionError("Expected daily credit limit to be blocked")
+    finally:
+        main.save_logs(original_logs)
+
+
 def test_provider_cost_calculation():
     model = {
         "input_usd_per_million": 1.00,

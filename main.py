@@ -40,6 +40,9 @@ PLANS = {
         "default_model": "gpt-4o-mini",
         "allowed_tiers": ["economy"],
         "rate_limit_per_minute": 30,
+        "daily_request_limit": 300,
+        "daily_credit_limit": 3500,
+        "max_request_credits": 50,
         "description": "For testing, small automations, and low-volume customer support.",
     },
     "pro": {
@@ -49,6 +52,9 @@ PLANS = {
         "default_model": "gpt-4o-mini",
         "allowed_tiers": ["economy", "standard"],
         "rate_limit_per_minute": 90,
+        "daily_request_limit": 1500,
+        "daily_credit_limit": 20000,
+        "max_request_credits": 200,
         "description": "For production workflows that need stronger reasoning and higher limits.",
     },
     "business": {
@@ -60,6 +66,9 @@ PLANS = {
         "premium_tiers": ["premium"],
         "min_gross_margin_ratio": 0.35,
         "rate_limit_per_minute": 240,
+        "daily_request_limit": 6000,
+        "daily_credit_limit": 75000,
+        "max_request_credits": 750,
         "description": "For teams that need larger quotas, controlled premium access, and managed onboarding.",
     },
 }
@@ -1579,6 +1588,9 @@ def public_client(client_id, client):
         "subscription_status": client.get("subscription_status"),
         "api_key_prefix": client.get("api_key_prefix"),
         "rate_limit_per_minute": plan["rate_limit_per_minute"],
+        "daily_request_limit": plan["daily_request_limit"],
+        "daily_credit_limit": plan["daily_credit_limit"],
+        "max_request_credits": plan["max_request_credits"],
         "created_at": client.get("created_at"),
     }
 
@@ -1723,6 +1735,85 @@ def enforce_rate_limit(client_id, limit):
 
     timestamps.append(current)
     request_windows[client_id] = timestamps
+
+
+def parse_log_timestamp(value):
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def usage_window_stats(client_id, window_seconds=86400):
+    cutoff = datetime.now(timezone.utc).timestamp() - window_seconds
+    stats = {
+        "requests": 0,
+        "credits_spent": 0,
+    }
+
+    for log in load_logs():
+        if log.get("client_id") != client_id:
+            continue
+
+        timestamp = parse_log_timestamp(log.get("timestamp"))
+        if timestamp is None:
+            continue
+
+        if timestamp.timestamp() >= cutoff:
+            stats["requests"] += 1
+            stats["credits_spent"] += log.get("credits_spent", 0)
+
+    return stats
+
+
+def enforce_usage_guard(client_id, client, plan, req):
+    estimate = estimate_credits_for_request(req.message, req.task)
+    window = usage_window_stats(client_id)
+
+    if estimate["credits_spent"] > plan["max_request_credits"]:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "message": "Request is too large for this plan.",
+                "estimated_credits": estimate["credits_spent"],
+                "max_request_credits": plan["max_request_credits"],
+            },
+        )
+
+    if estimate["credits_spent"] > client["credits"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "message": "Insufficient credits for the estimated request size.",
+                "estimated_credits": estimate["credits_spent"],
+                "remaining_credits": client["credits"],
+            },
+        )
+
+    if window["requests"] >= plan["daily_request_limit"]:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": "Daily request limit exceeded.",
+                "daily_request_limit": plan["daily_request_limit"],
+            },
+        )
+
+    if window["credits_spent"] + estimate["credits_spent"] > plan["daily_credit_limit"]:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": "Daily credit limit exceeded.",
+                "daily_credit_limit": plan["daily_credit_limit"],
+                "credits_used_today": window["credits_spent"],
+                "estimated_credits": estimate["credits_spent"],
+            },
+        )
+
+    return {
+        "estimate": estimate,
+        "daily_usage": window,
+    }
 
 
 def model_is_allowed(model_key, plan, task):
@@ -1937,6 +2028,10 @@ def plan_billing_links():
             "name": plan["name"],
             "monthly_price_usd": plan["monthly_price_usd"],
             "included_credits": plan["included_credits"],
+            "rate_limit_per_minute": plan["rate_limit_per_minute"],
+            "daily_request_limit": plan["daily_request_limit"],
+            "daily_credit_limit": plan["daily_credit_limit"],
+            "max_request_credits": plan["max_request_credits"],
             "payment_link": payment_link_for_plan(plan_key),
             "checkout_url": f"/billing/checkout?plan={plan_key}",
         }
@@ -2035,6 +2130,14 @@ def deployment_check_items():
         any(model["meets_guard"] for model in models)
         for models in margin_report.values()
     )
+    usage_guards_ok = all(
+        plan.get("rate_limit_per_minute", 0) > 0
+        and plan.get("daily_request_limit", 0) > 0
+        and plan.get("daily_credit_limit", 0) > 0
+        and plan.get("max_request_credits", 0) > 0
+        and plan["max_request_credits"] <= plan["daily_credit_limit"]
+        for plan in PLANS.values()
+    )
     checks = [
         {
             "name": "ADMIN_KEY",
@@ -2080,6 +2183,11 @@ def deployment_check_items():
             "name": "MARGIN_GUARD",
             "ok": margin_guard_ok,
             "detail": f"Plan model margin guard report: {margin_report}.",
+        },
+        {
+            "name": "USAGE_GUARDS",
+            "ok": usage_guards_ok,
+            "detail": "Every plan must have per-minute, per-day, daily-credit, and per-request credit guards.",
         },
         {
             "name": "PERSISTENT_SQLITE_PATH",
@@ -2389,6 +2497,9 @@ def plan_card(plan_key, plan):
         <div class="price">${plan["monthly_price_usd"]}<span style="font-size:14px;color:var(--muted);font-weight:400;"> / mo</span></div>
         <p>{plan["included_credits"]:,} token credits</p>
         <p>{plan["rate_limit_per_minute"]} requests/min</p>
+        <p>{plan["daily_request_limit"]:,} requests/day guard</p>
+        <p>{plan["daily_credit_limit"]:,} credits/day guard</p>
+        <p>{plan["max_request_credits"]:,} credits/request max</p>
         <p>{tiers}</p>
         <a class="btn" href="{checkout_url}">Checkout</a>
     </section>
@@ -3369,6 +3480,7 @@ def chat(
 
     plan = PLANS[client["plan"]]
     enforce_rate_limit(client_id, plan["rate_limit_per_minute"])
+    usage_guard = enforce_usage_guard(client_id, client, plan, req)
     candidates = rank_model_candidates(req, plan)
     fallback_attempts = []
     response = None
@@ -3494,5 +3606,12 @@ def chat(
         },
         "notifications": {
             "low_credit": low_credit_notice,
+        },
+        "limits": {
+            "estimate": usage_guard["estimate"],
+            "daily_usage_before_request": usage_guard["daily_usage"],
+            "daily_request_limit": plan["daily_request_limit"],
+            "daily_credit_limit": plan["daily_credit_limit"],
+            "max_request_credits": plan["max_request_credits"],
         },
     }
