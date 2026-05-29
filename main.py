@@ -12,7 +12,7 @@ import sqlite3
 import threading
 import urllib.error
 import urllib.request
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlencode, urlparse
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, Request
@@ -2002,6 +2002,79 @@ def provider_is_configured(provider_key):
     return provider_status(provider_key)["configured"]
 
 
+def stripe_secret_key():
+    return (os.getenv("STRIPE_SECRET_KEY") or "").strip()
+
+
+def stripe_billing_portal_configured():
+    return bool(stripe_secret_key()) or bool(os.getenv("STRIPE_BILLING_PORTAL_TEST_URL"))
+
+
+def create_stripe_billing_portal_session(stripe_customer_id, return_url):
+    test_url = os.getenv("STRIPE_BILLING_PORTAL_TEST_URL")
+    if test_url:
+        return {
+            "id": "bps_test",
+            "url": test_url,
+            "livemode": False,
+            "test_mode": True,
+        }
+
+    secret = stripe_secret_key()
+    if not secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Stripe billing portal is not configured. Set STRIPE_SECRET_KEY in Railway.",
+        )
+
+    payload = urlencode(
+        {
+            "customer": stripe_customer_id,
+            "return_url": return_url,
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        "https://api.stripe.com/v1/billing_portal/sessions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {secret}",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": "NexaFlowGateway/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            response_body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": f"Stripe returned HTTP {exc.code} while creating a billing portal session.",
+                "provider_error": error_body[:500],
+            },
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not reach Stripe billing portal API: {exc.reason}",
+        ) from exc
+
+    session = json.loads(response_body)
+    if not session.get("url"):
+        raise HTTPException(status_code=502, detail="Stripe billing portal response did not include a URL.")
+
+    return {
+        "id": session.get("id"),
+        "url": session["url"],
+        "livemode": session.get("livemode"),
+        "test_mode": False,
+    }
+
+
 def get_provider_client(provider_key):
     provider = PROVIDERS[provider_key]
     api_key = (os.getenv(provider["api_key_env"]) or "").strip()
@@ -2420,6 +2493,7 @@ def health():
         "admin_configured": bool(os.getenv("ADMIN_KEY")),
         "payment_webhook_configured": bool(os.getenv("PAYMENT_WEBHOOK_SECRET")),
         "stripe_webhook_configured": bool(os.getenv("STRIPE_WEBHOOK_SECRET")),
+        "stripe_billing_portal_configured": stripe_billing_portal_configured(),
         "email_delivery_configured": email_delivery_configured(),
         "providers": {
             provider_key: provider_status(provider_key)
@@ -2472,6 +2546,15 @@ def deployment_check_items():
             "name": "STRIPE_WEBHOOK_SECRET",
             "ok": stripe_secret.startswith("whsec_"),
             "detail": "Required before receiving Stripe webhook events. Use the whsec_ value from Stripe.",
+        },
+        {
+            "name": "STRIPE_BILLING_PORTAL",
+            "ok": True,
+            "detail": (
+                "Configured for customer self-service."
+                if stripe_billing_portal_configured()
+                else "Optional next step: set STRIPE_SECRET_KEY to enable customer self-service billing portal."
+            ),
         },
         {
             "name": "MODEL_PROVIDER",
@@ -3140,6 +3223,11 @@ def customer_portal():
         <div class="status" id="portalStatus">Enter your API key to load your account.</div>
         <section class="grid" id="summary"></section>
         <h2>Billing</h2>
+        <div class="toolbar">
+            <button class="btn" onclick="openBillingPortal()">Manage Billing</button>
+            <button class="btn secondary" onclick="loadPortal()">Refresh Billing</button>
+        </div>
+        <div class="status" id="billingStatus">Use Manage Billing to update payment method, view invoices, or manage subscription in Stripe.</div>
         <section class="grid" id="billingLinks"></section>
         <h2>Test Request</h2>
         <div class="toolbar">
@@ -3182,6 +3270,29 @@ def customer_portal():
                     throw new Error(await response.text());
                 }
                 return response.json();
+            }
+            async function openBillingPortal() {
+                const apiKey = document.getElementById("apiKey").value.trim();
+                const status = document.getElementById("billingStatus");
+                if (!apiKey) {
+                    status.textContent = "Enter your API key first.";
+                    return;
+                }
+                status.textContent = "Creating Stripe billing portal session...";
+                try {
+                    const response = await fetch("/customer/billing-portal", {
+                        method: "POST",
+                        headers: { "X-API-Key": apiKey }
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+                    const result = await response.json();
+                    status.textContent = "Opening Stripe billing portal...";
+                    window.location.href = result.url;
+                } catch (error) {
+                    status.textContent = error.message;
+                }
             }
             function renderBillingLinks(account, billing) {
                 const currentPlan = account?.plan || "";
@@ -3285,6 +3396,9 @@ def customer_portal():
                     ]);
                     const billing = await customerApi("/customer/billing-links", apiKey);
                     const fmt = new Intl.NumberFormat();
+                    document.getElementById("billingStatus").textContent = billing.billing_portal.available
+                        ? "Billing portal is available for this account."
+                        : (billing.billing_portal.reason || "Billing portal is not available for this account yet.");
                     document.getElementById("summary").innerHTML = `
                         <section class="card"><h3>Account</h3><p>${escapeHtml(account.client_id)}</p><p>${escapeHtml(account.billing_email || "")}</p></section>
                         <section class="card"><h3>Status</h3><div class="price">${escapeHtml(account.status)}</div><p>${escapeHtml(account.subscription_status || "subscription")}</p></section>
@@ -4033,9 +4147,54 @@ def customer_billing_links(
     authorization: str | None = Header(default=None),
 ):
     client_id, client = customer_guard(api_key, x_api_key, authorization)
+    client = normalize_client(client_id, client)
+    billing_portal_available = bool(client.get("stripe_customer_id")) and stripe_billing_portal_configured()
     return {
         "client": public_client(client_id, client),
         "links": plan_billing_links(),
+        "billing_portal": {
+            "available": billing_portal_available,
+            "stripe_customer_id_present": bool(client.get("stripe_customer_id")),
+            "configured": stripe_billing_portal_configured(),
+            "reason": (
+                None
+                if billing_portal_available
+                else (
+                    "This account is not linked to a Stripe customer yet."
+                    if not client.get("stripe_customer_id")
+                    else "Stripe billing portal is not configured yet."
+                )
+            ),
+        },
+    }
+
+
+@app.post("/customer/billing-portal")
+def customer_billing_portal(
+    api_key: str | None = None,
+    x_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    client_id, client = customer_guard(api_key, x_api_key, authorization)
+    client = normalize_client(client_id, client)
+
+    if not client.get("stripe_customer_id"):
+        raise HTTPException(
+            status_code=409,
+            detail="This account is not linked to a Stripe customer yet.",
+        )
+
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    session = create_stripe_billing_portal_session(
+        client["stripe_customer_id"],
+        f"{site_url}/portal",
+    )
+    return {
+        "client_id": client_id,
+        "url": session["url"],
+        "session_id": session.get("id"),
+        "livemode": session.get("livemode"),
+        "test_mode": session.get("test_mode", False),
     }
 
 

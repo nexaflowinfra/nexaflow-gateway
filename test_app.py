@@ -120,6 +120,7 @@ def test_customer_portal_loads():
     assert "X-API-Key" in response.text
     assert "sendTestRequest" in response.text
     assert "billingLinks" in response.text
+    assert "openBillingPortal" in response.text
     assert "rotateCustomerKey" in response.text
 
 
@@ -274,6 +275,60 @@ def test_customer_billing_links_require_customer_key_and_expose_payment_links():
     assert response.json()["client"]["plan"] == "starter"
     assert response.json()["links"]["starter"]["payment_link"] == "https://buy.stripe.com/test_starter"
     assert response.json()["links"]["pro"]["checkout_url"] == "/billing/checkout?plan=pro"
+    assert response.json()["billing_portal"]["available"] is False
+
+
+def test_customer_billing_portal_requires_key():
+    response = client.post("/customer/billing-portal")
+    assert response.status_code == 401
+
+
+def test_customer_billing_portal_requires_stripe_customer():
+    suffix = uuid.uuid4().hex[:8]
+    create = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"portal_no_stripe_{suffix}",
+            "plan": "starter",
+            "billing_email": f"portal-no-stripe-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+
+    response = client.post(
+        "/customer/billing-portal",
+        headers={"X-API-Key": create.json()["api_key"]},
+    )
+    assert response.status_code == 409
+
+
+def test_customer_billing_portal_returns_configured_test_url():
+    suffix = uuid.uuid4().hex[:8]
+    client_id = f"portal_stripe_{suffix}"
+    old_url = os.environ.get("STRIPE_BILLING_PORTAL_TEST_URL")
+    os.environ["STRIPE_BILLING_PORTAL_TEST_URL"] = "https://billing.stripe.com/p/session/test"
+    try:
+        _, api_key = main.create_client_record(
+            client_id,
+            "starter",
+            10000,
+            f"portal-stripe-{suffix}@example.com",
+            stripe_customer_id=f"cus_{suffix}",
+        )
+        response = client.post(
+            "/customer/billing-portal",
+            headers={"X-API-Key": api_key},
+        )
+    finally:
+        if old_url is None:
+            os.environ.pop("STRIPE_BILLING_PORTAL_TEST_URL", None)
+        else:
+            os.environ["STRIPE_BILLING_PORTAL_TEST_URL"] = old_url
+
+    assert response.status_code == 200
+    assert response.json()["url"] == "https://billing.stripe.com/p/session/test"
+    assert response.json()["test_mode"] is True
 
 
 def test_customer_can_rotate_own_api_key_and_old_key_stops_working():
