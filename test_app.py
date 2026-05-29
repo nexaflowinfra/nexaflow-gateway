@@ -650,6 +650,152 @@ def test_customer_billing_links_require_customer_key_and_expose_payment_links():
     assert response.json()["billing_portal"]["available"] is False
 
 
+def test_customer_can_self_setup_enquiry_business_profile():
+    suffix = uuid.uuid4().hex[:8]
+    create = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"self_enquiry_{suffix}",
+            "plan": "starter",
+            "billing_email": f"self-enquiry-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+    api_key = create.json()["api_key"]
+    slug = f"self-enquiry-{suffix}"
+
+    missing = client.get("/customer/enquiry/business-profiles")
+    assert missing.status_code == 401
+
+    profile = client.post(
+        "/customer/enquiry/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Self Enquiry Merchant",
+            "business_type": "retail",
+            "contact_email": f"merchant-{suffix}@example.com",
+            "whatsapp_phone": "6591234567",
+            "offer_summary": "self-service enquiry setup",
+        },
+        headers={"X-API-Key": api_key},
+    )
+    assert profile.status_code == 200
+    assert profile.json()["client_id"] == f"self_enquiry_{suffix}"
+    assert profile.json()["form_url"] == f"/enquiry/{slug}"
+    assert profile.json()["business_access_key"].startswith("biz_")
+
+    listing = client.get(
+        "/customer/enquiry/business-profiles",
+        headers={"X-API-Key": api_key},
+    )
+    assert listing.status_code == 200
+    assert len(listing.json()["profiles"]) == 1
+    assert listing.json()["profiles"][0]["slug"] == slug
+
+
+def test_customer_enquiry_profile_slug_is_isolated_between_customers():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"shared-slug-{suffix}"
+    first = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"owner_one_{suffix}",
+            "plan": "starter",
+            "billing_email": f"owner-one-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    second = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"owner_two_{suffix}",
+            "plan": "starter",
+            "billing_email": f"owner-two-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    assert client.post(
+        "/customer/enquiry/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "First Owner",
+            "business_type": "retail",
+            "contact_email": f"first-{suffix}@example.com",
+            "whatsapp_phone": "6591234567",
+        },
+        headers={"X-API-Key": first.json()["api_key"]},
+    ).status_code == 200
+
+    conflict = client.post(
+        "/customer/enquiry/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Second Owner",
+            "business_type": "retail",
+            "contact_email": f"second-{suffix}@example.com",
+            "whatsapp_phone": "6597654321",
+        },
+        headers={"X-API-Key": second.json()["api_key"]},
+    )
+    assert conflict.status_code == 409
+
+
+def test_customer_can_send_own_enquiry_onboarding_only():
+    suffix = uuid.uuid4().hex[:8]
+    owner = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"onboard_owner_{suffix}",
+            "plan": "starter",
+            "billing_email": f"onboard-owner-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    other = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"onboard_other_{suffix}",
+            "plan": "starter",
+            "billing_email": f"onboard-other-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert owner.status_code == 200
+    assert other.status_code == 200
+    slug = f"owned-onboard-{suffix}"
+
+    profile = client.post(
+        "/customer/enquiry/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Owned Onboard",
+            "business_type": "repair",
+            "contact_email": f"owned-{suffix}@example.com",
+            "whatsapp_phone": "6591234567",
+        },
+        headers={"X-API-Key": owner.json()["api_key"]},
+    )
+    assert profile.status_code == 200
+
+    send = client.post(
+        f"/customer/enquiry/business-profiles/{slug}/send-onboarding",
+        headers={"X-API-Key": owner.json()["api_key"]},
+    )
+    assert send.status_code == 200
+    assert send.json()["delivery"]["status"] == "pending_email_setup"
+    assert "business_access_key" not in json.dumps(send.json())
+
+    blocked = client.post(
+        f"/customer/enquiry/business-profiles/{slug}/send-onboarding",
+        headers={"X-API-Key": other.json()["api_key"]},
+    )
+    assert blocked.status_code == 404
+
+
 def test_customer_billing_portal_requires_key():
     response = client.post("/customer/billing-portal")
     assert response.status_code == 401

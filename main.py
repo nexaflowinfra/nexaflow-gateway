@@ -689,6 +689,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS business_profiles (
                 slug TEXT PRIMARY KEY,
+                client_id TEXT,
                 business_name TEXT NOT NULL,
                 business_type TEXT NOT NULL,
                 whatsapp_phone TEXT NOT NULL,
@@ -704,6 +705,7 @@ def init_db():
             )
             """
         )
+        ensure_column(connection, "business_profiles", "client_id", "TEXT")
         ensure_column(connection, "business_profiles", "access_key_hash", "TEXT")
         ensure_column(connection, "business_profiles", "access_key_prefix", "TEXT")
 
@@ -2094,6 +2096,7 @@ def normalize_slug(value):
 def row_to_business_profile(row):
     return {
         "slug": row["slug"],
+        "client_id": row["client_id"],
         "business_name": row["business_name"],
         "business_type": row["business_type"],
         "whatsapp_phone": row["whatsapp_phone"],
@@ -2113,6 +2116,7 @@ def row_to_business_profile(row):
 def default_enquiry_profile():
     return {
         "slug": "demo",
+        "client_id": None,
         "business_name": "Demo Business",
         "business_type": "general",
         "whatsapp_phone": "",
@@ -2146,25 +2150,35 @@ def get_business_profile(slug):
     return row_to_business_profile(row)
 
 
-def list_business_profiles():
+def list_business_profiles(client_id=None):
     with db_connection() as connection:
-        rows = connection.execute(
-            "SELECT * FROM business_profiles ORDER BY business_name"
-        ).fetchall()
+        if client_id:
+            rows = connection.execute(
+                "SELECT * FROM business_profiles WHERE client_id = ? ORDER BY business_name",
+                (client_id,),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT * FROM business_profiles ORDER BY business_name"
+            ).fetchall()
 
     return [row_to_business_profile(row) for row in rows]
 
 
-def upsert_business_profile(req):
+def upsert_business_profile(req, owner_client_id=None):
     slug = normalize_slug(req.slug)
     timestamp = now_iso()
     raw_access_key = None
     with db_connection() as connection:
         existing = connection.execute(
-            "SELECT created_at, access_key_hash, access_key_prefix FROM business_profiles WHERE slug = ?",
+            "SELECT created_at, access_key_hash, access_key_prefix, client_id FROM business_profiles WHERE slug = ?",
             (slug,),
         ).fetchone()
+        if existing and owner_client_id and existing["client_id"] not in {None, owner_client_id}:
+            raise HTTPException(status_code=409, detail="Business slug is already used by another customer.")
+
         created_at = existing["created_at"] if existing else timestamp
+        client_id = owner_client_id if owner_client_id is not None else (existing["client_id"] if existing else None)
         access_key_hash = existing["access_key_hash"] if existing else None
         access_key_prefix = existing["access_key_prefix"] if existing else None
         if not access_key_hash or req.rotate_access_key:
@@ -2174,13 +2188,14 @@ def upsert_business_profile(req):
         connection.execute(
             """
             INSERT OR REPLACE INTO business_profiles (
-                slug, business_name, business_type, whatsapp_phone, contact_email,
+                slug, client_id, business_name, business_type, whatsapp_phone, contact_email,
                 offer_summary, reply_tone, opening_hours, status, access_key_hash,
                 access_key_prefix, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 slug,
+                client_id,
                 req.business_name.strip(),
                 req.business_type.strip() or "general",
                 req.whatsapp_phone.strip(),
@@ -2206,7 +2221,7 @@ def upsert_business_profile(req):
     return profile
 
 
-def rotate_business_access_key(slug):
+def rotate_business_access_key(slug, owner_client_id=None):
     normalized_slug = normalize_slug(slug)
     raw_access_key = generate_business_access_key()
     access_key_hash = api_key_digest(raw_access_key)
@@ -2219,6 +2234,8 @@ def rotate_business_access_key(slug):
             (normalized_slug,),
         ).fetchone()
         if not row:
+            raise HTTPException(status_code=404, detail="Business profile not found")
+        if owner_client_id and row["client_id"] != owner_client_id:
             raise HTTPException(status_code=404, detail="Business profile not found")
 
         connection.execute(
@@ -2262,8 +2279,8 @@ Keep this access key private. If it is exposed or lost, ask the NexaFlow operato
 """
 
 
-def send_business_onboarding(slug):
-    profile = rotate_business_access_key(slug)
+def send_business_onboarding(slug, owner_client_id=None):
+    profile = rotate_business_access_key(slug, owner_client_id=owner_client_id)
     if not profile.get("contact_email"):
         raise HTTPException(status_code=400, detail="Business profile is missing contact_email.")
 
@@ -4561,6 +4578,24 @@ def customer_portal():
         </div>
         <div class="status" id="billingStatus">Use Manage Billing to update payment method, view invoices, or manage subscription in Stripe.</div>
         <section class="grid" id="billingLinks"></section>
+        <h2>Enquiry Inbox</h2>
+        <p>Create your customer enquiry form and merchant inbox without waiting for manual setup.</p>
+        <div class="toolbar">
+            <label>Business slug<input id="customerBusinessSlug" value="my-business"></label>
+            <label>Business name<input id="customerBusinessName" value="My Business"></label>
+        </div>
+        <div class="toolbar">
+            <label>Business type<input id="customerBusinessType" value="retail"></label>
+            <label>WhatsApp phone<input id="customerBusinessWhatsapp" value="6591234567"></label>
+        </div>
+        <label>Contact email<input id="customerBusinessEmail" placeholder="owner@example.com"></label>
+        <label>Offer summary<input id="customerOfferSummary" value="customer enquiries and quotation requests"></label>
+        <div class="actions">
+            <button class="btn" onclick="saveCustomerBusinessProfile()">Create / Update Enquiry Inbox</button>
+            <button class="btn secondary" onclick="sendCustomerBusinessOnboarding()">Email Setup Links</button>
+        </div>
+        <div class="status" id="enquirySetupStatus">Create your business profile to get a public form and private inbox.</div>
+        <section class="grid" id="customerBusinessProfiles"></section>
         <h2>Test Request</h2>
         <div class="toolbar">
             <label>Message
@@ -4598,6 +4633,16 @@ def customer_portal():
             }
             async function customerApi(path, apiKey) {
                 const response = await fetch(path, { headers: { "X-API-Key": apiKey } });
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+                return response.json();
+            }
+            async function customerRequest(path, apiKey, options = {}) {
+                const response = await fetch(path, {
+                    ...options,
+                    headers: { "X-API-Key": apiKey, ...(options.headers || {}) }
+                });
                 if (!response.ok) {
                     throw new Error(await response.text());
                 }
@@ -4642,6 +4687,71 @@ def customer_portal():
                         </section>
                     `;
                 }).join("");
+            }
+            function renderCustomerBusinessProfiles(profiles) {
+                document.getElementById("customerBusinessProfiles").innerHTML = profiles.map(profile => `
+                    <section class="card">
+                        <h3>${escapeHtml(profile.business_name)}</h3>
+                        <p>${escapeHtml(profile.slug)} · ${escapeHtml(profile.status)}</p>
+                        <p>Key prefix: ${escapeHtml(profile.access_key_prefix || "not set")}</p>
+                        <a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Form</a>
+                        <a class="btn secondary" href="${escapeHtml(profile.inbox_url)}" target="_blank">Inbox</a>
+                    </section>
+                `).join("");
+            }
+            async function loadCustomerBusinessProfiles(apiKey) {
+                const result = await customerApi("/customer/enquiry/business-profiles", apiKey);
+                renderCustomerBusinessProfiles(result.profiles || []);
+                return result;
+            }
+            async function saveCustomerBusinessProfile() {
+                const apiKey = document.getElementById("apiKey").value.trim();
+                const status = document.getElementById("enquirySetupStatus");
+                if (!apiKey) {
+                    status.textContent = "Enter your API key first.";
+                    return;
+                }
+                status.textContent = "Creating enquiry inbox...";
+                try {
+                    const profile = await customerRequest("/customer/enquiry/business-profiles", apiKey, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            slug: document.getElementById("customerBusinessSlug").value,
+                            business_name: document.getElementById("customerBusinessName").value,
+                            business_type: document.getElementById("customerBusinessType").value,
+                            whatsapp_phone: document.getElementById("customerBusinessWhatsapp").value,
+                            contact_email: document.getElementById("customerBusinessEmail").value,
+                            offer_summary: document.getElementById("customerOfferSummary").value,
+                            reply_tone: "friendly and professional",
+                            opening_hours: "",
+                            status: "active"
+                        })
+                    });
+                    status.innerHTML = `Created ${escapeHtml(profile.business_name)}.<br>Form: <a href="${escapeHtml(profile.form_url)}" target="_blank">${escapeHtml(profile.form_url)}</a><br>Inbox: <a href="${escapeHtml(profile.inbox_url)}" target="_blank">${escapeHtml(profile.inbox_url)}</a>`;
+                    await loadCustomerBusinessProfiles(apiKey);
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+            async function sendCustomerBusinessOnboarding() {
+                const apiKey = document.getElementById("apiKey").value.trim();
+                const slug = document.getElementById("customerBusinessSlug").value.trim();
+                const status = document.getElementById("enquirySetupStatus");
+                if (!apiKey || !slug) {
+                    status.textContent = "Enter your API key and business slug first.";
+                    return;
+                }
+                status.textContent = "Sending setup email...";
+                try {
+                    const result = await customerRequest(`/customer/enquiry/business-profiles/${encodeURIComponent(slug)}/send-onboarding`, apiKey, {
+                        method: "POST"
+                    });
+                    status.textContent = `Setup email ${result.delivery.status}. A fresh business access key was generated.`;
+                    await loadCustomerBusinessProfiles(apiKey);
+                } catch (error) {
+                    status.textContent = error.message;
+                }
             }
             async function sendTestRequest() {
                 const apiKey = document.getElementById("apiKey").value.trim();
@@ -4747,11 +4857,13 @@ def customer_portal():
                         </tr>
                     `).join("");
                     renderBillingLinks(account, billing);
+                    await loadCustomerBusinessProfiles(apiKey);
                     status.textContent = `Loaded ${fmt.format(usage.totals.requests)} requests.`;
                 } catch (error) {
                     status.textContent = error.message;
                     document.getElementById("summary").innerHTML = "";
                     document.getElementById("billingLinks").innerHTML = "";
+                    document.getElementById("customerBusinessProfiles").innerHTML = "";
                     document.getElementById("usageRows").innerHTML = "";
                 }
             }
@@ -5653,6 +5765,44 @@ def customer_billing_links(
             ),
         },
     }
+
+
+@app.get("/customer/enquiry/business-profiles")
+def customer_enquiry_business_profiles(
+    api_key: str | None = None,
+    x_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    client_id, _ = customer_guard(api_key, x_api_key, authorization)
+    return {
+        "profiles": list_business_profiles(client_id=client_id),
+    }
+
+
+@app.post("/customer/enquiry/business-profiles")
+def customer_upsert_enquiry_business_profile(
+    req: BusinessProfileRequest,
+    api_key: str | None = None,
+    x_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    client_id, client = customer_guard(api_key, x_api_key, authorization)
+    if client["status"] != "active":
+        raise HTTPException(status_code=403, detail="Client account is not active")
+    return upsert_business_profile(req, owner_client_id=client_id)
+
+
+@app.post("/customer/enquiry/business-profiles/{business_slug}/send-onboarding")
+def customer_send_enquiry_business_profile_onboarding(
+    business_slug: str,
+    api_key: str | None = None,
+    x_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    client_id, client = customer_guard(api_key, x_api_key, authorization)
+    if client["status"] != "active":
+        raise HTTPException(status_code=403, detail="Client account is not active")
+    return send_business_onboarding(business_slug, owner_client_id=client_id)
 
 
 @app.post("/customer/billing-portal")
