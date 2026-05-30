@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NexaFlow Enquiry Product Infographic</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --ink: #101114;
+      --muted: #626872;
+      --line: #d9dde4;
+      --panel: #ffffff;
+      --soft: #edf1f7;
+      --green: #16c784;
+      --blue: #3b82f6;
+      --dark: #050505;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #202124;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .poster {
+      width: 1400px;
+      min-height: 900px;
+      margin: 0 auto;
+      padding: 36px 40px 30px;
+      background:
+        radial-gradient(circle at 16% 5%, rgba(22, 199, 132, .16), transparent 30%),
+        radial-gradient(circle at 86% 6%, rgba(59, 130, 246, .14), transparent 30%),
+        linear-gradient(180deg, #fff 0%, #f6f7f9 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .poster::before {
+      content: "";
+      position: absolute;
+      inset: 110px -80px auto -80px;
+      height: 210px;
+      background:
+        repeating-linear-gradient(92deg, transparent 0 34px, rgba(16, 17, 20, .045) 35px 36px),
+        linear-gradient(100deg, transparent 0%, rgba(22, 199, 132, .13) 46%, rgba(59, 130, 246, .13) 100%);
+      transform: skewY(-3deg);
+      pointer-events: none;
+    }
+
+    header {
+      position: relative;
+      text-align: center;
+      margin-bottom: 26px;
+      z-index: 1;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0;
+      margin-bottom: 10px;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: var(--dark);
+      position: relative;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+    }
+
+    .mark::after {
+      content: "N";
+      position: absolute;
+      inset: 0;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 19px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 46px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 14px auto 0;
+      max-width: 950px;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1.35;
+    }
+
+    .grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, .94);
+      border: 2px solid #171a21;
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 260px;
+      box-shadow: 0 14px 32px rgba(20, 24, 31, .08);
+    }
+
+    .wide { grid-column: span 2; }
+
+    .card h2 {
+      margin: 0;
+      padding: 13px 16px 12px;
+      background: linear-gradient(180deg, #eef4fb, #dfeaf7);
+      border-bottom: 2px solid #171a21;
+      text-align: center;
+      font-size: 22px;
+      line-height: 1.15;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .body {
+      padding: 22px 24px 18px;
+      display: grid;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .visual {
+      min-height: 116px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      color: var(--ink);
+    }
+
+    .icon {
+      width: 92px;
+      height: 92px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      font-size: 44px;
+      font-weight: 800;
+      border: 2px solid #1d2330;
+      background: linear-gradient(135deg, #fdfdfd, #e8edf5);
+      box-shadow: 0 10px 20px rgba(20, 24, 31, .08);
+    }
+
+    .mini-card {
+      width: 156px;
+      padding: 14px 12px;
+      border-radius: 14px;
+      border: 2px solid #1d2330;
+      background: var(--soft);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .arrow {
+      font-size: 42px;
+      color: var(--blue);
+      font-weight: 800;
+    }
+
+    .caption {
+      margin: 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 18px;
+      line-height: 1.32;
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 14px;
+      border: 2px solid #1d2330;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .num {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: #101114;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .step strong {
+      display: block;
+      font-size: 19px;
+      margin-bottom: 3px;
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.28;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .pill {
+      border: 1px solid #cbd3df;
+      background: #fff;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-weight: 700;
+      color: #222831;
+      font-size: 16px;
+    }
+
+    .outcome {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .metric {
+      border-radius: 12px;
+      border: 2px solid #1d2330;
+      padding: 16px;
+      background: linear-gradient(180deg, #fff, #eef3f8);
+      text-align: center;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .cta {
+      margin-top: 24px;
+      border: 2px solid #101114;
+      border-radius: 12px;
+      padding: 19px 22px;
+      background: #050505;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta strong {
+      font-size: 25px;
+    }
+
+    .cta span {
+      color: #d1d5db;
+      font-size: 18px;
+    }
+
+    .cta .button {
+      background: var(--green);
+      color: #04110b;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <main class="poster">
+    <header>
+      <div class="brand"><span class="mark"></span> NexaFlow Enquiry</div>
+      <h1>AI WhatsApp Enquiry Assistant: A 5-Step System for Local Service Businesses</h1>
+      <p class="subtitle">Turn customer enquiries into organized leads, WhatsApp follow-ups, and merchant inbox records without forcing small businesses to build a full website.</p>
+    </header>
+
+    <section class="grid" aria-label="NexaFlow Enquiry product guide">
+      <article class="card">
+        <h2>1. Customer Enquiry Capture</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="icon">?</div>
+            <div class="arrow">→</div>
+            <div class="icon">WA</div>
+          </div>
+          <p class="caption">Customers submit name, phone, message, and consent through a simple link or website widget.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>2. AI Lead Classification</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="mini-card">Urgent<br>High intent</div>
+            <div class="arrow">+</div>
+            <div class="mini-card">Service<br>Category</div>
+          </div>
+          <p class="caption">NexaFlow labels each enquiry by intent, priority, estimated value, and recommended reply direction.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>3. WhatsApp Reply Draft</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="icon">AI</div>
+            <div class="arrow">→</div>
+            <div class="icon">↗</div>
+          </div>
+          <p class="caption">The merchant gets a ready-to-send reply and WhatsApp follow-up link, reducing slow responses.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>4. Merchant Inbox</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="mini-card">New</div>
+            <div class="mini-card">Quoted</div>
+            <div class="mini-card">Won</div>
+          </div>
+          <p class="caption">Every lead is stored in a private inbox with status, notes, follow-up date, CSV export, and lead value.</p>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <h2>5. From Enquiry to Revenue</h2>
+        <div class="body">
+          <div class="steps">
+            <div class="step"><div class="num">1</div><div><strong>Share one link</strong><span>Use it on WhatsApp, Facebook, Instagram, Google Business Profile, or a website.</span></div></div>
+            <div class="step"><div class="num">2</div><div><strong>Respond faster</strong><span>AI prepares the first reply so the merchant can follow up before the customer goes elsewhere.</span></div></div>
+            <div class="step"><div class="num">3</div><div><strong>Track every lead</strong><span>No more lost enquiries inside chat history, DMs, or handwritten notes.</span></div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <h2>Best Fit Customers</h2>
+        <div class="body">
+          <div class="pill-row">
+            <span class="pill">Renovation</span>
+            <span class="pill">Tuition</span>
+            <span class="pill">Beauty & Wellness</span>
+            <span class="pill">Repair Services</span>
+            <span class="pill">Clinics</span>
+            <span class="pill">Property Agents</span>
+            <span class="pill">Event Services</span>
+          </div>
+          <p class="caption">Ideal for local service businesses that already receive WhatsApp enquiries but do not have a clean lead management process.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Why Merchants Pay</h2>
+        <div class="body">
+          <div class="outcome">
+            <div class="metric"><strong>Fast</strong><span>Reply while leads are still warm</span></div>
+            <div class="metric"><strong>Clear</strong><span>Know who to follow up first</span></div>
+            <div class="metric"><strong>Simple</strong><span>No website or CRM needed</span></div>
+          </div>
+          <p class="caption">The product sells time savings, faster response, fewer missed leads, and a more professional customer journey.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="cta">
+      <div>
+        <strong>Sell this as: AI WhatsApp enquiry assistant for local service businesses.</strong><br>
+        <span>Simple setup, merchant inbox, AI reply drafts, follow-up tracking, and privacy consent records.</span>
+      </div>
+      <div class="button">Try NexaFlow Enquiry</div>
+    </section>
+  </main>
+</body>
+</html>
