@@ -2412,9 +2412,14 @@ def merchant_onboarding_email(profile, access_key):
     site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
     form_url = f"{site_url}{profile['form_url']}"
     inbox_url = f"{site_url}{profile['inbox_url']}"
+    embed_url = f"{site_url}{profile['embed_url']}"
+    embed_code = f'<script src="{embed_url}"></script>'
     return f"""Hi {profile['business_name']},
 
-Your NexaFlow Enquiry Inbox is ready.
+Your NexaFlow Enquiry setup is ready.
+
+What this does:
+NexaFlow helps your business collect customer enquiries, identify hot leads, prepare WhatsApp follow-up drafts, and remind you who needs follow-up.
 
 Customer enquiry form:
 {form_url}
@@ -2425,11 +2430,18 @@ Private merchant inbox:
 Business access key:
 {access_key}
 
-How to use it:
-1. Share the customer enquiry form with customers or place it on your website.
-2. Open the merchant inbox when you want to review leads.
-3. Paste the business access key into the inbox to load your leads.
-4. Use the WhatsApp follow-up link and mark each lead as contacted, quoted, won, or lost.
+Website widget code:
+{embed_code}
+
+5-minute setup:
+1. Open the private merchant inbox.
+2. Paste the business access key above and click Load Leads.
+3. Open Business settings and confirm your WhatsApp phone, email, service summary, and opening hours.
+4. Copy the customer enquiry form link and share it on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.
+5. When leads arrive, open the inbox, click WhatsApp, save notes, set follow-up dates, and mark each lead as contacted, quoted, won, or lost.
+
+Data and privacy:
+Customer forms include a privacy consent notice. Your private inbox is protected by this business access key. Keep it private.
 
 Keep this access key private. If it is exposed or lost, ask the NexaFlow operator to rotate it.
 """
@@ -6241,34 +6253,34 @@ def checkout(plan: str, redirect: bool = True):
 @app.get("/billing/success", response_class=HTMLResponse)
 def billing_success(plan: str | None = None):
     plan_name = PLANS.get(plan or "", {}).get("name", "your")
-    docs_url = f"{os.getenv('NEXAFLOW_SITE_URL', 'https://api.nexaflowinfra.com')}/docs"
     portal_url = f"{os.getenv('NEXAFLOW_SITE_URL', 'https://api.nexaflowinfra.com')}/portal"
+    enquiry_url = f"{os.getenv('NEXAFLOW_SITE_URL', 'https://api.nexaflowinfra.com')}/ai-enquiry"
     return base_html(
         "NexaFlow Payment Complete",
         f"""
         <section class="hero">
             <div>
                 <h1>Payment received</h1>
-                <p>Your {plan_name} plan is being activated. NexaFlow sends the API key to the email address used at checkout, then you can test everything from the customer portal.</p>
+                <p>Your {plan_name} plan is being activated. NexaFlow will email your access details and create your Enquiry merchant setup automatically.</p>
                 <div class="actions">
                     <a class="btn" href="{portal_url}">Open Portal</a>
-                    <a class="btn secondary" href="{docs_url}">API Docs</a>
+                    <a class="btn secondary" href="{enquiry_url}">View Enquiry Product</a>
                 </div>
             </div>
             <div class="product-panel">
-                <div class="panel-top"><span>Automatic Fulfillment</span><span>Stripe + Resend</span></div>
+                <div class="panel-top"><span>Automatic Fulfillment</span><span>Stripe + Resend + Enquiry</span></div>
                 <div class="flow">
                     <div class="flow-row"><span>Payment</span><div class="bar"><span style="width:100%"></span></div><span>done</span></div>
-                    <div class="flow-row"><span>Account</span><div class="bar"><span style="width:100%;background:var(--gold)"></span></div><span>active</span></div>
-                    <div class="flow-row"><span>Email</span><div class="bar"><span style="width:100%;background:var(--accent)"></span></div><span>sent</span></div>
+                    <div class="flow-row"><span>Merchant setup</span><div class="bar"><span style="width:100%;background:var(--gold)"></span></div><span>created</span></div>
+                    <div class="flow-row"><span>Setup email</span><div class="bar"><span style="width:100%;background:var(--accent)"></span></div><span>sent</span></div>
                 </div>
             </div>
         </section>
         <h2>Next Steps</h2>
         <section class="grid">
-            <div class="card"><h3>Check Email</h3><p>Search for "NexaFlow AI Gateway API access" and check spam or promotions if needed.</p></div>
-            <div class="card"><h3>Open Portal</h3><p>Paste your API key into the portal to view credits, usage, and billing links.</p></div>
-            <div class="card"><h3>Send Test</h3><p>Use the portal test request to confirm model routing and credit tracking.</p></div>
+            <div class="card"><h3>Check Email</h3><p>Search for "NexaFlow Enquiry Inbox is ready" and check spam or promotions if needed.</p></div>
+            <div class="card"><h3>Open Inbox</h3><p>Use the private inbox link and business access key in the email to load your leads.</p></div>
+            <div class="card"><h3>Share Link</h3><p>Copy your customer enquiry link and place it on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.</p></div>
         </section>
         <p>Use of the service is subject to the <a href="/terms">Terms</a>, <a href="/privacy">Privacy Policy</a>, <a href="/refund-policy">Refund Policy</a>, and <a href="/acceptable-use">Acceptable Use Policy</a>.</p>
         """

@@ -187,6 +187,10 @@ def test_business_profile_onboarding_rotates_and_sends_key_without_exposing_secr
     assert body["profile"]["access_key_prefix"] != original_prefix
     assert "business_access_key" not in json.dumps(body)
     assert "access_key_hash" not in json.dumps(body)
+    email_body = main.merchant_onboarding_email(main.get_business_profile(slug), "biz_test_key")
+    assert "5-minute setup" in email_body
+    assert "Website widget code" in email_body
+    assert "Google Business Profile" in email_body
 
 
 def test_business_profile_onboarding_requires_contact_email():
@@ -993,6 +997,9 @@ def test_billing_result_pages_load():
     assert "Payment received" in success.text
     assert "Open Portal" in success.text
     assert "/portal" in success.text
+    assert "Merchant setup" in success.text
+    assert "Open Inbox" in success.text
+    assert "Share Link" in success.text
     assert cancel.status_code == 200
     assert "Checkout cancelled" in cancel.text
 
