@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NexaFlow Social Post - Enquiry</title>
+  <style>
+    :root {
+      --bg: #030504;
+      --panel: #0c0f0e;
+      --line: rgba(255,255,255,.14);
+      --text: #f8faf7;
+      --muted: #b9b3a5;
+      --soft: #dad0bd;
+      --teal: #2dd4bf;
+      --gold: #f3c76a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #111;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      color: var(--text);
+    }
+    .post {
+      width: 1200px;
+      height: 1200px;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 28%, rgba(45,212,191,.26), transparent 30%),
+        radial-gradient(circle at 82% 22%, rgba(243,199,106,.25), transparent 28%),
+        linear-gradient(145deg, #020303 0%, #061313 48%, #151006 100%);
+    }
+    .post::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.026) 0 1px, transparent 1px 78px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 78px);
+      opacity: .72;
+    }
+    .flow {
+      position: absolute;
+      left: -120px;
+      right: -120px;
+      bottom: -56px;
+      height: 360px;
+      opacity: .86;
+      background:
+        repeating-radial-gradient(ellipse at 20% 42%, rgba(45,212,191,.25) 0 1px, transparent 2px 18px),
+        repeating-radial-gradient(ellipse at 80% 44%, rgba(243,199,106,.25) 0 1px, transparent 2px 18px);
+      mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 74%, transparent 100%);
+      transform: skewY(-6deg);
+    }
+    .brand {
+      position: absolute;
+      top: 58px;
+      left: 72px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 35px;
+      font-weight: 900;
+      letter-spacing: 0;
+      z-index: 2;
+    }
+    .mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--teal), #f6f4ec 48%, var(--gold));
+      box-shadow: 0 0 34px rgba(45,212,191,.22);
+    }
+    .brand span span { color: var(--gold); }
+    .content {
+      position: relative;
+      z-index: 1;
+      padding: 158px 72px 70px;
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 42px;
+    }
+    .eyebrow {
+      color: var(--gold);
+      font-size: 19px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 5px;
+      margin-bottom: 26px;
+    }
+    h1 {
+      margin: 0;
+      max-width: 940px;
+      font-size: 78px;
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+    .gold { color: var(--gold); }
+    .sub {
+      max-width: 900px;
+      margin: 30px 0 0;
+      color: var(--soft);
+      font-size: 32px;
+      line-height: 1.32;
+    }
+    .middle {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 34px;
+      align-items: center;
+    }
+    .steps {
+      display: grid;
+      gap: 16px;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      align-items: center;
+      gap: 16px;
+      min-height: 92px;
+      padding: 17px 21px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.07), transparent 70%),
+        rgba(6,8,8,.76);
+      box-shadow: 0 18px 50px rgba(0,0,0,.28);
+    }
+    .num {
+      width: 58px;
+      height: 58px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #050505;
+      background: linear-gradient(135deg, var(--gold), #ffffff);
+      font-size: 25px;
+      font-weight: 950;
+    }
+    .step strong {
+      display: block;
+      font-size: 25px;
+      margin-bottom: 4px;
+    }
+    .step span {
+      display: block;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.25;
+    }
+    .ecosystem {
+      position: relative;
+      width: 340px;
+      height: 340px;
+      display: grid;
+      place-items: center;
+    }
+    .core {
+      width: 196px;
+      height: 196px;
+      border-radius: 999px;
+      border: 1px solid rgba(243,199,106,.52);
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 32% 26%, rgba(255,255,255,.16), transparent 28%),
+        linear-gradient(135deg, rgba(45,212,191,.18), rgba(243,199,106,.16)),
+        #090a0a;
+      box-shadow: 0 0 80px rgba(45,212,191,.16), 0 0 80px rgba(243,199,106,.18);
+    }
+    .core div {
+      font-size: 86px;
+      font-weight: 950;
+      background: linear-gradient(135deg, #ffffff, #c9c9c9 45%, var(--gold));
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+    .mini {
+      position: absolute;
+      min-width: 132px;
+      min-height: 52px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(7,8,8,.92);
+      font-size: 18px;
+      font-weight: 850;
+    }
+    .m1 { top: 0; left: 104px; border-color: rgba(45,212,191,.42); }
+    .m2 { top: 104px; right: 0; border-color: rgba(243,199,106,.42); }
+    .m3 { bottom: 62px; right: 0; }
+    .m4 { bottom: 0; left: 104px; border-color: rgba(243,199,106,.30); }
+    .m5 { top: 104px; left: 0; border-color: rgba(45,212,191,.30); }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 26px;
+    }
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 68px;
+      padding: 0 32px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--gold), #ffffff);
+      color: #050505;
+      font-size: 24px;
+      font-weight: 950;
+      box-shadow: 0 18px 58px rgba(0,0,0,.36);
+    }
+    .url {
+      color: var(--muted);
+      font-size: 22px;
+      font-weight: 760;
+    }
+  </style>
+</head>
+<body>
+  <main class="post">
+    <div class="flow"></div>
+    <div class="brand"><div class="mark"></div><span>Nexa<span>Flow</span></span></div>
+    <section class="content">
+      <div>
+        <div class="eyebrow">For local service merchants</div>
+        <h1>Stop losing WhatsApp enquiries.</h1>
+        <p class="sub">NexaFlow Enquiry turns scattered customer messages into an organized AI-assisted follow-up inbox.</p>
+      </div>
+
+      <div class="middle">
+        <div class="steps">
+          <div class="step"><div class="num">1</div><div><strong>Share one enquiry link</strong><span>Use it on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.</span></div></div>
+          <div class="step"><div class="num">2</div><div><strong>AI sorts every lead</strong><span>Urgent enquiries, service type, reply direction, notes, and follow-up status stay in one private inbox.</span></div></div>
+          <div class="step"><div class="num">3</div><div><strong>Reply faster on WhatsApp</strong><span>Get ready-to-send reply drafts so your team can follow up before customers go elsewhere.</span></div></div>
+        </div>
+        <div class="ecosystem" aria-label="NexaFlow ecosystem">
+          <div class="core"><div>N</div></div>
+          <div class="mini m1">Enquiry</div>
+          <div class="mini m2">Billing</div>
+          <div class="mini m3">Inventory</div>
+          <div class="mini m4">Automation</div>
+          <div class="mini m5">CRM</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="cta">Start with a 30-day trial</div>
+        <div class="url">nexaflowinfra.com</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

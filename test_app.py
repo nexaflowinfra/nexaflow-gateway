@@ -39,6 +39,14 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
+    assert "AI Business Ecosystem" in response.text
+    assert "Enquiries" in response.text
+    assert "Follow-ups" in response.text
+    assert "CRM" in response.text
+    assert "Billing" in response.text
+    assert "Inventory" in response.text
+    assert "Automation" in response.text
+    assert "/ai-enquiry" in response.text
 
 
 def test_pricing_page_loads():

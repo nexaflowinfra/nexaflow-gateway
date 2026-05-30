@@ -4801,36 +4801,95 @@ def acceptable_use_page():
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
-    cards = "".join(plan_card(plan_key, plan) for plan_key, plan in PLANS.items())
-    return base_html(
-        "NexaFlow AI Gateway",
+    contact_url = sales_whatsapp_url("Hi NexaFlow, I want to know which NexaFlow service fits my business")
+    request_link = escape_html(contact_url or "/contact-trial")
+    return merchant_html(
+        "NexaFlow AI Business Ecosystem",
+        "NexaFlow",
         f"""
-        <section class="hero">
+        <section class="hero product-hero">
             <div>
-                <h1>Multi-model AI API gateway for profitable token routing</h1>
-                <p>NexaFlow routes each request across OpenAI and OpenRouter, tracks token cost, charges credits, and records gross margin for every customer.</p>
+                <div class="eyebrow">NexaFlow AI Business Ecosystem</div>
+                <h1>Choose the business workflow your team needs first.</h1>
+                <p class="lead">Start with enquiries and follow-ups today, then grow into CRM, billing, inventory, and automation from one shared NexaFlow core.</p>
                 <div class="actions">
-                    <a class="btn" href="/pricing">View Plans</a>
-                    <a class="btn secondary" href="/docs">Open API Docs</a>
+                    <a class="btn" href="/ai-enquiry">Start with Enquiry</a>
+                    <a class="btn secondary" href="#services">View Services</a>
                 </div>
             </div>
-            <div class="product-panel" aria-label="NexaFlow gateway metrics">
-                <div class="panel-top"><span>Live Gateway</span><span>SQLite + Webhooks</span></div>
-                <div class="metrics">
-                    <div class="metric"><span>Providers</span><strong>2</strong><span>OpenAI, OpenRouter</span></div>
-                    <div class="metric"><span>Routing</span><strong>Profit</strong><span>Fallback ready</span></div>
-                    <div class="metric"><span>Billing</span><strong>Token</strong><span>Cost ledger</span></div>
-                </div>
-                <div class="flow">
-                    <div class="flow-row"><span>OpenAI</span><div class="bar"><span style="width:82%"></span></div><span>economy</span></div>
-                    <div class="flow-row"><span>OpenRouter</span><div class="bar"><span style="width:64%;background:var(--gold)"></span></div><span>fallback</span></div>
-                    <div class="flow-row"><span>Margin</span><div class="bar"><span style="width:91%;background:var(--accent)"></span></div><span>tracked</span></div>
+            <div class="hero-side">
+                <div class="brand-visual"><img src="/assets/brand/nexaflow-final.png" alt="NexaFlow business ecosystem"></div>
+                <div class="product-panel">
+                    <div class="panel-top"><span>Business modules</span><span class="pill good">One core</span></div>
+                    <div class="signal-list">
+                        <div class="signal-row"><span class="pill hot">Live</span><div><strong>Enquiries + Follow-ups</strong><span>Capture leads and reply faster on WhatsApp.</span></div><a href="/ai-enquiry">Open</a></div>
+                        <div class="signal-row"><span class="pill">Next</span><div><strong>CRM</strong><span>Keep customer records and pipeline activity organized.</span></div><a href="{request_link}">Request</a></div>
+                        <div class="signal-row"><span class="pill">Next</span><div><strong>Billing + Inventory</strong><span>Connect quotations, invoices, stock, and service operations.</span></div><a href="{request_link}">Request</a></div>
+                    </div>
                 </div>
             </div>
         </section>
-        <h2>Plans</h2>
-        <section class="grid">{cards}</section>
-        """
+
+        <div class="section-head" id="services">
+            <div>
+                <h2>Pick the service your business needs</h2>
+                <p>Each module is designed for local service merchants. You can start with one service first, then add more as your operation grows.</p>
+            </div>
+        </div>
+        <section class="grid">
+            <div class="card">
+                <h3>Enquiries</h3>
+                <p>Give customers one simple link to submit name, phone, message, and consent. Best first step for most merchants.</p>
+                <a class="btn" href="/ai-enquiry">Use Enquiry</a>
+            </div>
+            <div class="card">
+                <h3>Follow-ups</h3>
+                <p>Track lead status, notes, follow-up dates, and WhatsApp reply drafts so enquiries do not disappear in chat history.</p>
+                <a class="btn" href="/ai-enquiry">Included in Enquiry</a>
+            </div>
+            <div class="card">
+                <h3>CRM</h3>
+                <p>Organize customer profiles, lead stages, and service history when your team needs more than a basic inbox.</p>
+                <a class="btn secondary" href="{request_link}">Request CRM</a>
+            </div>
+            <div class="card">
+                <h3>Billing</h3>
+                <p>Plan for quotations, payment tracking, invoices, and billing records connected to customer enquiries.</p>
+                <a class="btn secondary" href="{request_link}">Request Billing</a>
+            </div>
+            <div class="card">
+                <h3>Inventory</h3>
+                <p>For businesses that need to connect customer demand with stock, packages, parts, products, or service items.</p>
+                <a class="btn secondary" href="{request_link}">Request Inventory</a>
+            </div>
+            <div class="card">
+                <h3>Automation</h3>
+                <p>Automate repeatable admin work, reminders, follow-up routing, and simple workflow steps as your process matures.</p>
+                <a class="btn secondary" href="{request_link}">Request Automation</a>
+            </div>
+        </section>
+
+        <div class="section-head">
+            <div>
+                <h2>Simple path for merchants</h2>
+                <p>No need to start with everything. Most merchants can begin with enquiry capture and add the next workflow only when it becomes useful.</p>
+            </div>
+        </div>
+        <section class="steps">
+            <div class="step"><span>1</span><div><strong>Choose a service</strong><p>Pick Enquiry first, or request CRM, Billing, Inventory, or Automation based on your current pain point.</p></div></div>
+            <div class="step"><span>2</span><div><strong>Set up your business profile</strong><p>Add your business name, WhatsApp number, service details, reply tone, and follow-up preferences.</p></div></div>
+            <div class="step"><span>3</span><div><strong>Run the workflow</strong><p>Share your link, collect customer requests, and keep every lead or task visible in one organized system.</p></div></div>
+        </section>
+
+        <div class="section-head">
+            <div>
+                <h2>Trust and data protection</h2>
+                <p>NexaFlow is built for business workflows that may include customer names, phone numbers, messages, consent records, and follow-up notes. Merchants should use customer data only for replies, quotations, appointments, and service follow-up.</p>
+                <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refund Policy</a> · <a href="/acceptable-use">Acceptable Use</a></p>
+            </div>
+        </div>
+        """,
+        show_sales_contact=True,
     )
 
 
