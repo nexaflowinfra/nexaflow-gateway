@@ -3894,9 +3894,28 @@ def base_html(title, body):
     )
 
 
-def merchant_html(title, business_name, body):
+def sales_whatsapp_url(message="Hi NexaFlow, I want to know more about NexaFlow Enquiry"):
+    phone = os.getenv("NEXAFLOW_SALES_WHATSAPP_PHONE") or os.getenv("NEXAFLOW_WHATSAPP_PHONE") or "60176731323"
+    digits = normalize_phone_for_whatsapp(phone)
+    if not digits:
+        return None
+    return f"https://wa.me/{digits}?text={quote(message)}"
+
+
+def merchant_html(title, business_name, body, show_sales_contact=False):
     safe_title = escape_html(title)
     safe_business_name = escape_html(business_name)
+    whatsapp_url = sales_whatsapp_url() if show_sales_contact else None
+    sales_contact_nav = (
+        f'<a class="nav-contact" target="_blank" rel="noopener" href="{escape_html(whatsapp_url)}">WhatsApp</a>'
+        if whatsapp_url
+        else ""
+    )
+    sales_contact_float = (
+        f'<a class="floating-whatsapp" target="_blank" rel="noopener" href="{escape_html(whatsapp_url)}">WhatsApp Us</a>'
+        if whatsapp_url
+        else ""
+    )
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -3963,6 +3982,20 @@ def merchant_html(title, business_name, body):
                     gap: 16px;
                     align-items: center;
                 }}
+                .nav-contact {{
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #3a3a3d;
+                    border-radius: 999px;
+                    padding: 8px 13px;
+                    color: var(--ink);
+                    text-decoration: none;
+                    font-size: 14px;
+                    font-weight: 800;
+                    background: rgba(255,255,255,.04);
+                }}
+                .nav-contact:hover {{ background: var(--soft); }}
                 .brand {{
                     display: flex;
                     align-items: center;
@@ -4147,6 +4180,53 @@ def merchant_html(title, business_name, body):
                         var(--surface);
                 }}
                 .card p:last-child {{ margin-bottom: 0; }}
+                .pricing-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 14px;
+                    margin-top: 12px;
+                }}
+                .price-card {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 18px;
+                    background: var(--surface);
+                    display: grid;
+                    gap: 10px;
+                    align-content: start;
+                }}
+                .price-card.highlight {{
+                    border-color: #525252;
+                    background:
+                        linear-gradient(135deg, rgba(255,255,255,.08), transparent 58%),
+                        var(--surface);
+                }}
+                .price-card.trial {{
+                    border-color: #1f5132;
+                    background:
+                        linear-gradient(135deg, rgba(34,197,94,.12), transparent 58%),
+                        #07140b;
+                }}
+                .price-card h3 {{ margin: 0; }}
+                .plan-price {{
+                    color: var(--ink);
+                    font-size: 28px;
+                    font-weight: 900;
+                    line-height: 1.1;
+                    margin: 2px 0;
+                }}
+                .plan-price span {{
+                    color: var(--muted);
+                    font-size: 13px;
+                    font-weight: 500;
+                }}
+                .price-card ul {{
+                    margin: 0;
+                    padding-left: 18px;
+                    color: var(--muted);
+                    font-size: 14px;
+                    line-height: 1.55;
+                }}
                 .steps {{
                     display: grid;
                     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4298,11 +4378,30 @@ def merchant_html(title, business_name, body):
                     color: var(--muted);
                     font-size: 13px;
                 }}
+                .floating-whatsapp {{
+                    position: fixed;
+                    right: 22px;
+                    bottom: 22px;
+                    z-index: 20;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 48px;
+                    padding: 12px 18px;
+                    border-radius: 999px;
+                    background: #ffffff;
+                    color: #000000;
+                    text-decoration: none;
+                    font-weight: 900;
+                    box-shadow: 0 16px 40px rgba(0,0,0,.38);
+                }}
+                .floating-whatsapp:hover {{ background: var(--brand-strong); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
+                    .floating-whatsapp {{ right: 14px; bottom: 14px; min-height: 44px; padding: 10px 14px; }}
                 }}
             </style>
         </head>
@@ -4310,10 +4409,12 @@ def merchant_html(title, business_name, body):
             <header>
                 <nav>
                     <a class="brand" href="#"><span class="mark"></span><span>{safe_business_name}</span></a>
+                    {sales_contact_nav}
                 </nav>
             </header>
             <main>{body}</main>
             <footer>Powered by NexaFlow</footer>
+            {sales_contact_float}
         </body>
         </html>
         """
@@ -4723,7 +4824,7 @@ def enquiry_app_page():
                 </p>
                 <div class="actions">
                     <a class="btn" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
-                    <a class="btn secondary" href="/pricing"><span data-lang="en">View Pricing</span><span data-lang="zh" class="lang-hidden">查看价格</span></a>
+                    <a class="btn secondary" href="#enquiry-pricing"><span data-lang="en">View Pricing</span><span data-lang="zh" class="lang-hidden">查看价格</span></a>
                 </div>
             </div>
             <div class="product-panel">
@@ -4762,6 +4863,59 @@ def enquiry_app_page():
             <div class="card"><h3><span data-lang="en">Consent before submit</span><span data-lang="zh" class="lang-hidden">提交前同意</span></h3><p><span data-lang="en">Every enquiry records the privacy notice, consent status, and consent time.</span><span data-lang="zh" class="lang-hidden">每个询问都会记录隐私告知、同意状态和同意时间。</span></p></div>
             <div class="card"><h3><span data-lang="en">Private merchant inbox</span><span data-lang="zh" class="lang-hidden">商家私密 inbox</span></h3><p><span data-lang="en">Internal notes, deal value, follow-up dates, and WhatsApp links stay behind a business access key.</span><span data-lang="zh" class="lang-hidden">内部备注、成交金额、跟进日期和 WhatsApp 链接都由商家 access key 保护。</span></p></div>
             <div class="card"><h3><span data-lang="en">Export and records</span><span data-lang="zh" class="lang-hidden">导出与记录</span></h3><p><span data-lang="en">Merchants can export their leads, while Terms and Privacy explain allowed use and responsibilities.</span><span data-lang="zh" class="lang-hidden">商家可以导出 leads，同时条款和隐私政策说明资料用途和责任。</span></p></div>
+        </section>
+        <div class="section-head" id="enquiry-pricing">
+            <div>
+                <h2><span data-lang="en">Start with a 30-day trial</span><span data-lang="zh" class="lang-hidden">先免费试用 30 天</span></h2>
+                <p><span data-lang="en">Let merchants test the enquiry flow first. After the trial, they can choose a monthly plan based on how many leads they handle.</span><span data-lang="zh" class="lang-hidden">先让商家实际测试询盘流程。试用后，再根据每月客户数量选择配套。</span></p>
+            </div>
+        </div>
+        <section class="pricing-grid">
+            <div class="price-card trial">
+                <h3><span data-lang="en">Trial</span><span data-lang="zh" class="lang-hidden">试用</span></h3>
+                <div class="plan-price"><span data-lang="en">Free</span><span data-lang="zh" class="lang-hidden">免费</span> <span>/ 30 days</span></div>
+                <p><span data-lang="en">Best for trying the full workflow with real enquiries.</span><span data-lang="zh" class="lang-hidden">适合先用真实客户询问测试整套流程。</span></p>
+                <ul>
+                    <li><span data-lang="en">1 business inbox</span><span data-lang="zh" class="lang-hidden">1 个商家 inbox</span></li>
+                    <li><span data-lang="en">Enquiry link and widget</span><span data-lang="zh" class="lang-hidden">询问链接与网站 widget</span></li>
+                    <li><span data-lang="en">AI reply drafts</span><span data-lang="zh" class="lang-hidden">AI 回复草稿</span></li>
+                    <li><span data-lang="en">Manual onboarding support</span><span data-lang="zh" class="lang-hidden">人工协助开通</span></li>
+                </ul>
+                <a class="btn" target="_blank" rel="noopener" href="/contact-trial"><span data-lang="en">Request Trial</span><span data-lang="zh" class="lang-hidden">申请试用</span></a>
+            </div>
+            <div class="price-card">
+                <h3>Starter</h3>
+                <div class="plan-price">SGD 19 <span>/ month</span></div>
+                <p><span data-lang="en">For solo owners and small service shops.</span><span data-lang="zh" class="lang-hidden">适合个人老板或小型服务商家。</span></p>
+                <ul>
+                    <li><span data-lang="en">1 business inbox</span><span data-lang="zh" class="lang-hidden">1 个商家 inbox</span></li>
+                    <li><span data-lang="en">Up to 100 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 100 个询问</span></li>
+                    <li><span data-lang="en">WhatsApp reply drafts</span><span data-lang="zh" class="lang-hidden">WhatsApp 回复草稿</span></li>
+                    <li><span data-lang="en">CSV export</span><span data-lang="zh" class="lang-hidden">CSV 导出</span></li>
+                </ul>
+            </div>
+            <div class="price-card highlight">
+                <h3>Pro</h3>
+                <div class="plan-price">SGD 49 <span>/ month</span></div>
+                <p><span data-lang="en">For growing businesses with daily enquiries.</span><span data-lang="zh" class="lang-hidden">适合每天都有客户询问的成长型商家。</span></p>
+                <ul>
+                    <li><span data-lang="en">Everything in Starter</span><span data-lang="zh" class="lang-hidden">包含 Starter 全部功能</span></li>
+                    <li><span data-lang="en">Up to 500 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 500 个询问</span></li>
+                    <li><span data-lang="en">Follow-up digest</span><span data-lang="zh" class="lang-hidden">跟进提醒摘要</span></li>
+                    <li><span data-lang="en">Priority setup support</span><span data-lang="zh" class="lang-hidden">优先设置协助</span></li>
+                </ul>
+            </div>
+            <div class="price-card">
+                <h3>Business</h3>
+                <div class="plan-price">SGD 99+ <span>/ month</span></div>
+                <p><span data-lang="en">For teams, multiple outlets, or custom workflows.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店或需要客制流程的商家。</span></p>
+                <ul>
+                    <li><span data-lang="en">Multiple inboxes</span><span data-lang="zh" class="lang-hidden">多个商家 inbox</span></li>
+                    <li><span data-lang="en">Custom lead workflow</span><span data-lang="zh" class="lang-hidden">客制 lead 流程</span></li>
+                    <li><span data-lang="en">Higher monthly volume</span><span data-lang="zh" class="lang-hidden">更高每月用量</span></li>
+                    <li><span data-lang="en">Managed support</span><span data-lang="zh" class="lang-hidden">管理式支持</span></li>
+                </ul>
+            </div>
         </section>
         <div class="section-head" id="enquiry-form">
             <div>
@@ -4851,7 +5005,17 @@ def enquiry_app_page():
             }
         </script>
         """
+        ,
+        show_sales_contact=True,
     )
+
+
+@app.get("/contact-trial")
+def contact_trial():
+    url = sales_whatsapp_url("Hi NexaFlow, I want to start the 30-day trial for NexaFlow Enquiry")
+    if not url:
+        raise HTTPException(status_code=503, detail="Sales WhatsApp contact is not configured.")
+    return RedirectResponse(url)
 
 
 @app.get("/enquiry/{business_slug}", response_class=HTMLResponse)

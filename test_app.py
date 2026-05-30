@@ -63,6 +63,10 @@ def test_enquiry_app_pages_load():
     assert "Consent before submit" in public_page.text
     assert "Private merchant inbox" in public_page.text
     assert "View Pricing" in public_page.text
+    assert "Start with a 30-day trial" in public_page.text
+    assert "SGD 19" in public_page.text
+    assert "WhatsApp Us" in public_page.text
+    assert "wa.me" in public_page.text
     assert "radial-gradient(circle at 18% 8%" in public_page.text
     assert "repeating-linear-gradient(122deg" in public_page.text
     assert "Open Admin" not in public_page.text
@@ -73,6 +77,11 @@ def test_enquiry_app_pages_load():
     assert "/admin/dashboard" not in admin_page.text
     assert legacy_public_page.status_code == 200
     assert legacy_admin_page.status_code == 200
+
+    trial_contact = client.get("/contact-trial", follow_redirects=False)
+    assert trial_contact.status_code in {302, 307}
+    assert "wa.me" in trial_contact.headers["location"]
+    assert "30-day" in trial_contact.headers["location"]
 
 
 def test_business_profile_create_and_public_form_loads():
