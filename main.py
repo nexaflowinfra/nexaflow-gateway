@@ -2552,6 +2552,114 @@ def notify_merchant_new_enquiry(profile, enquiry):
     )
 
 
+def merchant_followup_digest_email(profile, enquiries):
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    inbox_url = f"{site_url}{profile['inbox_url']}"
+    lines = [
+        f"Due follow-ups for {profile['business_name']}",
+        "",
+        f"You have {len(enquiries)} lead(s) due for follow-up.",
+        "",
+    ]
+    for index, enquiry in enumerate(enquiries, start=1):
+        value = enquiry.get("deal_value")
+        value_line = f"Estimated value: {value}" if value else "Estimated value: not set"
+        whatsapp_line = f"WhatsApp: {enquiry['whatsapp_url']}" if enquiry.get("whatsapp_url") else "WhatsApp: not available"
+        note_line = f"Note: {enquiry['internal_note']}" if enquiry.get("internal_note") else "Note: none"
+        lines.extend(
+            [
+                f"{index}. {enquiry['name']} ({enquiry['phone']})",
+                f"Follow-up date: {enquiry.get('follow_up_at') or 'not set'}",
+                f"Intent: {enquiry['intent']} | Priority: {enquiry['priority']} | Status: {enquiry['status']}",
+                value_line,
+                note_line,
+                whatsapp_line,
+                "",
+            ]
+        )
+
+    lines.extend(["Open your inbox:", inbox_url, ""])
+    return "\n".join(lines)
+
+
+def send_due_followup_digest(business_slug=None, dry_run=False):
+    profiles = [get_business_profile(business_slug)] if business_slug else list_business_profiles()
+    results = []
+    sent = 0
+    skipped = 0
+    for profile in profiles:
+        if profile["status"] != "active":
+            skipped += 1
+            results.append(
+                {
+                    "business_slug": profile["slug"],
+                    "status": "skipped",
+                    "reason": "Business profile is paused.",
+                    "due_count": 0,
+                }
+            )
+            continue
+
+        due_enquiries = list_enquiry_records(
+            business_slug=profile["slug"],
+            follow_up="due",
+            limit=100,
+        )
+        if not due_enquiries:
+            skipped += 1
+            results.append(
+                {
+                    "business_slug": profile["slug"],
+                    "status": "skipped",
+                    "reason": "No due follow-ups.",
+                    "due_count": 0,
+                }
+            )
+            continue
+
+        if not profile.get("contact_email"):
+            skipped += 1
+            results.append(
+                {
+                    "business_slug": profile["slug"],
+                    "status": "skipped",
+                    "reason": "Business profile has no contact_email.",
+                    "due_count": len(due_enquiries),
+                }
+            )
+            continue
+
+        if dry_run:
+            delivery = {"status": "dry_run", "reason": "Email not sent."}
+        else:
+            delivery = send_resend_email(
+                profile["contact_email"],
+                f"{profile['business_name']}: {len(due_enquiries)} follow-up(s) due today",
+                merchant_followup_digest_email(profile, due_enquiries),
+            )
+        if delivery.get("status") in {"sent", "dry_run"}:
+            sent += 1
+        else:
+            skipped += 1
+        results.append(
+            {
+                "business_slug": profile["slug"],
+                "business_name": profile["business_name"],
+                "contact_email": profile.get("contact_email"),
+                "due_count": len(due_enquiries),
+                "delivery": delivery,
+            }
+        )
+
+    return {
+        "processed": len(results),
+        "sent": sent,
+        "skipped": skipped,
+        "dry_run": dry_run,
+        "results": results,
+    }
+
+
 def public_enquiry_response(enquiry):
     return {
         "id": enquiry["id"],
@@ -6403,6 +6511,17 @@ def export_merchant_enquiries_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.post("/apps/enquiry/api/followups/digest")
+def send_enquiry_followup_digest(
+    business_slug: str | None = None,
+    dry_run: bool = False,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return send_due_followup_digest(business_slug=business_slug, dry_run=dry_run)
 
 
 @app.patch("/apps/enquiry/api/merchant/profile")

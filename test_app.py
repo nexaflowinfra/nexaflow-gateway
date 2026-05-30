@@ -804,6 +804,81 @@ def test_merchant_can_filter_due_followups():
     assert "Future Buyer" not in exported_due.text
 
 
+def test_admin_can_send_due_followup_digest_preview():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"digest-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Digest Service",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+            "contact_email": f"digest-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    due_lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Digest Due Buyer",
+            "phone": "6591112222",
+            "message": "Need urgent quotation",
+        },
+    )
+    future_lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Digest Future Buyer",
+            "phone": "6593334444",
+            "message": "Need booking next month",
+        },
+    )
+    assert due_lead.status_code == 200
+    assert future_lead.status_code == 200
+
+    assert client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{due_lead.json()['id']}?business_slug={slug}",
+        json={"follow_up_at": "2000-01-01", "internal_note": "Call before lunch."},
+        headers={"X-Business-Key": business_key},
+    ).status_code == 200
+    assert client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{future_lead.json()['id']}?business_slug={slug}",
+        json={"follow_up_at": "2999-01-01"},
+        headers={"X-Business-Key": business_key},
+    ).status_code == 200
+
+    unauthorized = client.post(
+        f"/apps/enquiry/api/followups/digest?business_slug={slug}&dry_run=true"
+    )
+    assert unauthorized.status_code == 401
+
+    preview = client.post(
+        f"/apps/enquiry/api/followups/digest?business_slug={slug}&dry_run=true",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert preview.status_code == 200
+    data = preview.json()
+    assert data["processed"] == 1
+    assert data["sent"] == 1
+    assert data["dry_run"] is True
+    assert data["results"][0]["due_count"] == 1
+    assert data["results"][0]["delivery"]["status"] == "dry_run"
+
+    body = main.merchant_followup_digest_email(
+        main.get_business_profile(slug),
+        main.list_enquiry_records(business_slug=slug, follow_up="due"),
+    )
+    assert "Digest Due Buyer" in body
+    assert "Call before lunch." in body
+    assert "Digest Future Buyer" not in body
+
+
 def test_public_enquiry_rate_limit_blocks_repeated_spam():
     suffix = uuid.uuid4().hex[:8]
     slug = f"rate-{suffix}"
