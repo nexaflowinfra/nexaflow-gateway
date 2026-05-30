@@ -2631,7 +2631,15 @@ def create_enquiry_record(req):
     return row_to_enquiry(updated)
 
 
-def list_enquiry_records(status=None, business_slug=None, limit=50, priority=None, intent=None, search=None):
+def list_enquiry_records(
+    status=None,
+    business_slug=None,
+    limit=50,
+    priority=None,
+    intent=None,
+    search=None,
+    follow_up=None,
+):
     query = "SELECT * FROM enquiries"
     params = []
     filters = []
@@ -2651,6 +2659,16 @@ def list_enquiry_records(status=None, business_slug=None, limit=50, priority=Non
         filters.append("(name LIKE ? OR phone LIKE ? OR email LIKE ? OR message LIKE ? OR internal_note LIKE ?)")
         term = f"%{search.strip()}%"
         params.extend([term, term, term, term, term])
+    if follow_up == "scheduled":
+        filters.append("follow_up_at IS NOT NULL AND follow_up_at != ''")
+    elif follow_up == "due":
+        filters.append(
+            "follow_up_at IS NOT NULL AND follow_up_at != '' "
+            "AND date(follow_up_at) <= date('now') "
+            "AND status NOT IN ('won', 'lost', 'spam')"
+        )
+    elif follow_up == "none":
+        filters.append("(follow_up_at IS NULL OR follow_up_at = '')")
     if filters:
         query += " WHERE " + " AND ".join(filters)
     query += " ORDER BY id DESC LIMIT ?"
@@ -2691,7 +2709,7 @@ def enquiries_to_csv(enquiries):
 
 
 def enquiry_stats(business_slug=None):
-    query = "SELECT status, priority, intent, deal_value FROM enquiries"
+    query = "SELECT status, priority, intent, deal_value, follow_up_at FROM enquiries"
     params = []
     if business_slug:
         query += " WHERE business_slug = ?"
@@ -2706,6 +2724,8 @@ def enquiry_stats(business_slug=None):
         "by_intent": {},
         "pipeline_value": 0,
         "won_value": 0,
+        "scheduled_followups": 0,
+        "due_followups": 0,
     }
     for row in rows:
         stats["by_status"][row["status"]] = stats["by_status"].get(row["status"], 0) + 1
@@ -2716,6 +2736,16 @@ def enquiry_stats(business_slug=None):
             stats["pipeline_value"] += value
         if row["status"] == "won":
             stats["won_value"] += value
+        follow_up_at = row["follow_up_at"] or ""
+        if follow_up_at:
+            stats["scheduled_followups"] += 1
+            if row["status"] not in {"won", "lost", "spam"}:
+                try:
+                    due_date = datetime.fromisoformat(follow_up_at[:10]).date()
+                    if due_date <= datetime.now(timezone.utc).date():
+                        stats["due_followups"] += 1
+                except ValueError:
+                    pass
 
     return stats
 
@@ -4648,6 +4678,16 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <option value="general">General</option>
                     </select>
                 </label>
+                <label>Follow-up
+                    <select id="filterFollowUp">
+                        <option value="">All follow-ups</option>
+                        <option value="due">Due now</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="none">No follow-up</option>
+                    </select>
+                </label>
+            </div>
+            <div class="toolbar">
                 <label>Search<input id="filterSearch" placeholder="Name, phone, message, note"></label>
             </div>
             <button class="btn" onclick="loadMerchantInbox()">Apply Filters</button>
@@ -4743,10 +4783,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const status = document.getElementById("filterStatus")?.value;
                 const priority = document.getElementById("filterPriority")?.value;
                 const intent = document.getElementById("filterIntent")?.value;
+                const followUp = document.getElementById("filterFollowUp")?.value;
                 const search = document.getElementById("filterSearch")?.value;
                 if (status) params.set("status", status);
                 if (priority) params.set("priority", priority);
                 if (intent) params.set("intent", intent);
+                if (followUp) params.set("follow_up", followUp);
                 if (search) params.set("search", search);
                 return params.toString();
             }}
@@ -4754,6 +4796,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 document.getElementById("filterStatus").value = "";
                 document.getElementById("filterPriority").value = "";
                 document.getElementById("filterIntent").value = "";
+                document.getElementById("filterFollowUp").value = "";
                 document.getElementById("filterSearch").value = "";
                 loadMerchantInbox();
             }}
@@ -4797,6 +4840,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
                         <section class="card"><h3>Hot</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
                         <section class="card"><h3>Pipeline Value</h3><div class="price">${{Number(stats.pipeline_value || 0).toLocaleString()}}</div></section>
+                        <section class="card"><h3>Due Follow-ups</h3><div class="price">${{stats.due_followups || 0}}</div></section>
                     `;
                     document.getElementById("merchantRows").innerHTML = data.enquiries.map(item => `
                         <tr>
@@ -4806,7 +4850,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <td>${{escapeHtml(item.priority)}}</td>
                             <td>${{escapeHtml(item.message)}}</td>
                             <td>${{escapeHtml(item.reply_draft)}}</td>
-                            <td><input id="follow-up-${{item.id}}" value="${{escapeHtml(item.follow_up_at || "")}}" placeholder="Tomorrow 3pm"></td>
+                            <td><input id="follow-up-${{item.id}}" type="date" value="${{escapeHtml(item.follow_up_at || "")}}"></td>
                             <td><input id="deal-value-${{item.id}}" type="number" min="0" step="0.01" value="${{item.deal_value ?? ""}}" placeholder="0"></td>
                             <td>
                                 <textarea id="note-${{item.id}}" placeholder="Internal follow-up note">${{escapeHtml(item.internal_note || "")}}</textarea>
@@ -6185,6 +6229,7 @@ def list_enquiries(
     business_slug: str | None = None,
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
     intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    follow_up: str | None = Query(default=None, pattern="^(due|scheduled|none)$"),
     search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
     admin_key: str | None = None,
@@ -6198,6 +6243,7 @@ def list_enquiries(
             business_slug=business_slug,
             priority=priority,
             intent=intent,
+            follow_up=follow_up,
             search=search,
             limit=limit,
         ),
@@ -6210,6 +6256,7 @@ def list_merchant_enquiries(
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
     intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    follow_up: str | None = Query(default=None, pattern="^(due|scheduled|none)$"),
     search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
     business_key: str | None = None,
@@ -6230,6 +6277,7 @@ def list_merchant_enquiries(
             business_slug=profile["slug"],
             priority=priority,
             intent=intent,
+            follow_up=follow_up,
             search=search,
             limit=limit,
         ),
@@ -6242,6 +6290,7 @@ def export_merchant_enquiries_csv(
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
     intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    follow_up: str | None = Query(default=None, pattern="^(due|scheduled|none)$"),
     search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=500, ge=1, le=1000),
     business_key: str | None = None,
@@ -6259,6 +6308,7 @@ def export_merchant_enquiries_csv(
         business_slug=profile["slug"],
         priority=priority,
         intent=intent,
+        follow_up=follow_up,
         search=search,
         limit=limit,
     )

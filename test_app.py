@@ -122,6 +122,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "saveMerchantNote" in inbox.text
     assert "Pipeline Value" in inbox.text
     assert "filterPriority" in inbox.text
+    assert "filterFollowUp" in inbox.text
+    assert "Due Follow-ups" in inbox.text
     assert "clearMerchantFilters" in inbox.text
     assert "/admin/dashboard" not in inbox.text
 
@@ -699,6 +701,103 @@ def test_merchant_can_filter_enquiries_and_exports():
     assert exported.status_code == 200
     assert "Hot Quote Buyer" in exported.text
     assert "Booking Buyer" not in exported.text
+
+
+def test_merchant_can_filter_due_followups():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"followup-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Followup Service",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    overdue = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Overdue Buyer",
+            "phone": "6591112222",
+            "message": "Need quotation soon",
+        },
+    )
+    future = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Future Buyer",
+            "phone": "6593334444",
+            "message": "Need repair booking",
+        },
+    )
+    no_follow = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "No Follow Buyer",
+            "phone": "6595556666",
+            "message": "General question",
+        },
+    )
+    assert overdue.status_code == 200
+    assert future.status_code == 200
+    assert no_follow.status_code == 200
+
+    overdue_update = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{overdue.json()['id']}?business_slug={slug}",
+        json={"follow_up_at": "2000-01-01", "deal_value": 500},
+        headers={"X-Business-Key": business_key},
+    )
+    future_update = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{future.json()['id']}?business_slug={slug}",
+        json={"follow_up_at": "2999-01-01", "deal_value": 900},
+        headers={"X-Business-Key": business_key},
+    )
+    assert overdue_update.status_code == 200
+    assert future_update.status_code == 200
+
+    due = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&follow_up=due",
+        headers={"X-Business-Key": business_key},
+    )
+    assert due.status_code == 200
+    due_names = [item["name"] for item in due.json()["enquiries"]]
+    assert "Overdue Buyer" in due_names
+    assert "Future Buyer" not in due_names
+    assert "No Follow Buyer" not in due_names
+    assert due.json()["stats"]["due_followups"] >= 1
+
+    scheduled = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&follow_up=scheduled",
+        headers={"X-Business-Key": business_key},
+    )
+    scheduled_names = [item["name"] for item in scheduled.json()["enquiries"]]
+    assert "Overdue Buyer" in scheduled_names
+    assert "Future Buyer" in scheduled_names
+    assert "No Follow Buyer" not in scheduled_names
+
+    no_followups = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&follow_up=none",
+        headers={"X-Business-Key": business_key},
+    )
+    no_follow_names = [item["name"] for item in no_followups.json()["enquiries"]]
+    assert "No Follow Buyer" in no_follow_names
+    assert "Overdue Buyer" not in no_follow_names
+
+    exported_due = client.get(
+        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug}&follow_up=due",
+        headers={"X-Business-Key": business_key},
+    )
+    assert exported_due.status_code == 200
+    assert "Overdue Buyer" in exported_due.text
+    assert "Future Buyer" not in exported_due.text
 
 
 def test_public_enquiry_rate_limit_blocks_repeated_spam():
