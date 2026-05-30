@@ -6,35 +6,35 @@
   <title>NexaFlow Enquiry Product Infographic</title>
   <style>
     :root {
-      --bg: #f6f7f9;
-      --ink: #101114;
-      --muted: #626872;
-      --line: #d9dde4;
-      --panel: #ffffff;
-      --soft: #edf1f7;
-      --green: #16c784;
-      --blue: #3b82f6;
-      --dark: #050505;
+      --bg: #050505;
+      --surface: #0b0b0d;
+      --surface-2: #121214;
+      --ink: #f5f5f5;
+      --muted: #a3a3a3;
+      --line: #292929;
+      --soft: #18181b;
+      --accent: #22c55e;
+      --blue: #60a5fa;
     }
 
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      background: #202124;
+      background: #1b1b1d;
       color: var(--ink);
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
     }
 
     .poster {
       width: 1400px;
-      min-height: 900px;
+      min-height: 1450px;
       margin: 0 auto;
-      padding: 36px 40px 30px;
+      padding: 36px 40px 32px;
       background:
-        radial-gradient(circle at 16% 5%, rgba(22, 199, 132, .16), transparent 30%),
-        radial-gradient(circle at 86% 6%, rgba(59, 130, 246, .14), transparent 30%),
-        linear-gradient(180deg, #fff 0%, #f6f7f9 100%);
+        radial-gradient(circle at 16% 3%, rgba(255, 255, 255, .10), transparent 26%),
+        radial-gradient(circle at 86% 8%, rgba(34, 197, 94, .12), transparent 24%),
+        linear-gradient(180deg, #050505 0%, #000000 48%, #050505 100%);
       position: relative;
       overflow: hidden;
     }
@@ -42,19 +42,20 @@
     .poster::before {
       content: "";
       position: absolute;
-      inset: 110px -80px auto -80px;
-      height: 210px;
+      inset: 90px -90px auto -90px;
+      height: 300px;
       background:
-        repeating-linear-gradient(92deg, transparent 0 34px, rgba(16, 17, 20, .045) 35px 36px),
-        linear-gradient(100deg, transparent 0%, rgba(22, 199, 132, .13) 46%, rgba(59, 130, 246, .13) 100%);
+        linear-gradient(115deg, transparent 0 30%, rgba(255,255,255,.07) 30.2%, transparent 31.4% 48%, rgba(34,197,94,.055) 48.2%, transparent 49.3% 100%),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 86px);
       transform: skewY(-3deg);
+      opacity: .92;
       pointer-events: none;
     }
 
     header {
       position: relative;
       text-align: center;
-      margin-bottom: 26px;
+      margin-bottom: 28px;
       z-index: 1;
     }
 
@@ -63,43 +64,34 @@
       align-items: center;
       gap: 12px;
       color: var(--muted);
-      font-weight: 700;
-      letter-spacing: 0;
-      margin-bottom: 10px;
+      font-weight: 800;
+      margin-bottom: 12px;
     }
 
     .mark {
       width: 34px;
       height: 34px;
-      border-radius: 9px;
-      background: var(--dark);
-      position: relative;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
-    }
-
-    .mark::after {
-      content: "N";
-      position: absolute;
-      inset: 0;
-      color: #fff;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #ffffff, #777777);
+      color: #000;
       display: grid;
       place-items: center;
-      font-weight: 800;
+      font-weight: 900;
       font-size: 19px;
     }
 
     h1 {
       margin: 0;
-      font-size: 46px;
-      line-height: 1.08;
+      font-size: 50px;
+      line-height: 1.06;
       letter-spacing: 0;
     }
 
     .subtitle {
-      margin: 14px auto 0;
-      max-width: 950px;
+      margin: 16px auto 0;
+      max-width: 960px;
       color: var(--muted);
-      font-size: 22px;
+      font-size: 23px;
       line-height: 1.35;
     }
 
@@ -112,21 +104,21 @@
     }
 
     .card {
-      background: rgba(255, 255, 255, .94);
-      border: 2px solid #171a21;
-      border-radius: 10px;
+      background: rgba(11, 11, 13, .96);
+      border: 1px solid var(--line);
+      border-radius: 8px;
       overflow: hidden;
-      min-height: 260px;
-      box-shadow: 0 14px 32px rgba(20, 24, 31, .08);
+      min-height: 276px;
+      box-shadow: 0 18px 46px rgba(0, 0, 0, .28);
     }
 
     .wide { grid-column: span 2; }
 
     .card h2 {
       margin: 0;
-      padding: 13px 16px 12px;
-      background: linear-gradient(180deg, #eef4fb, #dfeaf7);
-      border-bottom: 2px solid #171a21;
+      padding: 14px 16px 13px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
       text-align: center;
       font-size: 22px;
       line-height: 1.15;
@@ -135,7 +127,7 @@
     }
 
     .body {
-      padding: 22px 24px 18px;
+      padding: 24px 26px 20px;
       display: grid;
       gap: 18px;
       align-items: center;
@@ -146,37 +138,48 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 22px;
+      gap: 20px;
       color: var(--ink);
     }
 
     .icon {
       width: 92px;
       height: 92px;
-      border-radius: 22px;
+      border-radius: 20px;
       display: grid;
       place-items: center;
-      font-size: 44px;
-      font-weight: 800;
-      border: 2px solid #1d2330;
-      background: linear-gradient(135deg, #fdfdfd, #e8edf5);
-      box-shadow: 0 10px 20px rgba(20, 24, 31, .08);
+      font-size: 40px;
+      font-weight: 900;
+      border: 1px solid #3a3a3d;
+      background: linear-gradient(135deg, #ffffff, #bdbdbd);
+      color: #000;
+      box-shadow: 0 16px 28px rgba(0, 0, 0, .2);
     }
 
     .mini-card {
-      width: 156px;
-      padding: 14px 12px;
-      border-radius: 14px;
-      border: 2px solid #1d2330;
+      width: 150px;
+      min-height: 68px;
+      padding: 13px 12px;
+      border-radius: 8px;
+      border: 1px solid #3a3a3d;
       background: var(--soft);
-      font-weight: 700;
+      color: var(--ink);
+      font-weight: 800;
       text-align: center;
+      display: grid;
+      place-items: center;
+    }
+
+    .mini-card.green {
+      border-color: rgba(34, 197, 94, .42);
+      background: #07140b;
+      color: #d8ffe5;
     }
 
     .arrow {
-      font-size: 42px;
-      color: var(--blue);
-      font-weight: 800;
+      font-size: 32px;
+      color: var(--accent);
+      font-weight: 900;
     }
 
     .caption {
@@ -184,7 +187,30 @@
       color: var(--muted);
       text-align: center;
       font-size: 18px;
-      line-height: 1.32;
+      line-height: 1.35;
+    }
+
+    .inbox-mock {
+      width: 100%;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #080808;
+      overflow: hidden;
+    }
+
+    .inbox-row {
+      display: grid;
+      grid-template-columns: 1.1fr .8fr .8fr;
+      gap: 1px;
+      background: #2c2c2f;
+    }
+
+    .inbox-row span {
+      background: var(--surface-2);
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 15px;
     }
 
     .steps {
@@ -197,10 +223,10 @@
       grid-template-columns: 48px 1fr;
       gap: 14px;
       align-items: center;
-      padding: 12px 14px;
-      border: 2px solid #1d2330;
-      border-radius: 10px;
-      background: #f8fafc;
+      padding: 13px 15px;
+      border: 1px solid #343438;
+      border-radius: 8px;
+      background: #090909;
     }
 
     .num {
@@ -209,14 +235,14 @@
       border-radius: 999px;
       display: grid;
       place-items: center;
-      background: #101114;
-      color: #fff;
-      font-weight: 800;
+      background: #ffffff;
+      color: #000000;
+      font-weight: 900;
     }
 
     .step strong {
       display: block;
-      font-size: 19px;
+      font-size: 20px;
       margin-bottom: 3px;
     }
 
@@ -234,33 +260,33 @@
     }
 
     .pill {
-      border: 1px solid #cbd3df;
-      background: #fff;
+      border: 1px solid #333;
+      background: #090909;
       border-radius: 999px;
       padding: 9px 14px;
-      font-weight: 700;
-      color: #222831;
+      font-weight: 800;
+      color: var(--ink);
       font-size: 16px;
     }
 
     .outcome {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
+      gap: 12px;
     }
 
     .metric {
-      border-radius: 12px;
-      border: 2px solid #1d2330;
-      padding: 16px;
-      background: linear-gradient(180deg, #fff, #eef3f8);
+      border-radius: 8px;
+      border: 1px solid #343438;
+      padding: 16px 12px;
+      background: #090909;
       text-align: center;
     }
 
     .metric strong {
       display: block;
-      font-size: 28px;
-      margin-bottom: 6px;
+      font-size: 27px;
+      margin-bottom: 7px;
     }
 
     .metric span {
@@ -271,10 +297,12 @@
 
     .cta {
       margin-top: 24px;
-      border: 2px solid #101114;
-      border-radius: 12px;
-      padding: 19px 22px;
-      background: #050505;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px 22px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.075), transparent 54%),
+        #0b0b0d;
       color: #fff;
       display: flex;
       align-items: center;
@@ -289,16 +317,16 @@
     }
 
     .cta span {
-      color: #d1d5db;
+      color: var(--muted);
       font-size: 18px;
     }
 
     .cta .button {
-      background: var(--green);
-      color: #04110b;
+      background: #ffffff;
+      color: #000000;
       border-radius: 999px;
       padding: 14px 22px;
-      font-weight: 800;
+      font-weight: 900;
       white-space: nowrap;
     }
   </style>
@@ -306,67 +334,68 @@
 <body>
   <main class="poster">
     <header>
-      <div class="brand"><span class="mark"></span> NexaFlow Enquiry</div>
-      <h1>AI WhatsApp Enquiry Assistant: A 5-Step System for Local Service Businesses</h1>
-      <p class="subtitle">Turn customer enquiries into organized leads, WhatsApp follow-ups, and merchant inbox records without forcing small businesses to build a full website.</p>
+      <div class="brand"><span class="mark">N</span> NexaFlow Enquiry</div>
+      <h1>AI WhatsApp Enquiry Assistant for Local Service Businesses</h1>
+      <p class="subtitle">A simple link that helps merchants collect enquiries, reply faster, and keep every lead in one place.</p>
     </header>
 
     <section class="grid" aria-label="NexaFlow Enquiry product guide">
       <article class="card">
-        <h2>1. Customer Enquiry Capture</h2>
+        <h2>1. Customer Sends Enquiry</h2>
         <div class="body">
           <div class="visual">
             <div class="icon">?</div>
-            <div class="arrow">→</div>
+            <div class="arrow">-></div>
             <div class="icon">WA</div>
           </div>
-          <p class="caption">Customers submit name, phone, message, and consent through a simple link or website widget.</p>
+          <p class="caption">Customers use one simple link to send their name, phone, message, and consent.</p>
         </div>
       </article>
 
       <article class="card">
-        <h2>2. AI Lead Classification</h2>
+        <h2>2. AI Sorts the Lead</h2>
         <div class="body">
           <div class="visual">
-            <div class="mini-card">Urgent<br>High intent</div>
+            <div class="mini-card green">Hot lead</div>
             <div class="arrow">+</div>
-            <div class="mini-card">Service<br>Category</div>
+            <div class="mini-card">Service type</div>
           </div>
-          <p class="caption">NexaFlow labels each enquiry by intent, priority, estimated value, and recommended reply direction.</p>
+          <p class="caption">NexaFlow shows what the customer wants and which enquiries should be followed up first.</p>
         </div>
       </article>
 
       <article class="card">
-        <h2>3. WhatsApp Reply Draft</h2>
+        <h2>3. Reply Faster</h2>
         <div class="body">
           <div class="visual">
             <div class="icon">AI</div>
-            <div class="arrow">→</div>
-            <div class="icon">↗</div>
+            <div class="arrow">-></div>
+            <div class="icon">WA</div>
           </div>
-          <p class="caption">The merchant gets a ready-to-send reply and WhatsApp follow-up link, reducing slow responses.</p>
+          <p class="caption">The merchant gets a suggested reply and a WhatsApp follow-up button.</p>
         </div>
       </article>
 
       <article class="card">
-        <h2>4. Merchant Inbox</h2>
+        <h2>4. One Merchant Inbox</h2>
         <div class="body">
           <div class="visual">
-            <div class="mini-card">New</div>
-            <div class="mini-card">Quoted</div>
-            <div class="mini-card">Won</div>
+            <div class="inbox-mock" aria-label="Merchant inbox preview">
+              <div class="inbox-row"><span>New</span><span>Quoted</span><span>Won</span></div>
+              <div class="inbox-row"><span>Customer</span><span>Next step</span><span>Value</span></div>
+            </div>
           </div>
-          <p class="caption">Every lead is stored in a private inbox with status, notes, follow-up date, CSV export, and lead value.</p>
+          <p class="caption">No more lost messages. Leads, notes, status, follow-up dates, and value stay organized.</p>
         </div>
       </article>
 
       <article class="card wide">
-        <h2>5. From Enquiry to Revenue</h2>
+        <h2>5. More Enquiries Become Sales</h2>
         <div class="body">
           <div class="steps">
             <div class="step"><div class="num">1</div><div><strong>Share one link</strong><span>Use it on WhatsApp, Facebook, Instagram, Google Business Profile, or a website.</span></div></div>
-            <div class="step"><div class="num">2</div><div><strong>Respond faster</strong><span>AI prepares the first reply so the merchant can follow up before the customer goes elsewhere.</span></div></div>
-            <div class="step"><div class="num">3</div><div><strong>Track every lead</strong><span>No more lost enquiries inside chat history, DMs, or handwritten notes.</span></div></div>
+            <div class="step"><div class="num">2</div><div><strong>Follow up quickly</strong><span>AI helps prepare the first reply before the customer chooses someone else.</span></div></div>
+            <div class="step"><div class="num">3</div><div><strong>Close more jobs</strong><span>The merchant can track every lead until it becomes a booking, quotation, or sale.</span></div></div>
           </div>
         </div>
       </article>
@@ -377,13 +406,13 @@
           <div class="pill-row">
             <span class="pill">Renovation</span>
             <span class="pill">Tuition</span>
-            <span class="pill">Beauty & Wellness</span>
-            <span class="pill">Repair Services</span>
+            <span class="pill">Beauty</span>
+            <span class="pill">Repair</span>
             <span class="pill">Clinics</span>
-            <span class="pill">Property Agents</span>
-            <span class="pill">Event Services</span>
+            <span class="pill">Property</span>
+            <span class="pill">Events</span>
           </div>
-          <p class="caption">Ideal for local service businesses that already receive WhatsApp enquiries but do not have a clean lead management process.</p>
+          <p class="caption">Best for service businesses that rely on WhatsApp but do not want a complicated CRM.</p>
         </div>
       </article>
 
@@ -391,19 +420,19 @@
         <h2>Why Merchants Pay</h2>
         <div class="body">
           <div class="outcome">
-            <div class="metric"><strong>Fast</strong><span>Reply while leads are still warm</span></div>
-            <div class="metric"><strong>Clear</strong><span>Know who to follow up first</span></div>
-            <div class="metric"><strong>Simple</strong><span>No website or CRM needed</span></div>
+            <div class="metric"><strong>Fast</strong><span>Reply before leads go cold</span></div>
+            <div class="metric"><strong>Clear</strong><span>Know who to follow up</span></div>
+            <div class="metric"><strong>Easy</strong><span>No website needed</span></div>
           </div>
-          <p class="caption">The product sells time savings, faster response, fewer missed leads, and a more professional customer journey.</p>
+          <p class="caption">It helps businesses save time, look professional, and avoid missing real customers.</p>
         </div>
       </article>
     </section>
 
     <section class="cta">
       <div>
-        <strong>Sell this as: AI WhatsApp enquiry assistant for local service businesses.</strong><br>
-        <span>Simple setup, merchant inbox, AI reply drafts, follow-up tracking, and privacy consent records.</span>
+        <strong>Simple pitch: stop losing WhatsApp enquiries.</strong><br>
+        <span>NexaFlow captures leads, writes reply drafts, and keeps follow-ups organized.</span>
       </div>
       <div class="button">Try NexaFlow Enquiry</div>
     </section>
