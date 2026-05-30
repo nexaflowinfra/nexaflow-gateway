@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
+MARKETING_DIR = BASE_DIR / "marketing"
 CLIENTS_FILE = BASE_DIR / "clients.json"
 USAGE_LOGS_FILE = BASE_DIR / "usage_logs.json"
 DATABASE_FILE = Path(os.getenv("NEXAFLOW_DB_PATH", BASE_DIR / "nexaflow.db"))
@@ -3902,6 +3903,14 @@ def sales_whatsapp_url(message="Hi NexaFlow, I want to know more about NexaFlow 
     return f"https://wa.me/{digits}?text={quote(message)}"
 
 
+@app.get("/assets/brand/nexaflow-final.png")
+def nexaflow_brand_final_image():
+    path = MARKETING_DIR / "nexaflow-brand-final.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Brand asset not found.")
+    return FileResponse(path, media_type="image/png")
+
+
 def merchant_html(title, business_name, body, show_sales_contact=False):
     safe_title = escape_html(title)
     safe_business_name = escape_html(business_name)
@@ -3932,11 +3941,13 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     --surface-2: #121214;
                     --ink: #f5f5f5;
                     --muted: #a3a3a3;
-                    --line: #262626;
-                    --soft: #161616;
-                    --brand: #ffffff;
-                    --brand-strong: #e5e5e5;
-                    --accent: #22c55e;
+                    --line: #2c2822;
+                    --soft: #16130f;
+                    --brand: #f3c76a;
+                    --brand-strong: #ffe3a0;
+                    --accent: #f3c76a;
+                    --teal: #2dd4bf;
+                    --gold: #f3c76a;
                     --danger: #ef4444;
                 }}
                 * {{ box-sizing: border-box; }}
@@ -3944,8 +3955,8 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     margin: 0;
                     font-family: Inter, Segoe UI, Arial, sans-serif;
                     background:
-                        radial-gradient(circle at 18% 8%, rgba(255,255,255,.10), transparent 26%),
-                        radial-gradient(circle at 86% 18%, rgba(34,197,94,.10), transparent 24%),
+                        radial-gradient(circle at 12% 10%, rgba(45,212,191,.16), transparent 28%),
+                        radial-gradient(circle at 88% 18%, rgba(243,199,106,.15), transparent 26%),
                         linear-gradient(180deg, #050505 0%, var(--bg) 42%, #050505 100%);
                     color: var(--ink);
                     line-height: 1.5;
@@ -3958,8 +3969,8 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     z-index: 0;
                     pointer-events: none;
                     background:
-                        linear-gradient(115deg, transparent 0 28%, rgba(255,255,255,.055) 28.2%, transparent 29.4% 48%, rgba(34,197,94,.045) 48.2%, transparent 49.3% 100%),
-                        repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 88px);
+                        linear-gradient(115deg, transparent 0 28%, rgba(45,212,191,.07) 28.2%, transparent 29.4% 48%, rgba(243,199,106,.06) 48.2%, transparent 49.3% 100%),
+                        repeating-linear-gradient(90deg, rgba(255,255,255,.024) 0 1px, transparent 1px 88px);
                     mask-image: linear-gradient(180deg, rgba(0,0,0,.86), rgba(0,0,0,.42) 48%, transparent 88%);
                 }}
                 header, main, footer {{
@@ -3986,14 +3997,14 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
-                    border: 1px solid #3a3a3d;
+                    border: 1px solid rgba(243,199,106,.44);
                     border-radius: 999px;
                     padding: 8px 13px;
                     color: var(--ink);
                     text-decoration: none;
                     font-size: 14px;
                     font-weight: 800;
-                    background: rgba(255,255,255,.04);
+                    background: rgba(243,199,106,.08);
                 }}
                 .nav-contact:hover {{ background: var(--soft); }}
                 .brand {{
@@ -4008,7 +4019,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     width: 28px;
                     height: 28px;
                     border-radius: 6px;
-                    background: linear-gradient(135deg, #ffffff, #707070);
+                    background: linear-gradient(135deg, var(--teal), #f2f2f2 48%, var(--gold));
                     display: inline-block;
                 }}
                 main {{
@@ -4036,9 +4047,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     height: 260px;
                     border-radius: 999px;
                     background:
-                        radial-gradient(circle at 28% 34%, rgba(255,255,255,.18), transparent 28%),
-                        radial-gradient(circle at 70% 60%, rgba(34,197,94,.16), transparent 34%),
-                        linear-gradient(135deg, rgba(255,255,255,.10), rgba(34,197,94,.05), transparent 72%);
+                        radial-gradient(circle at 28% 34%, rgba(45,212,191,.18), transparent 28%),
+                        radial-gradient(circle at 70% 60%, rgba(243,199,106,.20), transparent 34%),
+                        linear-gradient(135deg, rgba(45,212,191,.08), rgba(243,199,106,.07), transparent 72%);
                     filter: blur(20px);
                     opacity: .92;
                     z-index: -1;
@@ -4052,7 +4063,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     pointer-events: none;
                     border-radius: 999px;
                     background:
-                        linear-gradient(122deg, transparent 0 16%, rgba(255,255,255,.18) 16.2%, transparent 17.2% 34%, rgba(255,255,255,.11) 34.2%, transparent 35.4% 54%, rgba(34,197,94,.16) 54.2%, transparent 55.4% 100%),
+                        linear-gradient(122deg, transparent 0 16%, rgba(45,212,191,.18) 16.2%, transparent 17.2% 34%, rgba(255,255,255,.08) 34.2%, transparent 35.4% 54%, rgba(243,199,106,.18) 54.2%, transparent 55.4% 100%),
                         repeating-linear-gradient(122deg, transparent 0 26px, rgba(255,255,255,.06) 27px, transparent 29px);
                     mask-image: radial-gradient(ellipse at center, rgba(0,0,0,.86), transparent 72%);
                     transform: skewY(-6deg);
@@ -4091,7 +4102,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     font-weight: 700;
                 }}
                 .language-toggle button.active {{
-                    background: #ffffff;
+                    background: linear-gradient(135deg, var(--gold), #ffffff);
                     color: #000000;
                 }}
                 .lang-hidden {{ display: none !important; }}
@@ -4109,7 +4120,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     cursor: pointer;
                     min-height: 40px;
                 }}
-                .btn:hover {{ background: var(--brand-strong); }}
+                .btn:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 .btn.secondary {{
                     background: transparent;
                     color: var(--ink);
@@ -4120,7 +4131,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     border: 1px solid var(--line);
                     border-radius: 8px;
                     overflow: hidden;
-                    background: var(--surface);
+                    background:
+                        linear-gradient(135deg, rgba(45,212,191,.035), rgba(243,199,106,.035)),
+                        var(--surface);
                     box-shadow: none;
                 }}
                 .panel-top {{
@@ -4162,7 +4175,56 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     white-space: nowrap;
                 }}
                 .pill.hot {{ color: #ffffff; border-color: #525252; background: #1f1f1f; }}
-                .pill.good {{ color: var(--accent); border-color: #1f5132; background: #07140b; }}
+                .pill.good {{ color: var(--gold); border-color: rgba(243,199,106,.44); background: #181205; }}
+                .hero-side {{
+                    display: grid;
+                    gap: 14px;
+                    min-width: 0;
+                }}
+                .brand-visual {{
+                    position: relative;
+                    overflow: hidden;
+                    border: 1px solid var(--line);
+                    border-radius: 10px;
+                    background: #050505;
+                    min-height: 190px;
+                }}
+                .brand-visual img {{
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                    min-height: 190px;
+                    object-fit: cover;
+                    object-position: center;
+                    opacity: .9;
+                }}
+                .brand-visual::after {{
+                    content: "";
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(180deg, transparent 48%, rgba(0,0,0,.42));
+                    pointer-events: none;
+                }}
+                .ecosystem-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(5, minmax(0, 1fr));
+                    gap: 10px;
+                    margin-top: 12px;
+                }}
+                .ecosystem-pill {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background:
+                        linear-gradient(135deg, rgba(45,212,191,.07), rgba(243,199,106,.07)),
+                        var(--surface);
+                    padding: 14px 10px;
+                    text-align: center;
+                    font-weight: 800;
+                    color: var(--ink);
+                    min-height: 54px;
+                    display: grid;
+                    place-items: center;
+                }}
                 .grid {{
                     display: grid;
                     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4202,10 +4264,10 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                         var(--surface);
                 }}
                 .price-card.trial {{
-                    border-color: #1f5132;
+                    border-color: rgba(243,199,106,.46);
                     background:
-                        linear-gradient(135deg, rgba(34,197,94,.12), transparent 58%),
-                        #07140b;
+                        linear-gradient(135deg, rgba(45,212,191,.11), rgba(243,199,106,.13) 54%, transparent 70%),
+                        #120d05;
                 }}
                 .price-card h3 {{ margin: 0; }}
                 .plan-price {{
@@ -4389,15 +4451,15 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     min-height: 48px;
                     padding: 12px 18px;
                     border-radius: 999px;
-                    background: #ffffff;
+                    background: linear-gradient(135deg, var(--gold), #ffffff);
                     color: #000000;
                     text-decoration: none;
                     font-weight: 900;
                     box-shadow: 0 16px 40px rgba(0,0,0,.38);
                 }}
-                .floating-whatsapp:hover {{ background: var(--brand-strong); }}
+                .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
@@ -4827,23 +4889,26 @@ def enquiry_app_page():
                     <a class="btn secondary" href="#enquiry-pricing"><span data-lang="en">View Pricing</span><span data-lang="zh" class="lang-hidden">查看价格</span></a>
                 </div>
             </div>
-            <div class="product-panel">
-                <div class="panel-top"><span data-lang="en">Today</span><span data-lang="zh" class="lang-hidden">今日询盘</span><span class="pill good">WhatsApp-ready</span></div>
-                <div class="signal-list">
-                    <div class="signal-row">
-                        <span class="pill hot">Hot</span>
-                        <div><strong><span data-lang="en">Quotation request</span><span data-lang="zh" class="lang-hidden">报价询问</span></strong><span data-lang="en">Urgent price request for this week.</span><span data-lang="zh" class="lang-hidden">客户想本周获得报价。</span></div>
-                        <span data-lang="en">Reply draft</span><span data-lang="zh" class="lang-hidden">回复草稿</span>
-                    </div>
-                    <div class="signal-row">
-                        <span class="pill">Warm</span>
-                        <div><strong><span data-lang="en">Booking request</span><span data-lang="zh" class="lang-hidden">预约询问</span></strong><span data-lang="en">Customer asked for available slots.</span><span data-lang="zh" class="lang-hidden">客户想知道可预约时间。</span></div>
-                        <span data-lang="en">Follow up</span><span data-lang="zh" class="lang-hidden">跟进</span>
-                    </div>
-                    <div class="signal-row">
-                        <span class="pill">Normal</span>
-                        <div><strong><span data-lang="en">General enquiry</span><span data-lang="zh" class="lang-hidden">普通询问</span></strong><span data-lang="en">Customer asked for service details.</span><span data-lang="zh" class="lang-hidden">客户想了解服务详情。</span></div>
-                        <span data-lang="en">Check</span><span data-lang="zh" class="lang-hidden">查看</span>
+            <div class="hero-side">
+                <div class="brand-visual"><img src="/assets/brand/nexaflow-final.png" alt="NexaFlow business ecosystem"></div>
+                <div class="product-panel">
+                    <div class="panel-top"><span data-lang="en">Today</span><span data-lang="zh" class="lang-hidden">今日询盘</span><span class="pill good">WhatsApp-ready</span></div>
+                    <div class="signal-list">
+                        <div class="signal-row">
+                            <span class="pill hot">Hot</span>
+                            <div><strong><span data-lang="en">Quotation request</span><span data-lang="zh" class="lang-hidden">报价询问</span></strong><span data-lang="en">Urgent price request for this week.</span><span data-lang="zh" class="lang-hidden">客户想本周获得报价。</span></div>
+                            <span data-lang="en">Reply draft</span><span data-lang="zh" class="lang-hidden">回复草稿</span>
+                        </div>
+                        <div class="signal-row">
+                            <span class="pill">Warm</span>
+                            <div><strong><span data-lang="en">Booking request</span><span data-lang="zh" class="lang-hidden">预约询问</span></strong><span data-lang="en">Customer asked for available slots.</span><span data-lang="zh" class="lang-hidden">客户想知道可预约时间。</span></div>
+                            <span data-lang="en">Follow up</span><span data-lang="zh" class="lang-hidden">跟进</span>
+                        </div>
+                        <div class="signal-row">
+                            <span class="pill">Normal</span>
+                            <div><strong><span data-lang="en">General enquiry</span><span data-lang="zh" class="lang-hidden">普通询问</span></strong><span data-lang="en">Customer asked for service details.</span><span data-lang="zh" class="lang-hidden">客户想了解服务详情。</span></div>
+                            <span data-lang="en">Check</span><span data-lang="zh" class="lang-hidden">查看</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4852,6 +4917,19 @@ def enquiry_app_page():
             <div class="card accent-card"><h3><span data-lang="en">One link</span><span data-lang="zh" class="lang-hidden">一个链接</span></h3><p><span data-lang="en">Works as a mini landing page for businesses without a website.</span><span data-lang="zh" class="lang-hidden">没有网站的商家，也可以直接用这个链接接收客户询问。</span></p></div>
             <div class="card"><h3><span data-lang="en">Auto sorting</span><span data-lang="zh" class="lang-hidden">自动分类</span></h3><p><span data-lang="en">Labels quotation, booking, inventory, and general leads.</span><span data-lang="zh" class="lang-hidden">自动判断客户是在问报价、预约、库存，还是普通问题。</span></p></div>
             <div class="card"><h3><span data-lang="en">Fast follow-up</span><span data-lang="zh" class="lang-hidden">快速跟进</span></h3><p><span data-lang="en">Sends merchant alerts and prepares a reply draft for WhatsApp.</span><span data-lang="zh" class="lang-hidden">自动通知商家，并准备好可用于 WhatsApp 的回复草稿。</span></p></div>
+        </section>
+        <div class="section-head">
+            <div>
+                <h2><span data-lang="en">Built as a business ecosystem</span><span data-lang="zh" class="lang-hidden">以商业生态系统为基础</span></h2>
+                <p><span data-lang="en">Enquiry is the first product. The same NexaFlow core can later support CRM, Billing, Inventory, and Automation.</span><span data-lang="zh" class="lang-hidden">Enquiry 是第一个产品。未来同一个 NexaFlow 核心也可以支持 CRM、Billing、Inventory 和 Automation。</span></p>
+            </div>
+        </div>
+        <section class="ecosystem-grid" aria-label="NexaFlow product ecosystem">
+            <div class="ecosystem-pill">Enquiry</div>
+            <div class="ecosystem-pill">CRM</div>
+            <div class="ecosystem-pill">Billing</div>
+            <div class="ecosystem-pill">Inventory</div>
+            <div class="ecosystem-pill">Automation</div>
         </section>
         <div class="section-head">
             <div>

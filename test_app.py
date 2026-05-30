@@ -67,10 +67,19 @@ def test_enquiry_app_pages_load():
     assert "SGD 19" in public_page.text
     assert "WhatsApp Us" in public_page.text
     assert "wa.me" in public_page.text
-    assert "radial-gradient(circle at 18% 8%" in public_page.text
+    assert "/assets/brand/nexaflow-final.png" in public_page.text
+    assert "Built as a business ecosystem" in public_page.text
+    assert "Enquiry" in public_page.text
+    assert "Automation" in public_page.text
+    assert "#2dd4bf" in public_page.text
+    assert "#f3c76a" in public_page.text
+    assert "radial-gradient(circle at 12% 10%" in public_page.text
     assert "repeating-linear-gradient(122deg" in public_page.text
     assert "Open Admin" not in public_page.text
     assert "/admin/dashboard" not in public_page.text
+    brand_asset = client.get("/assets/brand/nexaflow-final.png")
+    assert brand_asset.status_code == 200
+    assert brand_asset.headers["content-type"].startswith("image/png")
     assert admin_page.status_code == 200
     assert "loadInbox" in admin_page.text
     assert "saveProfile" in admin_page.text
