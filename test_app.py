@@ -121,6 +121,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "exportMerchantCsv" in inbox.text
     assert "saveMerchantNote" in inbox.text
     assert "Pipeline Value" in inbox.text
+    assert "filterPriority" in inbox.text
+    assert "clearMerchantFilters" in inbox.text
     assert "/admin/dashboard" not in inbox.text
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
@@ -626,6 +628,77 @@ def test_merchant_can_export_own_enquiries_csv_only():
     assert "Export this note for the sales team." in exported.text
     assert "Tomorrow morning" in exported.text
     assert "1200.5" in exported.text
+
+
+def test_merchant_can_filter_enquiries_and_exports():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"filter-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Filter Service",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    hot_quote = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Hot Quote Buyer",
+            "phone": "6591112222",
+            "message": "Need urgent quotation this week",
+        },
+    )
+    booking = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Booking Buyer",
+            "phone": "6593334444",
+            "message": "Can I book a slot next month?",
+        },
+    )
+    assert hot_quote.status_code == 200
+    assert booking.status_code == 200
+
+    filtered = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&priority=hot&intent=quotation&search=urgent",
+        headers={"X-Business-Key": business_key},
+    )
+    assert filtered.status_code == 200
+    names = [item["name"] for item in filtered.json()["enquiries"]]
+    assert "Hot Quote Buyer" in names
+    assert "Booking Buyer" not in names
+
+    status_update = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{booking.json()['id']}?business_slug={slug}",
+        json={"status": "contacted"},
+        headers={"X-Business-Key": business_key},
+    )
+    assert status_update.status_code == 200
+
+    status_filtered = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&status=contacted",
+        headers={"X-Business-Key": business_key},
+    )
+    assert status_filtered.status_code == 200
+    status_names = [item["name"] for item in status_filtered.json()["enquiries"]]
+    assert "Booking Buyer" in status_names
+    assert "Hot Quote Buyer" not in status_names
+
+    exported = client.get(
+        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug}&priority=hot&search=urgent",
+        headers={"X-Business-Key": business_key},
+    )
+    assert exported.status_code == 200
+    assert "Hot Quote Buyer" in exported.text
+    assert "Booking Buyer" not in exported.text
 
 
 def test_public_enquiry_rate_limit_blocks_repeated_spam():

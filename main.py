@@ -2631,16 +2631,26 @@ def create_enquiry_record(req):
     return row_to_enquiry(updated)
 
 
-def list_enquiry_records(status=None, business_slug=None, limit=50):
+def list_enquiry_records(status=None, business_slug=None, limit=50, priority=None, intent=None, search=None):
     query = "SELECT * FROM enquiries"
     params = []
     filters = []
     if status:
         filters.append("status = ?")
         params.append(status)
+    if priority:
+        filters.append("priority = ?")
+        params.append(priority)
+    if intent:
+        filters.append("intent = ?")
+        params.append(intent)
     if business_slug:
         filters.append("business_slug = ?")
         params.append(normalize_slug(business_slug))
+    if search:
+        filters.append("(name LIKE ? OR phone LIKE ? OR email LIKE ? OR message LIKE ? OR internal_note LIKE ?)")
+        term = f"%{search.strip()}%"
+        params.extend([term, term, term, term, term])
     if filters:
         query += " WHERE " + " AND ".join(filters)
     query += " ORDER BY id DESC LIMIT ?"
@@ -4606,6 +4616,43 @@ def merchant_enquiry_inbox_page(business_slug: str):
             </div>
         </div>
         <section class="grid" id="merchantStats"></section>
+        <section class="form-card">
+            <div class="toolbar">
+                <label>Status
+                    <select id="filterStatus">
+                        <option value="">All statuses</option>
+                        <option value="new">New</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="quoted">Quoted</option>
+                        <option value="won">Won</option>
+                        <option value="lost">Lost</option>
+                        <option value="spam">Spam</option>
+                    </select>
+                </label>
+                <label>Priority
+                    <select id="filterPriority">
+                        <option value="">All priorities</option>
+                        <option value="hot">Hot</option>
+                        <option value="warm">Warm</option>
+                        <option value="normal">Normal</option>
+                    </select>
+                </label>
+            </div>
+            <div class="toolbar">
+                <label>Intent
+                    <select id="filterIntent">
+                        <option value="">All intents</option>
+                        <option value="quotation">Quotation</option>
+                        <option value="booking">Booking</option>
+                        <option value="inventory">Inventory</option>
+                        <option value="general">General</option>
+                    </select>
+                </label>
+                <label>Search<input id="filterSearch" placeholder="Name, phone, message, note"></label>
+            </div>
+            <button class="btn" onclick="loadMerchantInbox()">Apply Filters</button>
+            <button class="btn secondary" onclick="clearMerchantFilters()">Clear</button>
+        </section>
         <table>
             <thead>
                 <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
@@ -4677,7 +4724,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const status = document.getElementById("merchantStatus");
                 status.textContent = "Preparing CSV export...";
                 try {{
-                    const blob = await merchantDownload(`/apps/enquiry/api/merchant/enquiries/export.csv?business_slug=${{businessSlug}}&limit=500`);
+                    const blob = await merchantDownload(`/apps/enquiry/api/merchant/enquiries/export.csv?${{merchantQuery(500)}}`);
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
                     link.href = url;
@@ -4690,6 +4737,25 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
+            }}
+            function merchantQuery(limit = 100) {{
+                const params = new URLSearchParams({{ business_slug: businessSlug, limit: String(limit) }});
+                const status = document.getElementById("filterStatus")?.value;
+                const priority = document.getElementById("filterPriority")?.value;
+                const intent = document.getElementById("filterIntent")?.value;
+                const search = document.getElementById("filterSearch")?.value;
+                if (status) params.set("status", status);
+                if (priority) params.set("priority", priority);
+                if (intent) params.set("intent", intent);
+                if (search) params.set("search", search);
+                return params.toString();
+            }}
+            function clearMerchantFilters() {{
+                document.getElementById("filterStatus").value = "";
+                document.getElementById("filterPriority").value = "";
+                document.getElementById("filterIntent").value = "";
+                document.getElementById("filterSearch").value = "";
+                loadMerchantInbox();
             }}
             async function setMerchantStatus(id, status) {{
                 try {{
@@ -4724,7 +4790,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const status = document.getElementById("merchantStatus");
                 status.textContent = "Loading enquiries...";
                 try {{
-                    const data = await merchantApi(`/apps/enquiry/api/merchant/enquiries?business_slug=${{businessSlug}}&limit=100`);
+                    const data = await merchantApi(`/apps/enquiry/api/merchant/enquiries?${{merchantQuery(100)}}`);
                     fillMerchantSettings(data.business);
                     const stats = data.stats || {{}};
                     document.getElementById("merchantStats").innerHTML = `
@@ -6117,6 +6183,9 @@ def get_public_business_profile(business_slug: str):
 def list_enquiries(
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
     business_slug: str | None = None,
+    priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
+    intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
     admin_key: str | None = None,
     x_admin_key: str | None = Header(default=None),
@@ -6124,7 +6193,14 @@ def list_enquiries(
     admin_guard(admin_key, x_admin_key)
     return {
         "stats": enquiry_stats(business_slug=business_slug),
-        "enquiries": list_enquiry_records(status=status, business_slug=business_slug, limit=limit),
+        "enquiries": list_enquiry_records(
+            status=status,
+            business_slug=business_slug,
+            priority=priority,
+            intent=intent,
+            search=search,
+            limit=limit,
+        ),
     }
 
 
@@ -6132,6 +6208,9 @@ def list_enquiries(
 def list_merchant_enquiries(
     business_slug: str,
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
+    priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
+    intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -6146,7 +6225,14 @@ def list_merchant_enquiries(
     return {
         "business": profile,
         "stats": enquiry_stats(business_slug=profile["slug"]),
-        "enquiries": list_enquiry_records(status=status, business_slug=profile["slug"], limit=limit),
+        "enquiries": list_enquiry_records(
+            status=status,
+            business_slug=profile["slug"],
+            priority=priority,
+            intent=intent,
+            search=search,
+            limit=limit,
+        ),
     }
 
 
@@ -6154,6 +6240,9 @@ def list_merchant_enquiries(
 def export_merchant_enquiries_csv(
     business_slug: str,
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
+    priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
+    intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=500, ge=1, le=1000),
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -6165,7 +6254,14 @@ def export_merchant_enquiries_csv(
         x_business_key=x_business_key,
         authorization=authorization,
     )
-    enquiries = list_enquiry_records(status=status, business_slug=profile["slug"], limit=limit)
+    enquiries = list_enquiry_records(
+        status=status,
+        business_slug=profile["slug"],
+        priority=priority,
+        intent=intent,
+        search=search,
+        limit=limit,
+    )
     filename = f"{profile['slug']}-enquiries.csv"
     return Response(
         enquiries_to_csv(enquiries),
