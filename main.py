@@ -209,6 +209,7 @@ class EnquiryCreateRequest(BaseModel):
     business_type: str = Field(default="general", max_length=80)
     message: str = Field(..., min_length=3, max_length=4000)
     source: str = Field(default="web", max_length=80)
+    pdpa_consent: bool = False
 
 
 class BusinessProfileRequest(BaseModel):
@@ -702,6 +703,9 @@ def init_db():
                 internal_note TEXT,
                 follow_up_at TEXT,
                 deal_value REAL,
+                pdpa_consent INTEGER NOT NULL DEFAULT 0,
+                consent_at TEXT,
+                consent_notice TEXT,
                 status TEXT NOT NULL DEFAULT 'new',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -714,6 +718,9 @@ def init_db():
         ensure_column(connection, "enquiries", "internal_note", "TEXT")
         ensure_column(connection, "enquiries", "follow_up_at", "TEXT")
         ensure_column(connection, "enquiries", "deal_value", "REAL")
+        ensure_column(connection, "enquiries", "pdpa_consent", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(connection, "enquiries", "consent_at", "TEXT")
+        ensure_column(connection, "enquiries", "consent_notice", "TEXT")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS business_profiles (
@@ -2506,6 +2513,9 @@ def row_to_enquiry(row):
         "internal_note": row["internal_note"] or "",
         "follow_up_at": row["follow_up_at"] or "",
         "deal_value": row["deal_value"],
+        "pdpa_consent": bool(row["pdpa_consent"]),
+        "consent_at": row["consent_at"],
+        "consent_notice": row["consent_notice"],
         "status": row["status"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -2675,6 +2685,11 @@ def create_enquiry_record(req):
     profile = get_business_profile(req.business_slug) if req.business_slug else default_enquiry_profile()
     if profile["status"] != "active":
         raise HTTPException(status_code=403, detail="This enquiry form is not accepting new enquiries.")
+    if not req.pdpa_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="Consent is required to collect and use your contact details for enquiry follow-up.",
+        )
     enforce_enquiry_rate_limit(profile["slug"], req.phone)
 
     classification = classify_enquiry(req.message)
@@ -2683,6 +2698,11 @@ def create_enquiry_record(req):
     reply_phone = profile.get("whatsapp_phone") or req.phone
     whatsapp_url = whatsapp_reply_url(reply_phone, reply_draft)
     timestamp = now_iso()
+    consent_notice = (
+        "I agree that my name, contact details, and enquiry message may be collected, used, "
+        "and disclosed to the business and NexaFlow service providers for enquiry follow-up, "
+        "customer support, security, and record keeping."
+    )
 
     with db_connection() as connection:
         cursor = connection.execute(
@@ -2690,8 +2710,8 @@ def create_enquiry_record(req):
             INSERT INTO enquiries (
                 business_slug, name, phone, email, business_type, message, source, intent,
                 priority, estimated_value, reply_draft, whatsapp_url, merchant_notification_status,
-                merchant_notification_error, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                merchant_notification_error, pdpa_consent, consent_at, consent_notice, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile["slug"],
@@ -2708,6 +2728,9 @@ def create_enquiry_record(req):
                 whatsapp_url,
                 "pending",
                 None,
+                1,
+                timestamp,
+                consent_notice,
                 "new",
                 timestamp,
                 timestamp,
@@ -2807,6 +2830,8 @@ def enquiries_to_csv(enquiries):
         "internal_note",
         "follow_up_at",
         "deal_value",
+        "pdpa_consent",
+        "consent_at",
         "source",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
@@ -4310,6 +4335,7 @@ def privacy_page():
                     [
                         "Account identifiers, billing email, plan, subscription status, and API key prefix.",
                         "Usage metadata such as timestamps, provider, model, token counts, credit spend, costs, and request previews.",
+                        "Enquiry product data such as lead name, phone, email, enquiry message, intent, priority, reply draft, follow-up date, deal value, internal merchant notes, consent timestamp, and consent notice.",
                         "Operational records such as webhook deliveries, customer notifications, backups, and admin actions.",
                     ]
                 ],
@@ -4317,7 +4343,16 @@ def privacy_page():
             (
                 "Why We Process Data",
                 [
-                    "We process data to provide the service, bill customers, prevent abuse, monitor reliability, send account notifications, diagnose incidents, and maintain required business records.",
+                    "We process data to provide the service, bill customers, handle customer enquiries, notify merchants, prepare follow-up drafts, prevent abuse, monitor reliability, send account notifications, diagnose incidents, and maintain required business records.",
+                    "Enquiry form submissions are used only for enquiry handling, merchant follow-up, support, security, and record keeping. They are not sold as marketing lists.",
+                ],
+            ),
+            (
+                "PDPA-Style Notice for Enquiry Forms",
+                [
+                    "Before submitting an enquiry, individuals are shown a notice explaining that their contact details and message will be collected, used, and disclosed to the relevant business and NexaFlow service providers for enquiry follow-up, support, security, and record keeping.",
+                    "The service records the consent status, consent timestamp, and consent notice used at the time of submission.",
+                    "Merchants should use exported leads and internal notes only for the stated enquiry follow-up purpose and should handle any access, correction, withdrawal, or deletion request in accordance with applicable law.",
                 ],
             ),
             (
@@ -4330,6 +4365,7 @@ def privacy_page():
                 "Retention and Security",
                 [
                     "API keys are stored as hashes where possible and are not shown again after creation or rotation.",
+                    "Merchant inboxes are protected by business access keys. Public enquiry responses do not expose internal reply drafts, WhatsApp follow-up links, internal notes, lead value, or follow-up dates.",
                     "Operational data is retained as needed for billing, support, security, taxes, and product improvement. Backups may retain data until their scheduled retention window expires.",
                 ],
             ),
@@ -4568,6 +4604,7 @@ def enquiry_app_page():
             <label>Message
                 <textarea id="leadMessage">Hi, I need a quotation urgently for this week. How much is your package?</textarea>
             </label>
+            <label><input id="pdpaConsent" type="checkbox" checked> <span data-lang="en">I agree that my contact details and enquiry may be used for follow-up, support, security, and record keeping under the Privacy Policy.</span><span data-lang="zh" class="lang-hidden">我同意根据隐私政策，使用我的联系资料和询问内容作跟进、客服、安全和记录用途。</span></label>
             <div class="actions">
                 <button class="btn" onclick="submitEnquiry()"><span data-lang="en">Submit Enquiry</span><span data-lang="zh" class="lang-hidden">提交询问</span></button>
             </div>
@@ -4594,6 +4631,10 @@ def enquiry_app_page():
             }
             async function submitEnquiry() {
                 const status = document.getElementById("enquiryStatus");
+                if (!document.getElementById("pdpaConsent").checked) {
+                    status.textContent = "Please agree to the privacy notice before submitting.";
+                    return;
+                }
                 status.textContent = "Submitting enquiry...";
                 try {
                     const response = await fetch("/apps/enquiry/api/enquiries", {
@@ -4605,6 +4646,7 @@ def enquiry_app_page():
                             email: document.getElementById("leadEmail").value,
                             business_type: document.getElementById("businessType").value,
                             message: document.getElementById("leadMessage").value,
+                            pdpa_consent: document.getElementById("pdpaConsent").checked,
                             source: "demo"
                         })
                     });
@@ -4685,6 +4727,7 @@ def public_enquiry_form_page(business_slug: str):
             </div>
             <label>Email<input id="leadEmail" autocomplete="email" placeholder="you@example.com"></label>
             <label>Message<textarea id="leadMessage">Hi, I would like to enquire about your service.</textarea></label>
+            <label><input id="pdpaConsent" type="checkbox"> I agree that my name, contact details, and enquiry message may be used by {business_name} and NexaFlow service providers to respond to this enquiry, provide support, keep records, and protect the service. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
             <div class="actions">
                 <button class="btn" onclick="submitEnquiry()">Send Enquiry</button>
             </div>
@@ -4702,6 +4745,10 @@ def public_enquiry_form_page(business_slug: str):
             }}
             async function submitEnquiry() {{
                 const status = document.getElementById("enquiryStatus");
+                if (!document.getElementById("pdpaConsent").checked) {{
+                    status.textContent = "Please agree to the privacy notice before submitting.";
+                    return;
+                }}
                 status.textContent = "Sending...";
                 try {{
                     const response = await fetch("/apps/enquiry/api/enquiries", {{
@@ -4714,6 +4761,7 @@ def public_enquiry_form_page(business_slug: str):
                             email: document.getElementById("leadEmail").value,
                             business_type: "{business_type}",
                             message: document.getElementById("leadMessage").value,
+                            pdpa_consent: document.getElementById("pdpaConsent").checked,
                             source: "public-form"
                         }})
                     }});

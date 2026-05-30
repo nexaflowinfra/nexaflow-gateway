@@ -108,6 +108,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "Business enquiry page" in form.text
     assert "kitchen and bathroom renovation quotes" in form.text
     assert "Send Enquiry" in form.text
+    assert "pdpaConsent" in form.text
+    assert "/privacy" in form.text
     assert slug in form.text
     assert "/admin/dashboard" not in form.text
 
@@ -215,6 +217,7 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
             "email": "jamie@example.com",
             "business_type": "renovation",
             "message": "Need urgent quotation for this week. How much is your package?",
+            "pdpa_consent": True,
             "source": "test",
         },
     )
@@ -233,6 +236,22 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     saved = next(item for item in listing.json()["enquiries"] if item["id"] == body["id"])
     assert "Jamie" in saved["reply_draft"]
     assert saved["whatsapp_url"].startswith("https://wa.me/6591234567")
+    assert saved["pdpa_consent"] is True
+    assert saved["consent_at"]
+
+
+def test_enquiry_requires_pdpa_consent():
+    response = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "name": "No Consent",
+            "phone": "6591234567",
+            "message": "Need repair quote",
+            "source": "public-form",
+        },
+    )
+    assert response.status_code == 400
+    assert "Consent is required" in response.text
 
 
 def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
@@ -260,6 +279,7 @@ def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
             "phone": "6591112222",
             "business_type": "general",
             "message": "Can I book a trial lesson next week?",
+            "pdpa_consent": True,
         },
     )
     assert response.status_code == 200
@@ -304,6 +324,7 @@ def test_enquiry_create_notifies_business_contact_when_email_configured():
             "name": "Notify Lead",
             "phone": "6591112222",
             "message": "Need urgent repair quote today",
+            "pdpa_consent": True,
         },
     )
     assert response.status_code == 200
@@ -326,6 +347,7 @@ def test_enquiry_admin_requires_key_and_can_update_status():
             "phone": "6598887777",
             "business_type": "tuition",
             "message": "Can I book a class next Monday?",
+            "pdpa_consent": True,
         },
     )
     assert create.status_code == 200
@@ -371,6 +393,7 @@ def test_enquiry_admin_can_filter_by_business_slug():
             "name": "Filter Lead",
             "phone": "6590001111",
             "message": "Need repair quotation",
+            "pdpa_consent": True,
         },
     )
     assert create.status_code == 200
@@ -418,6 +441,7 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
             "name": "Own Lead",
             "phone": "6591112222",
             "message": "Need price quote",
+            "pdpa_consent": True,
         },
     )
     lead_two = client.post(
@@ -427,6 +451,7 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
             "name": "Other Lead",
             "phone": "6593334444",
             "message": "Need booking",
+            "pdpa_consent": True,
         },
     )
     assert lead_one.status_code == 200
@@ -548,6 +573,7 @@ def test_merchant_can_update_own_business_settings_only():
             "name": "Repair Buyer",
             "phone": "6512345678",
             "message": "Urgent repair quote please",
+            "pdpa_consent": True,
         },
     )
     assert lead.status_code == 200
@@ -596,6 +622,7 @@ def test_merchant_can_export_own_enquiries_csv_only():
             "phone": "6599991111",
             "email": "csv@example.com",
             "message": "Need urgent quotation for repair",
+            "pdpa_consent": True,
         },
     )
     assert lead.status_code == 200
@@ -659,6 +686,7 @@ def test_merchant_can_filter_enquiries_and_exports():
             "name": "Hot Quote Buyer",
             "phone": "6591112222",
             "message": "Need urgent quotation this week",
+            "pdpa_consent": True,
         },
     )
     booking = client.post(
@@ -668,6 +696,7 @@ def test_merchant_can_filter_enquiries_and_exports():
             "name": "Booking Buyer",
             "phone": "6593334444",
             "message": "Can I book a slot next month?",
+            "pdpa_consent": True,
         },
     )
     assert hot_quote.status_code == 200
@@ -730,6 +759,7 @@ def test_merchant_can_filter_due_followups():
             "name": "Overdue Buyer",
             "phone": "6591112222",
             "message": "Need quotation soon",
+            "pdpa_consent": True,
         },
     )
     future = client.post(
@@ -739,6 +769,7 @@ def test_merchant_can_filter_due_followups():
             "name": "Future Buyer",
             "phone": "6593334444",
             "message": "Need repair booking",
+            "pdpa_consent": True,
         },
     )
     no_follow = client.post(
@@ -748,6 +779,7 @@ def test_merchant_can_filter_due_followups():
             "name": "No Follow Buyer",
             "phone": "6595556666",
             "message": "General question",
+            "pdpa_consent": True,
         },
     )
     assert overdue.status_code == 200
@@ -828,6 +860,7 @@ def test_admin_can_send_due_followup_digest_preview():
             "name": "Digest Due Buyer",
             "phone": "6591112222",
             "message": "Need urgent quotation",
+            "pdpa_consent": True,
         },
     )
     future_lead = client.post(
@@ -837,6 +870,7 @@ def test_admin_can_send_due_followup_digest_preview():
             "name": "Digest Future Buyer",
             "phone": "6593334444",
             "message": "Need booking next month",
+            "pdpa_consent": True,
         },
     )
     assert due_lead.status_code == 200
@@ -898,6 +932,7 @@ def test_public_enquiry_rate_limit_blocks_repeated_spam():
         "name": "Repeat Lead",
         "phone": "6595550000",
         "message": "Need repair quote",
+        "pdpa_consent": True,
     }
     for _ in range(10):
         assert client.post("/apps/enquiry/api/enquiries", json=payload).status_code == 200
@@ -923,6 +958,10 @@ def test_legal_pages_load_and_are_linked():
         assert response.status_code == 200
         assert title in response.text
         assert "nexaflowinfra@gmail.com" in response.text
+
+    privacy = client.get("/privacy")
+    assert "PDPA-Style Notice for Enquiry Forms" in privacy.text
+    assert "consent timestamp" in privacy.text
 
 
 def test_checkout_json_and_redirect_modes():
