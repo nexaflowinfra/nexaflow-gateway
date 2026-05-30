@@ -1893,6 +1893,19 @@ def test_stripe_webhook_processes_checkout_session():
     assert response.json()["result"]["client_id"].startswith("stripe_customer_")
     assert "api_key" in response.json()["result"]
     assert response.json()["result"]["delivery"]["status"] == "pending_email_setup"
+    enquiry_setup = response.json()["result"]["enquiry_setup"]
+    assert enquiry_setup["created"] is True
+    assert enquiry_setup["profile"]["client_id"] == f"stripe_customer_{suffix}"
+    assert enquiry_setup["profile"]["form_url"].startswith("/enquiry/")
+    assert "business_access_key" not in enquiry_setup["profile"]
+    assert enquiry_setup["delivery"]["status"] == "pending_email_setup"
+
+    profiles = client.get(
+        "/customer/enquiry/business-profiles",
+        headers={"X-API-Key": response.json()["result"]["api_key"]},
+    )
+    assert profiles.status_code == 200
+    assert len(profiles.json()["profiles"]) == 1
 
 
 def test_stripe_webhook_infers_plan_from_amount_without_metadata():
@@ -1977,6 +1990,8 @@ def test_initial_stripe_invoice_reuses_email_without_duplicate_credits():
     assert invoice_response.json()["result"]["client_id"] == checkout_response.json()["result"]["client_id"]
     assert invoice_response.json()["result"]["credits"] == 10000
     assert invoice_response.json()["result"]["credits_applied"] is False
+    assert invoice_response.json()["result"]["enquiry_setup"]["created"] is False
+    assert len(main.list_business_profiles(client_id=checkout_response.json()["result"]["client_id"])) == 1
 
 
 def test_initial_stripe_invoice_without_billing_reason_does_not_duplicate_credits():

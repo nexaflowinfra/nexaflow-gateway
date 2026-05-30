@@ -974,6 +974,19 @@ def generate_client_id(email):
     return f"{safe_email}_{secrets.token_hex(4)}"
 
 
+def generate_business_slug(seed):
+    base = (seed or "business").split("@")[0].lower()
+    base = "".join(char if char.isalnum() else "-" for char in base)
+    base = "-".join(part for part in base.split("-") if part)[:44] or "business"
+    return f"{base}-{secrets.token_hex(3)}"
+
+
+def business_name_from_email(email):
+    local = (email or "Your Business").split("@")[0]
+    words = [part for part in "".join(char if char.isalnum() else " " for char in local).split() if part]
+    return " ".join(word.capitalize() for word in words) or "Your Business"
+
+
 def normalize_email(email):
     return email.strip().lower() if email else None
 
@@ -1387,11 +1400,13 @@ def upsert_paid_client(payment):
             payment.stripe_subscription_status or "active",
         )
         delivery = deliver_api_key(client_id, client, api_key)
+        enquiry_setup = create_default_business_profile_for_client(client_id, payment.billing_email)
         return {
             **public_client(client_id, client),
             "api_key": api_key,
             "created": True,
             "delivery": delivery,
+            "enquiry_setup": enquiry_setup,
             "warning": "Store this API key now. It will not be shown again.",
         }
 
@@ -1434,12 +1449,14 @@ def upsert_paid_client(payment):
     save_clients(clients)
     if client["credits"] > low_credit_threshold(client["plan"]):
         reset_client_notification(client_id, "low_credit")
+    enquiry_setup = create_default_business_profile_for_client(client_id, client.get("billing_email"))
     return {
         **public_client(client_id, client),
         "created": False,
         "credits_added": credits,
         "credits_applied": should_apply_credits,
         "delivery": {"status": "not_required"},
+        "enquiry_setup": enquiry_setup,
     }
 
 
@@ -2201,6 +2218,69 @@ def list_business_profiles(client_id=None):
             ).fetchall()
 
     return [row_to_business_profile(row) for row in rows]
+
+
+def create_default_business_profile_for_client(client_id, billing_email):
+    existing = list_business_profiles(client_id=client_id)
+    if existing:
+        return {
+            "created": False,
+            "profile": existing[0],
+            "delivery": {"status": "not_required", "reason": "Business profile already exists."},
+        }
+
+    timestamp = now_iso()
+    raw_access_key = generate_business_access_key()
+    slug = generate_business_slug(billing_email or client_id)
+    with db_connection() as connection:
+        while connection.execute("SELECT slug FROM business_profiles WHERE slug = ?", (slug,)).fetchone():
+            slug = generate_business_slug(billing_email or client_id)
+        connection.execute(
+            """
+            INSERT INTO business_profiles (
+                slug, client_id, business_name, business_type, whatsapp_phone, contact_email,
+                offer_summary, reply_tone, opening_hours, status, access_key_hash,
+                access_key_prefix, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                slug,
+                client_id,
+                business_name_from_email(billing_email),
+                "general",
+                "",
+                normalize_email(billing_email),
+                "Customer enquiries for your service business.",
+                "friendly and professional",
+                "",
+                "active",
+                api_key_digest(raw_access_key),
+                raw_access_key[:12],
+                timestamp,
+                timestamp,
+            ),
+        )
+        row = connection.execute(
+            "SELECT * FROM business_profiles WHERE slug = ?",
+            (slug,),
+        ).fetchone()
+
+    profile = row_to_business_profile(row)
+    profile["business_access_key"] = raw_access_key
+    delivery = (
+        send_resend_email(
+            profile["contact_email"],
+            f"{profile['business_name']} NexaFlow Enquiry Inbox is ready",
+            merchant_onboarding_email(profile, raw_access_key),
+        )
+        if profile.get("contact_email")
+        else {"status": "pending_email", "reason": "No billing email available for merchant onboarding."}
+    )
+    return {
+        "created": True,
+        "profile": {key: value for key, value in profile.items() if key != "business_access_key"},
+        "delivery": delivery,
+    }
 
 
 def upsert_business_profile(req, owner_client_id=None):
