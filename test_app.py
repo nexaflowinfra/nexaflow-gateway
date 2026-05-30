@@ -120,6 +120,10 @@ def test_business_profile_create_and_public_form_loads():
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
     assert "saveMerchantNote" in inbox.text
+    assert "Customer enquiry link" in inbox.text
+    assert "copyMerchantElement" in inbox.text
+    assert "Website widget code" in inbox.text
+    assert "1. Load inbox" in inbox.text
     assert "Pipeline Value" in inbox.text
     assert "filterPriority" in inbox.text
     assert "filterFollowUp" in inbox.text

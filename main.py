@@ -4005,6 +4005,47 @@ def merchant_html(title, business_name, body):
                 }}
                 .section-head h2 {{ margin: 0; }}
                 .form-card {{ padding: 18px; overflow: visible; }}
+                .setup-panel {{
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 12px;
+                    margin-bottom: 18px;
+                }}
+                .setup-step {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 14px;
+                    background: var(--surface);
+                }}
+                .setup-step strong {{ display: block; color: var(--ink); margin-bottom: 6px; }}
+                .setup-step span {{ color: var(--muted); font-size: 13px; }}
+                details.form-card summary {{
+                    cursor: pointer;
+                    color: var(--ink);
+                    font-weight: 800;
+                }}
+                details.form-card summary + * {{ margin-top: 16px; }}
+                .share-links {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 12px;
+                    margin-top: 14px;
+                }}
+                .share-link-box {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 14px;
+                    background: var(--surface-2);
+                    min-width: 0;
+                }}
+                .share-link-box code {{
+                    display: block;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    color: var(--muted);
+                    margin: 8px 0 10px;
+                }}
                 .admin-split {{
                     display: grid;
                     grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
@@ -4033,7 +4074,7 @@ def merchant_html(title, business_name, body):
                     font-size: 13px;
                 }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .steps, .toolbar, .admin-split {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
@@ -4596,8 +4637,14 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div>
                 <div class="eyebrow">Merchant inbox</div>
                 <h1>{business_name} Leads</h1>
-                <p class="lead">Open new enquiries, use AI reply drafts, and keep every lead moving.</p>
+                <p class="lead">View customer enquiries, follow up on WhatsApp, and keep every lead moving.</p>
             </div>
+        </section>
+        <section class="setup-panel">
+            <div class="setup-step"><strong>1. Load inbox</strong><span>Paste your business access key once to unlock your leads.</span></div>
+            <div class="setup-step"><strong>2. Share link</strong><span>Send your enquiry link to customers or place it on your website.</span></div>
+            <div class="setup-step"><strong>3. Follow up</strong><span>Open hot leads first and use the WhatsApp reply draft.</span></div>
+            <div class="setup-step"><strong>4. Track value</strong><span>Set follow-up dates, notes, and estimated deal value.</span></div>
         </section>
         <section class="form-card">
             <div class="toolbar">
@@ -4606,14 +4653,11 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 <button class="btn secondary" onclick="exportMerchantCsv()">Export CSV</button>
             </div>
             <div class="status" id="merchantStatus">Enter your business access key to load this inbox.</div>
+            <div id="merchantShareLinks"></div>
         </section>
-        <div class="section-head">
-            <div>
-                <h2>Business settings</h2>
-                <p>Keep your WhatsApp follow-up, customer notifications, and enquiry page details up to date.</p>
-            </div>
-        </div>
-        <section class="form-card">
+        <details class="form-card">
+            <summary>Business settings</summary>
+            <p>Update these only when your WhatsApp, email, service summary, or opening hours change.</p>
             <div class="toolbar">
                 <label>Business Name<input id="settingsBusinessName" placeholder="Your business"></label>
                 <label>Business Type
@@ -4638,7 +4682,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             </div>
             <button class="btn" onclick="saveMerchantSettings()">Save Settings</button>
             <div class="status" id="settingsStatus">Load leads first, then update your business settings here.</div>
-        </section>
+        </details>
         <div class="section-head">
             <div>
                 <h2>Pipeline</h2>
@@ -4735,6 +4779,46 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 document.getElementById("settingsOffer").value = profile.offer_summary || "";
                 document.getElementById("settingsTone").value = profile.reply_tone || "friendly and professional";
                 document.getElementById("settingsHours").value = profile.opening_hours || "";
+            }}
+            function absoluteUrl(path) {{
+                return new URL(path, window.location.origin).toString();
+            }}
+            async function copyMerchantText(value, label) {{
+                try {{
+                    await navigator.clipboard.writeText(value);
+                    document.getElementById("merchantStatus").textContent = `${{label}} copied.`;
+                }} catch (error) {{
+                    document.getElementById("merchantStatus").textContent = `Copy failed. Select and copy this manually: ${{value}}`;
+                }}
+            }}
+            async function copyMerchantElement(id, label) {{
+                const value = document.getElementById(id)?.textContent || "";
+                await copyMerchantText(value, label);
+            }}
+            function renderShareLinks(profile) {{
+                const formUrl = absoluteUrl(profile.form_url || `/enquiry/${{businessSlug}}`);
+                const inboxUrl = absoluteUrl(profile.inbox_url || `/inbox/${{businessSlug}}`);
+                const embedUrl = absoluteUrl(profile.embed_url || `/embed/enquiry/${{businessSlug}}.js`);
+                const embedCode = `<script src="${{embedUrl}}"><\\/script>`;
+                document.getElementById("merchantShareLinks").innerHTML = `
+                    <div class="share-links">
+                        <div class="share-link-box">
+                            <strong>Customer enquiry link</strong>
+                            <code id="merchantFormUrl">${{escapeHtml(formUrl)}}</code>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantFormUrl', 'Customer link')">Copy Link</button>
+                        </div>
+                        <div class="share-link-box">
+                            <strong>Private inbox link</strong>
+                            <code id="merchantInboxUrl">${{escapeHtml(inboxUrl)}}</code>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantInboxUrl', 'Inbox link')">Copy Link</button>
+                        </div>
+                        <div class="share-link-box">
+                            <strong>Website widget code</strong>
+                            <code id="merchantEmbedCode">${{escapeHtml(embedCode)}}</code>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantEmbedCode', 'Embed code')">Copy Code</button>
+                        </div>
+                    </div>
+                `;
             }}
             async function saveMerchantSettings() {{
                 const status = document.getElementById("settingsStatus");
@@ -4835,6 +4919,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 try {{
                     const data = await merchantApi(`/apps/enquiry/api/merchant/enquiries?${{merchantQuery(100)}}`);
                     fillMerchantSettings(data.business);
+                    renderShareLinks(data.business);
                     const stats = data.stats || {{}};
                     document.getElementById("merchantStats").innerHTML = `
                         <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
