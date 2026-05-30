@@ -4809,22 +4809,26 @@ def landing_page():
         f"""
         <section class="hero product-hero">
             <div>
+                <div class="language-toggle" aria-label="Language">
+                    <button type="button" class="active" onclick="setProductLang('en')" id="langEn">EN</button>
+                    <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
+                </div>
                 <div class="eyebrow">NexaFlow AI Business Ecosystem</div>
-                <h1>Choose the business workflow your team needs first.</h1>
-                <p class="lead">Start with enquiries and follow-ups today, then grow into CRM, billing, inventory, and automation from one shared NexaFlow core.</p>
+                <h1><span data-lang="en">One link to your business tools.</span><span data-lang="zh" class="lang-hidden">一个入口，管理你的生意工具。</span></h1>
+                <p class="lead"><span data-lang="en">Choose the service you need first. Start with enquiries today, then add CRM, billing, inventory, or automation when your business is ready.</span><span data-lang="zh" class="lang-hidden">先选择你现在最需要的服务。可以从询盘管理开始，之后再加入 CRM、账单、库存或自动化。</span></p>
                 <div class="actions">
-                    <a class="btn" href="/ai-enquiry">Start with Enquiry</a>
-                    <a class="btn secondary" href="#services">View Services</a>
+                    <a class="btn" href="/ai-enquiry"><span data-lang="en">Start with Enquiry</span><span data-lang="zh" class="lang-hidden">先使用询盘助手</span></a>
+                    <a class="btn secondary" href="#services"><span data-lang="en">View Services</span><span data-lang="zh" class="lang-hidden">查看服务</span></a>
                 </div>
             </div>
             <div class="hero-side">
                 <div class="brand-visual"><img src="/assets/brand/nexaflow-final.png" alt="NexaFlow business ecosystem"></div>
                 <div class="product-panel">
-                    <div class="panel-top"><span>Business modules</span><span class="pill good">One core</span></div>
+                    <div class="panel-top"><span data-lang="en">Business modules</span><span data-lang="zh" class="lang-hidden">商业模块</span><span class="pill good">One core</span></div>
                     <div class="signal-list">
-                        <div class="signal-row"><span class="pill hot">Live</span><div><strong>Enquiries + Follow-ups</strong><span>Capture leads and reply faster on WhatsApp.</span></div><a href="/ai-enquiry">Open</a></div>
-                        <div class="signal-row"><span class="pill">Next</span><div><strong>CRM</strong><span>Keep customer records and pipeline activity organized.</span></div><a href="{request_link}">Request</a></div>
-                        <div class="signal-row"><span class="pill">Next</span><div><strong>Billing + Inventory</strong><span>Connect quotations, invoices, stock, and service operations.</span></div><a href="{request_link}">Request</a></div>
+                        <div class="signal-row"><span class="pill hot">Live</span><div><strong><span data-lang="en">Enquiries + Follow-ups</span><span data-lang="zh" class="lang-hidden">询盘 + 跟进</span></strong><span data-lang="en">Capture leads and reply faster on WhatsApp.</span><span data-lang="zh" class="lang-hidden">收集客户询问，并更快用 WhatsApp 跟进。</span></div><a href="/ai-enquiry"><span data-lang="en">Open</span><span data-lang="zh" class="lang-hidden">打开</span></a></div>
+                        <div class="signal-row"><span class="pill">Soon</span><div><strong>CRM</strong><span data-lang="en">Customer records and lead stages.</span><span data-lang="zh" class="lang-hidden">客户资料和销售阶段管理。</span></div><a href="{request_link}"><span data-lang="en">Request</span><span data-lang="zh" class="lang-hidden">申请</span></a></div>
+                        <div class="signal-row"><span class="pill">Soon</span><div><strong><span data-lang="en">Billing + Inventory</span><span data-lang="zh" class="lang-hidden">账单 + 库存</span></strong><span data-lang="en">Quotations, invoices, stock, and service items.</span><span data-lang="zh" class="lang-hidden">报价、发票、库存和服务项目。</span></div><a href="{request_link}"><span data-lang="en">Request</span><span data-lang="zh" class="lang-hidden">申请</span></a></div>
                     </div>
                 </div>
             </div>
@@ -4832,62 +4836,73 @@ def landing_page():
 
         <div class="section-head" id="services">
             <div>
-                <h2>Pick the service your business needs</h2>
-                <p>Each module is designed for local service merchants. You can start with one service first, then add more as your operation grows.</p>
+                <h2><span data-lang="en">Pick a service</span><span data-lang="zh" class="lang-hidden">选择服务</span></h2>
+                <p><span data-lang="en">Start small. Add more workflows later when they become useful.</span><span data-lang="zh" class="lang-hidden">先从一个服务开始。之后有需要时，再加入更多工作流程。</span></p>
             </div>
         </div>
         <section class="grid">
             <div class="card">
-                <h3>Enquiries</h3>
-                <p>Give customers one simple link to submit name, phone, message, and consent. Best first step for most merchants.</p>
-                <a class="btn" href="/ai-enquiry">Use Enquiry</a>
+                <h3><span data-lang="en">Enquiries</span><span data-lang="zh" class="lang-hidden">询盘管理</span></h3>
+                <p><span data-lang="en">One link for customers to submit enquiries with consent.</span><span data-lang="zh" class="lang-hidden">让客户通过一个链接提交询问和同意资料用途。</span></p>
+                <a class="btn" href="/ai-enquiry"><span data-lang="en">Use Enquiry</span><span data-lang="zh" class="lang-hidden">使用询盘助手</span></a>
             </div>
             <div class="card">
-                <h3>Follow-ups</h3>
-                <p>Track lead status, notes, follow-up dates, and WhatsApp reply drafts so enquiries do not disappear in chat history.</p>
-                <a class="btn" href="/ai-enquiry">Included in Enquiry</a>
+                <h3><span data-lang="en">Follow-ups</span><span data-lang="zh" class="lang-hidden">客户跟进</span></h3>
+                <p><span data-lang="en">Track status, notes, follow-up dates, and WhatsApp reply drafts.</span><span data-lang="zh" class="lang-hidden">记录状态、备注、跟进日期和 WhatsApp 回复草稿。</span></p>
+                <a class="btn" href="/ai-enquiry"><span data-lang="en">Included in Enquiry</span><span data-lang="zh" class="lang-hidden">已包含在询盘助手</span></a>
             </div>
             <div class="card">
                 <h3>CRM</h3>
-                <p>Organize customer profiles, lead stages, and service history when your team needs more than a basic inbox.</p>
-                <a class="btn secondary" href="{request_link}">Request CRM</a>
+                <p><span data-lang="en">Customer profiles, lead stages, and service history.</span><span data-lang="zh" class="lang-hidden">客户资料、销售阶段和服务记录。</span></p>
+                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request CRM</span><span data-lang="zh" class="lang-hidden">申请 CRM</span></a>
             </div>
             <div class="card">
-                <h3>Billing</h3>
-                <p>Plan for quotations, payment tracking, invoices, and billing records connected to customer enquiries.</p>
-                <a class="btn secondary" href="{request_link}">Request Billing</a>
+                <h3><span data-lang="en">Billing</span><span data-lang="zh" class="lang-hidden">账单</span></h3>
+                <p><span data-lang="en">Quotations, invoices, payments, and billing records.</span><span data-lang="zh" class="lang-hidden">报价、发票、收款和账单记录。</span></p>
+                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Billing</span><span data-lang="zh" class="lang-hidden">申请账单功能</span></a>
             </div>
             <div class="card">
-                <h3>Inventory</h3>
-                <p>For businesses that need to connect customer demand with stock, packages, parts, products, or service items.</p>
-                <a class="btn secondary" href="{request_link}">Request Inventory</a>
+                <h3><span data-lang="en">Inventory</span><span data-lang="zh" class="lang-hidden">库存</span></h3>
+                <p><span data-lang="en">Stock, packages, parts, products, and service items.</span><span data-lang="zh" class="lang-hidden">库存、配套、零件、产品和服务项目。</span></p>
+                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Inventory</span><span data-lang="zh" class="lang-hidden">申请库存功能</span></a>
             </div>
             <div class="card">
-                <h3>Automation</h3>
-                <p>Automate repeatable admin work, reminders, follow-up routing, and simple workflow steps as your process matures.</p>
-                <a class="btn secondary" href="{request_link}">Request Automation</a>
+                <h3><span data-lang="en">Automation</span><span data-lang="zh" class="lang-hidden">自动化</span></h3>
+                <p><span data-lang="en">Reminders, repeat tasks, and simple workflow automation.</span><span data-lang="zh" class="lang-hidden">提醒、重复任务和简单工作流程自动化。</span></p>
+                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Automation</span><span data-lang="zh" class="lang-hidden">申请自动化</span></a>
             </div>
         </section>
 
         <div class="section-head">
             <div>
-                <h2>Simple path for merchants</h2>
-                <p>No need to start with everything. Most merchants can begin with enquiry capture and add the next workflow only when it becomes useful.</p>
+                <h2><span data-lang="en">How it works</span><span data-lang="zh" class="lang-hidden">使用方式</span></h2>
+                <p><span data-lang="en">A simple path from service selection to daily operation.</span><span data-lang="zh" class="lang-hidden">从选择服务到日常使用，流程保持简单。</span></p>
             </div>
         </div>
         <section class="steps">
-            <div class="step"><span>1</span><div><strong>Choose a service</strong><p>Pick Enquiry first, or request CRM, Billing, Inventory, or Automation based on your current pain point.</p></div></div>
-            <div class="step"><span>2</span><div><strong>Set up your business profile</strong><p>Add your business name, WhatsApp number, service details, reply tone, and follow-up preferences.</p></div></div>
-            <div class="step"><span>3</span><div><strong>Run the workflow</strong><p>Share your link, collect customer requests, and keep every lead or task visible in one organized system.</p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Choose a service</span><span data-lang="zh" class="lang-hidden">选择服务</span></strong><p><span data-lang="en">Start with the workflow your business needs most.</span><span data-lang="zh" class="lang-hidden">先从你生意最需要的流程开始。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Set up your profile</span><span data-lang="zh" class="lang-hidden">设置商家资料</span></strong><p><span data-lang="en">Add your business details, WhatsApp, and service information.</span><span data-lang="zh" class="lang-hidden">填写商家资料、WhatsApp 和服务内容。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Run the workflow</span><span data-lang="zh" class="lang-hidden">开始使用</span></strong><p><span data-lang="en">Share your link and keep customer work organized.</span><span data-lang="zh" class="lang-hidden">分享链接，并把客户事项整理起来。</span></p></div></div>
         </section>
 
         <div class="section-head">
             <div>
-                <h2>Trust and data protection</h2>
-                <p>NexaFlow is built for business workflows that may include customer names, phone numbers, messages, consent records, and follow-up notes. Merchants should use customer data only for replies, quotations, appointments, and service follow-up.</p>
+                <h2><span data-lang="en">Trust and data protection</span><span data-lang="zh" class="lang-hidden">信任与资料保护</span></h2>
+                <p><span data-lang="en">Customer data should be used only for replies, quotations, appointments, and service follow-up.</span><span data-lang="zh" class="lang-hidden">客户资料应只用于回复、报价、预约和服务跟进。</span></p>
                 <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refund Policy</a> · <a href="/acceptable-use">Acceptable Use</a></p>
             </div>
         </div>
+        <script>
+            function setProductLang(lang) {{
+                document.querySelectorAll("[data-lang]").forEach(item => {{
+                    item.classList.toggle("lang-hidden", item.dataset.lang !== lang);
+                }});
+                document.getElementById("langEn").classList.toggle("active", lang === "en");
+                document.getElementById("langZh").classList.toggle("active", lang === "zh");
+                localStorage.setItem("nexaflow_home_lang", lang);
+            }}
+            setProductLang(localStorage.getItem("nexaflow_home_lang") || "en");
+        </script>
         """,
         show_sales_contact=True,
     )

@@ -40,6 +40,8 @@ def test_landing_page_loads():
     assert response.status_code == 200
     assert "NexaFlow" in response.text
     assert "AI Business Ecosystem" in response.text
+    assert "One link to your business tools." in response.text
+    assert "一个入口" in response.text
     assert "Enquiries" in response.text
     assert "Follow-ups" in response.text
     assert "CRM" in response.text
@@ -47,6 +49,8 @@ def test_landing_page_loads():
     assert "Inventory" in response.text
     assert "Automation" in response.text
     assert "/ai-enquiry" in response.text
+    assert "nexaflow_home_lang" in response.text
+    assert "<span>1</span>" not in response.text
 
 
 def test_pricing_page_loads():
