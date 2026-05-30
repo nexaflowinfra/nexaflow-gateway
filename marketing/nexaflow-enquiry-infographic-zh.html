@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NexaFlow Enquiry 中文产品图文</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --surface: #0b0b0d;
+      --surface-2: #121214;
+      --ink: #f5f5f5;
+      --muted: #a3a3a3;
+      --line: #292929;
+      --soft: #18181b;
+      --accent: #22c55e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #1b1b1d;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+    }
+
+    .poster {
+      width: 1400px;
+      min-height: 1450px;
+      margin: 0 auto;
+      padding: 36px 40px 32px;
+      background:
+        radial-gradient(circle at 16% 3%, rgba(255, 255, 255, .10), transparent 26%),
+        radial-gradient(circle at 86% 8%, rgba(34, 197, 94, .12), transparent 24%),
+        linear-gradient(180deg, #050505 0%, #000000 48%, #050505 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .poster::before {
+      content: "";
+      position: absolute;
+      inset: 90px -90px auto -90px;
+      height: 300px;
+      background:
+        linear-gradient(115deg, transparent 0 30%, rgba(255,255,255,.07) 30.2%, transparent 31.4% 48%, rgba(34,197,94,.055) 48.2%, transparent 49.3% 100%),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 86px);
+      transform: skewY(-3deg);
+      opacity: .92;
+      pointer-events: none;
+    }
+
+    header {
+      position: relative;
+      text-align: center;
+      margin-bottom: 28px;
+      z-index: 1;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #ffffff, #777777);
+      color: #000;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 19px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 50px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 16px auto 0;
+      max-width: 980px;
+      color: var(--muted);
+      font-size: 24px;
+      line-height: 1.45;
+    }
+
+    .grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+    }
+
+    .card {
+      background: rgba(11, 11, 13, .96);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      min-height: 276px;
+      box-shadow: 0 18px 46px rgba(0, 0, 0, .28);
+    }
+
+    .wide { grid-column: span 2; }
+
+    .card h2 {
+      margin: 0;
+      padding: 14px 16px 13px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      font-size: 23px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .body {
+      padding: 24px 26px 20px;
+      display: grid;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .visual {
+      min-height: 116px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      color: var(--ink);
+    }
+
+    .icon {
+      width: 92px;
+      height: 92px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      font-size: 38px;
+      font-weight: 900;
+      border: 1px solid #3a3a3d;
+      background: linear-gradient(135deg, #ffffff, #bdbdbd);
+      color: #000;
+      box-shadow: 0 16px 28px rgba(0, 0, 0, .2);
+    }
+
+    .mini-card {
+      width: 150px;
+      min-height: 68px;
+      padding: 13px 12px;
+      border-radius: 8px;
+      border: 1px solid #3a3a3d;
+      background: var(--soft);
+      color: var(--ink);
+      font-weight: 800;
+      text-align: center;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+
+    .mini-card.green {
+      border-color: rgba(34, 197, 94, .42);
+      background: #07140b;
+      color: #d8ffe5;
+    }
+
+    .arrow {
+      font-size: 32px;
+      color: var(--accent);
+      font-weight: 900;
+    }
+
+    .caption {
+      margin: 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 20px;
+      line-height: 1.45;
+    }
+
+    .inbox-mock {
+      width: 100%;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #080808;
+      overflow: hidden;
+    }
+
+    .inbox-row {
+      display: grid;
+      grid-template-columns: 1.1fr .8fr .8fr;
+      gap: 1px;
+      background: #2c2c2f;
+    }
+
+    .inbox-row span {
+      background: var(--surface-2);
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 17px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 14px;
+      align-items: center;
+      padding: 13px 15px;
+      border: 1px solid #343438;
+      border-radius: 8px;
+      background: #090909;
+    }
+
+    .num {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: #ffffff;
+      color: #000000;
+      font-weight: 900;
+    }
+
+    .step strong {
+      display: block;
+      font-size: 21px;
+      margin-bottom: 3px;
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.35;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .pill {
+      border: 1px solid #333;
+      background: #090909;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-weight: 800;
+      color: var(--ink);
+      font-size: 17px;
+    }
+
+    .outcome {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .metric {
+      border-radius: 8px;
+      border: 1px solid #343438;
+      padding: 16px 12px;
+      background: #090909;
+      text-align: center;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 27px;
+      margin-bottom: 7px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .cta {
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px 22px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.075), transparent 54%),
+        #0b0b0d;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta strong {
+      font-size: 27px;
+    }
+
+    .cta span {
+      color: var(--muted);
+      font-size: 19px;
+    }
+
+    .cta .button {
+      background: #ffffff;
+      color: #000000;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-weight: 900;
+      white-space: nowrap;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <main class="poster">
+    <header>
+      <div class="brand"><span class="mark">N</span> NexaFlow Enquiry</div>
+      <h1>给本地服务商家的 AI WhatsApp 询盘助手</h1>
+      <p class="subtitle">一个简单链接，帮商家收客户询问、快速回复，并把每个潜在客户集中管理。</p>
+    </header>
+
+    <section class="grid" aria-label="NexaFlow Enquiry 中文产品介绍">
+      <article class="card">
+        <h2>1. 客户提交询问</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="icon">?</div>
+            <div class="arrow">-></div>
+            <div class="icon">WA</div>
+          </div>
+          <p class="caption">客户点一个链接，填写名字、电话、问题和同意声明。</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>2. AI 自动整理</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="mini-card green">热门客户</div>
+            <div class="arrow">+</div>
+            <div class="mini-card">服务类型</div>
+          </div>
+          <p class="caption">NexaFlow 会判断客户想要什么，也会提示哪些询问应该优先跟进。</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>3. 更快回复客户</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="icon">AI</div>
+            <div class="arrow">-></div>
+            <div class="icon">WA</div>
+          </div>
+          <p class="caption">系统会准备建议回复，并提供 WhatsApp 跟进按钮。</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>4. 一个商家 Inbox</h2>
+        <div class="body">
+          <div class="visual">
+            <div class="inbox-mock" aria-label="商家 inbox 预览">
+              <div class="inbox-row"><span>新询问</span><span>已报价</span><span>已成交</span></div>
+              <div class="inbox-row"><span>客户</span><span>下一步</span><span>价值</span></div>
+            </div>
+          </div>
+          <p class="caption">客户、备注、状态、跟进日期和潜在价值，都集中在一个地方。</p>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <h2>5. 把询问变成生意</h2>
+        <div class="body">
+          <div class="steps">
+            <div class="step"><div class="num">1</div><div><strong>分享一个链接</strong><span>可以放在 WhatsApp、Facebook、Instagram、Google Business Profile 或网站。</span></div></div>
+            <div class="step"><div class="num">2</div><div><strong>更快跟进</strong><span>AI 先帮商家准备第一段回复，避免客户等太久。</span></div></div>
+            <div class="step"><div class="num">3</div><div><strong>提高成交机会</strong><span>每个客户都可以一路跟进到预约、报价或成交。</span></div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <h2>适合哪些商家</h2>
+        <div class="body">
+          <div class="pill-row">
+            <span class="pill">装修</span>
+            <span class="pill">补习</span>
+            <span class="pill">美容</span>
+            <span class="pill">维修</span>
+            <span class="pill">诊所</span>
+            <span class="pill">地产</span>
+            <span class="pill">活动服务</span>
+          </div>
+          <p class="caption">适合依赖 WhatsApp 接客户，但不想用复杂 CRM 的本地服务型商家。</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>为什么商家愿意付费</h2>
+        <div class="body">
+          <div class="outcome">
+            <div class="metric"><strong>更快</strong><span>客户还热时就回复</span></div>
+            <div class="metric"><strong>更清楚</strong><span>知道先跟进谁</span></div>
+            <div class="metric"><strong>更简单</strong><span>没有网站也能用</span></div>
+          </div>
+          <p class="caption">帮助商家省时间、显得更专业，也减少漏掉真实客户的机会。</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="cta">
+      <div>
+        <strong>一句话介绍：不要再漏掉 WhatsApp 询问。</strong><br>
+        <span>NexaFlow 帮你收集客户、准备回复，并整理每一次跟进。</span>
+      </div>
+      <div class="button">试用 NexaFlow Enquiry</div>
+    </section>
+  </main>
+</body>
+</html>
