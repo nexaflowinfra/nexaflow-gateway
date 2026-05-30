@@ -4273,44 +4273,127 @@ def legal_page(title, updated, sections):
 def terms_page():
     return legal_page(
         "Terms of Service",
-        "May 29, 2026",
+        "May 30, 2026",
         [
             (
-                "Service",
+                "Service Scope",
                 [
-                    "NexaFlow AI Gateway provides hosted access to AI model routing, usage tracking, customer credits, and related account tools.",
-                    "You are responsible for how your account, API keys, prompts, outputs, integrations, and downstream applications are used.",
+                    "NexaFlow provides hosted AI infrastructure and business tools, including AI model routing, usage tracking, customer credits, billing support, enquiry forms, merchant inboxes, WhatsApp follow-up links, email notifications, CSV exports, and related account tools.",
+                    "The Enquiry product is a business-to-business tool for merchants to collect and manage customer enquiries. NexaFlow is not a party to the merchant's sale, quotation, appointment, delivery, refund, warranty, or customer service relationship.",
+                    "We may improve, modify, limit, suspend, or discontinue parts of the service where needed for security, reliability, legal compliance, provider availability, or sustainable operation.",
                 ],
             ),
             (
-                "Accounts and API Keys",
+                "Accounts, Access Keys, and Merchant Inbox",
                 [
                     [
                         "Keep API keys secret and rotate them immediately if exposed.",
-                        "You may not resell, share, or abuse access outside your authorized business use.",
-                        "We may suspend accounts for non-payment, suspicious activity, policy violations, or security risk.",
+                        "Keep business access keys private. Anyone with a valid business access key may access the relevant merchant inbox and lead data.",
+                        "You may not resell, share, scrape, overload, reverse engineer, or abuse access outside your authorized business use.",
+                        "You are responsible for all activity under your account, API keys, business access keys, payment links, enquiry links, embeds, and integrations.",
+                        "We may suspend or restrict accounts for non-payment, suspicious activity, policy violations, security risk, legal risk, spam, abuse, or use that may harm NexaFlow, merchants, end customers, infrastructure providers, or third parties.",
                     ]
                 ],
             ),
             (
-                "Billing",
+                "Merchant Responsibilities",
+                [
+                    [
+                        "Merchants are responsible for the accuracy of their business name, service description, prices, availability, WhatsApp number, email address, opening hours, offers, and follow-up messages.",
+                        "Merchants must review AI-generated classifications, suggested replies, summaries, and follow-up drafts before relying on or sending them.",
+                        "Merchants are responsible for responding to customers, providing the actual goods or services, fulfilling quotations and appointments, handling disputes, refunds, complaints, warranties, taxes, licenses, and consumer obligations.",
+                        "Merchants must not use NexaFlow for unlawful, misleading, harmful, discriminatory, fraudulent, high-risk, or spam activity.",
+                        "Merchants must ensure their use of customer data, exported CSV files, internal notes, and follow-up actions complies with applicable law, including personal data protection and marketing rules.",
+                    ]
+                ],
+            ),
+            (
+                "Customer Enquiries and Personal Data",
+                [
+                    "Customer enquiry forms may collect names, phone numbers, email addresses, messages, consent records, intent labels, priority labels, reply drafts, internal notes, follow-up dates, and estimated lead values.",
+                    "Merchants may use enquiry data only for the stated enquiry follow-up, service, support, security, and record-keeping purposes. Customer data must not be sold as a marketing list or used for unrelated purposes unless the merchant has a lawful basis and required consent.",
+                    "NexaFlow provides technical safeguards such as consent capture, business access keys, private merchant inboxes, CSV export controls, and public response minimisation. Merchants remain responsible for their own handling of customer data after access or export.",
+                    "Merchants should promptly notify NexaFlow if a business access key, exported file, mailbox, or connected system is exposed or compromised.",
+                ],
+            ),
+            (
+                "AI Outputs and Automation",
+                [
+                    "AI features may classify enquiries, estimate priority, generate reply drafts, route model requests, or assist with business workflows. AI outputs can be inaccurate, incomplete, delayed, biased, or unsuitable for a particular situation.",
+                    "NexaFlow does not guarantee that any enquiry will convert into a sale, that a lead is genuine, that a suggested reply is correct, or that a workflow will produce a specific business result.",
+                    "Do not rely on the service as the sole basis for legal, financial, medical, safety-critical, employment, credit, insurance, immigration, or other high-risk decisions.",
+                ],
+            ),
+            (
+                "Third-Party Services",
+                [
+                    "The service may depend on third-party providers such as hosting, payment, email, domain, backup, AI model, analytics, WhatsApp, and messaging providers.",
+                    "Third-party services may have their own terms, outages, limits, fees, rate limits, review processes, and data handling practices. NexaFlow is not responsible for third-party service interruptions, policy changes, delivery failures, or provider decisions.",
+                    "WhatsApp links and email notifications are convenience features. NexaFlow does not guarantee message delivery, open rates, response times, or recipient action.",
+                ],
+            ),
+            (
+                "Billing, Payments, and Refunds",
                 [
                     "Plans include a monthly credit allowance. Credits are consumed based on estimated and actual token usage, including heavier weighting for model output tokens.",
                     "Payments are processed by third-party payment providers. NexaFlow does not store payment card data.",
+                    "Unless otherwise stated, subscriptions renew automatically and access may be limited, suspended, or cancelled if payment fails, a chargeback occurs, fraud is suspected, or the account is used in breach of these Terms.",
+                    "Refunds are handled under the Refund Policy. Credits, usage, setup work, third-party charges, and consumed service periods may be non-refundable unless required by law or approved case by case.",
                 ],
             ),
             (
-                "Availability and Changes",
+                "Availability, Backups, and Data Loss",
                 [
                     "The service depends on third-party infrastructure and AI model providers. We aim for reliable operation, but do not guarantee uninterrupted availability.",
-                    "We may change model routes, limits, pricing, or provider availability to protect customers, maintain service quality, or preserve sustainable gross margin.",
+                    "We may maintain backups and operational logs, but backups are not a substitute for the merchant's own exports and records. Merchants should export important leads regularly.",
+                    "We are not responsible for data loss caused by merchant error, exposed access keys, deleted records, failed third-party services, browser or device issues, malware, or events outside our reasonable control.",
                 ],
             ),
             (
-                "Liability",
+                "Acceptable Use",
                 [
-                    "AI outputs can be inaccurate or incomplete. Customers must review outputs before relying on them for business, legal, financial, medical, or safety-critical decisions.",
-                    "To the maximum extent allowed by law, NexaFlow is not liable for indirect, incidental, special, consequential, or lost-profit damages.",
+                    [
+                        "Do not submit illegal, abusive, infringing, deceptive, harassing, obscene, or harmful content.",
+                        "Do not use the service to send spam, unsolicited marketing, scams, phishing, malware, or messages that violate platform rules or applicable law.",
+                        "Do not attempt to bypass rate limits, access another merchant's data, probe security controls, or interfere with service operation.",
+                        "Do not upload or process sensitive personal data unless you have a lawful basis and the service plan expressly supports that use.",
+                    ]
+                ],
+            ),
+            (
+                "Disclaimers",
+                [
+                    "The service is provided on an as-is and as-available basis to the fullest extent permitted by law.",
+                    "NexaFlow disclaims warranties of merchantability, fitness for a particular purpose, uninterrupted operation, non-infringement, accuracy of AI output, lead quality, conversion rate, revenue, profit, deliverability, or suitability for any specific business.",
+                    "Nothing in these Terms excludes liability that cannot lawfully be excluded under applicable law.",
+                ],
+            ),
+            (
+                "Limitation of Liability",
+                [
+                    "To the maximum extent allowed by law, NexaFlow is not liable for indirect, incidental, special, consequential, punitive, exemplary, lost-profit, lost-revenue, lost-data, loss-of-goodwill, business interruption, or third-party damages.",
+                    "To the maximum extent allowed by law, NexaFlow's total liability for claims relating to the service is limited to the amount paid by the customer to NexaFlow for the affected service during the three months before the event giving rise to the claim.",
+                    "The limitations apply whether the claim is based on contract, tort, negligence, statute, strict liability, or any other legal theory, even if a remedy fails of its essential purpose.",
+                ],
+            ),
+            (
+                "Indemnity",
+                [
+                    "You agree to defend, indemnify, and hold NexaFlow, its operator, suppliers, and service providers harmless from claims, losses, liabilities, damages, penalties, costs, and expenses arising from your business, your customer relationships, your content, your data handling, your breach of these Terms, your violation of law, or your misuse of the service.",
+                ],
+            ),
+            (
+                "Termination",
+                [
+                    "You may stop using the service at any time. We may suspend or terminate access where reasonably necessary for security, compliance, non-payment, provider requirements, suspected misuse, or material breach.",
+                    "After termination, we may retain records as needed for billing, tax, legal, security, backup, dispute, and operational purposes, subject to the Privacy Policy and applicable law.",
+                ],
+            ),
+            (
+                "Governing Law and Disputes",
+                [
+                    "These Terms are intended to be governed by the laws of Singapore unless a mandatory law requires otherwise.",
+                    "Before starting formal proceedings, the parties should first try to resolve account, billing, or service disputes by contacting nexaflowinfra@gmail.com with reasonable details of the issue.",
                 ],
             ),
             (

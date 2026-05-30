@@ -959,6 +959,13 @@ def test_legal_pages_load_and_are_linked():
         assert title in response.text
         assert "nexaflowinfra@gmail.com" in response.text
 
+    terms = client.get("/terms")
+    assert "Merchant Responsibilities" in terms.text
+    assert "Customer Enquiries and Personal Data" in terms.text
+    assert "Limitation of Liability" in terms.text
+    assert "Indemnity" in terms.text
+    assert "does not guarantee that any enquiry will convert into a sale" in terms.text
+
     privacy = client.get("/privacy")
     assert "PDPA-Style Notice for Enquiry Forms" in privacy.text
     assert "consent timestamp" in privacy.text
