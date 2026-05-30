@@ -4660,6 +4660,17 @@ def enquiry_app_page():
             <div class="card"><h3><span data-lang="en">Auto sorting</span><span data-lang="zh" class="lang-hidden">自动分类</span></h3><p><span data-lang="en">Labels quotation, booking, inventory, and general leads.</span><span data-lang="zh" class="lang-hidden">自动判断客户是在问报价、预约、库存，还是普通问题。</span></p></div>
             <div class="card"><h3><span data-lang="en">Fast follow-up</span><span data-lang="zh" class="lang-hidden">快速跟进</span></h3><p><span data-lang="en">Sends merchant alerts and prepares a reply draft for WhatsApp.</span><span data-lang="zh" class="lang-hidden">自动通知商家，并准备好可用于 WhatsApp 的回复草稿。</span></p></div>
         </section>
+        <div class="section-head">
+            <div>
+                <h2><span data-lang="en">Data safety built in</span><span data-lang="zh" class="lang-hidden">内置资料保护</span></h2>
+                <p><span data-lang="en">Designed for merchants who need customer trust before they can win the job.</span><span data-lang="zh" class="lang-hidden">为需要客户信任的本地服务商家而设计。</span></p>
+            </div>
+        </div>
+        <section class="grid">
+            <div class="card"><h3><span data-lang="en">Consent before submit</span><span data-lang="zh" class="lang-hidden">提交前同意</span></h3><p><span data-lang="en">Every enquiry records the privacy notice, consent status, and consent time.</span><span data-lang="zh" class="lang-hidden">每个询问都会记录隐私告知、同意状态和同意时间。</span></p></div>
+            <div class="card"><h3><span data-lang="en">Private merchant inbox</span><span data-lang="zh" class="lang-hidden">商家私密 inbox</span></h3><p><span data-lang="en">Internal notes, deal value, follow-up dates, and WhatsApp links stay behind a business access key.</span><span data-lang="zh" class="lang-hidden">内部备注、成交金额、跟进日期和 WhatsApp 链接都由商家 access key 保护。</span></p></div>
+            <div class="card"><h3><span data-lang="en">Export and records</span><span data-lang="zh" class="lang-hidden">导出与记录</span></h3><p><span data-lang="en">Merchants can export their leads, while Terms and Privacy explain allowed use and responsibilities.</span><span data-lang="zh" class="lang-hidden">商家可以导出 leads，同时条款和隐私政策说明资料用途和责任。</span></p></div>
+        </section>
         <div class="section-head" id="enquiry-form">
             <div>
                 <h2><span data-lang="en">Try the demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></h2>

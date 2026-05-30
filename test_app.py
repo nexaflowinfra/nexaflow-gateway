@@ -59,6 +59,9 @@ def test_enquiry_app_pages_load():
     assert "submitEnquiry" in public_page.text
     assert "setProductLang" in public_page.text
     assert "AI WhatsApp enquiry assistant for local service businesses" in public_page.text
+    assert "Data safety built in" in public_page.text
+    assert "Consent before submit" in public_page.text
+    assert "Private merchant inbox" in public_page.text
     assert "View Pricing" in public_page.text
     assert "radial-gradient(circle at 18% 8%" in public_page.text
     assert "repeating-linear-gradient(122deg" in public_page.text
