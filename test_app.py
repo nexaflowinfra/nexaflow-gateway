@@ -48,6 +48,9 @@ def test_landing_page_loads():
     assert "Billing" in response.text
     assert "Inventory" in response.text
     assert "Automation" in response.text
+    assert "Starter pricing" in response.text
+    assert "30-day trial" in response.text
+    assert "SGD 19" in response.text
     assert "/ai-enquiry" in response.text
     assert "nexaflow_home_lang" in response.text
     assert "<span>1</span>" not in response.text

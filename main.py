@@ -4875,6 +4875,27 @@ def landing_page():
 
         <div class="section-head">
             <div>
+                <h2><span data-lang="en">Starter pricing</span><span data-lang="zh" class="lang-hidden">入门价格</span></h2>
+                <p><span data-lang="en">Start with NexaFlow Enquiry first. Other modules can be added later as they become available.</span><span data-lang="zh" class="lang-hidden">建议先从 NexaFlow 询盘助手开始。其他模块开发好后可以再加入。</span></p>
+            </div>
+        </div>
+        <section class="pricing-grid">
+            <div class="price-card trial">
+                <h3><span data-lang="en">30-day trial</span><span data-lang="zh" class="lang-hidden">30 天试用</span></h3>
+                <div class="plan-price">Free <span>for trial</span></div>
+                <p><span data-lang="en">Test enquiry capture, private inbox, AI sorting, and WhatsApp follow-up drafts.</span><span data-lang="zh" class="lang-hidden">试用询盘收集、私密 inbox、AI 分类和 WhatsApp 回复草稿。</span></p>
+                <a class="btn" href="/ai-enquiry"><span data-lang="en">View Enquiry Plan</span><span data-lang="zh" class="lang-hidden">查看询盘方案</span></a>
+            </div>
+            <div class="price-card">
+                <h3><span data-lang="en">Enquiry Starter</span><span data-lang="zh" class="lang-hidden">询盘入门版</span></h3>
+                <div class="plan-price">SGD 19 <span>/ month</span></div>
+                <p><span data-lang="en">For small service teams that want organized leads and faster WhatsApp follow-up.</span><span data-lang="zh" class="lang-hidden">适合想整理客户询问，并更快 WhatsApp 跟进的小型服务团队。</span></p>
+                <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
+            </div>
+        </section>
+
+        <div class="section-head">
+            <div>
                 <h2><span data-lang="en">How it works</span><span data-lang="zh" class="lang-hidden">使用方式</span></h2>
                 <p><span data-lang="en">A simple path from service selection to daily operation.</span><span data-lang="zh" class="lang-hidden">从选择服务到日常使用，流程保持简单。</span></p>
             </div>
