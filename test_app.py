@@ -51,6 +51,8 @@ def test_landing_page_loads():
     assert "Starter pricing" in response.text
     assert "30-day trial" in response.text
     assert "SGD 19" in response.text
+    assert "SGD 49" in response.text
+    assert "SGD 99+" in response.text
     assert "/ai-enquiry" in response.text
     assert "nexaflow_home_lang" in response.text
     assert "<span>1</span>" not in response.text
@@ -547,6 +549,26 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
     )
     assert updated_listing.status_code == 200
     assert updated_listing.json()["stats"]["pipeline_value"] >= 800
+
+    blocked_delete = client.delete(
+        f"/apps/enquiry/api/merchant/enquiries/{lead_two.json()['id']}?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked_delete.status_code == 404
+
+    own_delete = client.delete(
+        f"/apps/enquiry/api/merchant/enquiries/{lead_one.json()['id']}?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert own_delete.status_code == 200
+    assert own_delete.json()["deleted"] is True
+
+    after_delete = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert after_delete.status_code == 200
+    assert all(item["id"] != lead_one.json()["id"] for item in after_delete.json()["enquiries"])
 
 
 def test_merchant_can_update_own_business_settings_only():

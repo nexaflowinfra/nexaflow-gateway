@@ -4892,6 +4892,18 @@ def landing_page():
                 <p><span data-lang="en">For small service teams that want organized leads and faster WhatsApp follow-up.</span><span data-lang="zh" class="lang-hidden">适合想整理客户询问，并更快 WhatsApp 跟进的小型服务团队。</span></p>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
             </div>
+            <div class="price-card highlight">
+                <h3>Enquiry Pro</h3>
+                <div class="plan-price">SGD 49 <span>/ month</span></div>
+                <p><span data-lang="en">For growing service businesses with daily enquiries and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">适合每天都有客户询问，并需要跟进提醒的成长型商家。</span></p>
+                <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
+            </div>
+            <div class="price-card">
+                <h3>Business</h3>
+                <div class="plan-price">SGD 99+ <span>/ month</span></div>
+                <p><span data-lang="en">For teams, multiple outlets, higher enquiry volume, or custom workflow setup.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店、更高询盘量或需要客制流程的商家。</span></p>
+                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Business</span><span data-lang="zh" class="lang-hidden">申请 Business</span></a>
+            </div>
         </section>
 
         <div class="section-head">
@@ -5592,6 +5604,18 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     document.getElementById("merchantStatus").textContent = error.message;
                 }}
             }}
+            async function deleteMerchantLead(id) {{
+                if (!confirm("Delete this enquiry? This removes the lead from this inbox.")) return;
+                try {{
+                    await merchantApi(`/apps/enquiry/api/merchant/enquiries/${{id}}?business_slug=${{businessSlug}}`, {{
+                        method: "DELETE"
+                    }});
+                    document.getElementById("merchantStatus").textContent = "Lead deleted.";
+                    await loadMerchantInbox();
+                }} catch (error) {{
+                    document.getElementById("merchantStatus").textContent = error.message;
+                }}
+            }}
             async function loadMerchantInbox() {{
                 const status = document.getElementById("merchantStatus");
                 status.textContent = "Loading enquiries...";
@@ -5627,6 +5651,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                                 <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">Quoted</button>
                                 <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">Won</button>
                                 <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'lost')">Lost</button>
+                                <button class="btn secondary" onclick="deleteMerchantLead(${{item.id}})">Delete</button>
                             </td>
                         </tr>
                     `).join("");
@@ -7110,6 +7135,36 @@ def update_merchant_business_profile(
         authorization=authorization,
     )
     return update_business_profile_settings(profile["slug"], req)
+
+
+@app.delete("/apps/enquiry/api/merchant/enquiries/{enquiry_id}")
+def delete_merchant_enquiry(
+    enquiry_id: int,
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT id, business_slug FROM enquiries WHERE id = ?",
+            (enquiry_id,),
+        ).fetchone()
+        if not row or row["business_slug"] != profile["slug"]:
+            raise HTTPException(status_code=404, detail="Enquiry not found")
+        connection.execute("DELETE FROM enquiries WHERE id = ?", (enquiry_id,))
+
+    return {
+        "deleted": True,
+        "id": enquiry_id,
+        "business_slug": profile["slug"],
+    }
 
 
 @app.patch("/apps/enquiry/api/enquiries/{enquiry_id}")
