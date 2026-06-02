@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NexaFlow Enquiry Carousel</title>
+  <style>
+    :root {
+      --bg: #030504;
+      --panel: rgba(12, 15, 14, .82);
+      --panel-strong: rgba(6, 8, 8, .94);
+      --line: rgba(255, 255, 255, .14);
+      --text: #f8faf7;
+      --muted: #b9b3a5;
+      --soft: #dad0bd;
+      --teal: #2dd4bf;
+      --teal-soft: rgba(45, 212, 191, .24);
+      --gold: #f3c76a;
+      --gold-soft: rgba(243, 199, 106, .24);
+      --danger: #ff6b6b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #151515;
+      font-family: Inter, "Segoe UI", Arial, "Microsoft YaHei", sans-serif;
+      color: var(--text);
+    }
+
+    .deck {
+      display: grid;
+      gap: 28px;
+      padding: 28px;
+    }
+
+    body.export .deck {
+      display: block;
+      padding: 0;
+    }
+
+    body.export .slide {
+      display: none;
+      border: 0;
+    }
+
+    body.export .slide.active {
+      display: block;
+    }
+
+    .slide {
+      width: 1080px;
+      height: 1350px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 14% 20%, var(--teal-soft), transparent 28%),
+        radial-gradient(circle at 88% 16%, var(--gold-soft), transparent 27%),
+        linear-gradient(145deg, #020303 0%, #061313 48%, #151006 100%);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.026) 0 1px, transparent 1px 78px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 78px);
+      opacity: .62;
+    }
+
+    .flow {
+      position: absolute;
+      left: -160px;
+      right: -160px;
+      bottom: -46px;
+      height: 380px;
+      opacity: .82;
+      background:
+        repeating-radial-gradient(ellipse at 18% 40%, rgba(45,212,191,.26) 0 1px, transparent 2px 18px),
+        repeating-radial-gradient(ellipse at 82% 44%, rgba(243,199,106,.26) 0 1px, transparent 2px 18px);
+      mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 74%, transparent 100%);
+      transform: skewY(-6deg);
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      padding: 58px 64px 54px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 34px;
+    }
+
+    .topbar,
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 31px;
+      font-weight: 950;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--teal), #f7f5ec 48%, var(--gold));
+      box-shadow: 0 0 34px rgba(45,212,191,.22);
+    }
+
+    .brand span span { color: var(--gold); }
+
+    .page {
+      min-width: 58px;
+      min-height: 42px;
+      border: 1px solid rgba(243,199,106,.38);
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      font-weight: 900;
+      font-size: 18px;
+      background: rgba(0,0,0,.24);
+    }
+
+    .eyebrow {
+      color: var(--gold);
+      font-size: 18px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 78px;
+      line-height: 1.03;
+      letter-spacing: 0;
+      max-width: 900px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 57px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 26px 0 0;
+      max-width: 850px;
+      color: var(--soft);
+      font-size: 31px;
+      line-height: 1.34;
+      font-weight: 650;
+    }
+
+    .en {
+      color: var(--muted);
+      font-size: 23px;
+      line-height: 1.38;
+      margin-top: 18px;
+    }
+
+    .gold { color: var(--gold); }
+    .teal { color: var(--teal); }
+
+    .center {
+      display: grid;
+      align-content: center;
+    }
+
+    .cards {
+      display: grid;
+      gap: 18px;
+      margin-top: 40px;
+    }
+
+    .card {
+      min-height: 132px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.07), transparent 70%),
+        var(--panel);
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      align-items: center;
+      gap: 20px;
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.28);
+    }
+
+    .icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      font-size: 36px;
+      font-weight: 950;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .card span {
+      color: var(--muted);
+      font-size: 23px;
+      line-height: 1.32;
+    }
+
+    .diagram {
+      display: grid;
+      gap: 22px;
+      margin-top: 42px;
+    }
+
+    .flow-row {
+      display: grid;
+      grid-template-columns: 1fr 68px 1fr;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .box {
+      min-height: 154px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 26px;
+      background: var(--panel-strong);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 26px;
+      font-size: 31px;
+      font-weight: 950;
+    }
+
+    .arrow {
+      color: var(--gold);
+      font-size: 46px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+      margin-top: 42px;
+    }
+
+    .mini-card {
+      min-height: 164px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 24px;
+      background: rgba(7,8,8,.82);
+      padding: 25px;
+    }
+
+    .mini-card strong {
+      display: block;
+      font-size: 25px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .mini-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 21px;
+      line-height: 1.3;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 42px;
+    }
+
+    .pill {
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      padding: 15px 22px;
+      background: rgba(255,255,255,.05);
+      color: var(--soft);
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .cta {
+      min-height: 70px;
+      padding: 0 34px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--gold), #ffffff);
+      color: #050505;
+      font-size: 24px;
+      font-weight: 950;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 18px 58px rgba(0,0,0,.36);
+    }
+
+    .url {
+      color: var(--muted);
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .large-mark {
+      position: absolute;
+      right: 34px;
+      bottom: 120px;
+      width: 420px;
+      height: 420px;
+      border-radius: 999px;
+      border: 1px solid rgba(243,199,106,.3);
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 32% 26%, rgba(255,255,255,.12), transparent 28%),
+        linear-gradient(135deg, rgba(45,212,191,.12), rgba(243,199,106,.14)),
+        rgba(4,5,5,.64);
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+      opacity: .78;
+    }
+
+    .large-mark span {
+      font-size: 210px;
+      font-weight: 950;
+      background: linear-gradient(135deg, #ffffff, #c9c9c9 44%, var(--gold));
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide" id="slide-1">
+      <div class="flow"></div>
+      <div class="large-mark"><span>N</span></div>
+      <div class="content">
+        <header class="topbar">
+          <div class="brand"><div class="mark"></div><span>Nexa<span>Flow</span></span></div>
+          <div class="page">1/5</div>
+        </header>
+        <div class="center">
+          <div class="eyebrow">AI enquiry assistant</div>
+          <h1>WhatsApp 询盘太乱，客户就容易漏。</h1>
+          <p class="lead">NexaFlow 帮本地服务型商家把客户询盘集中起来，AI 准备回复草稿，后续跟进更清楚。</p>
+          <p class="en">For local service merchants who use WhatsApp, Facebook, Instagram, or Google Business Profile to receive customer enquiries.</p>
+        </div>
+        <footer class="footer">
+          <div class="cta">1 个月 trial 开放中</div>
+          <div class="url">nexaflowinfra.com</div>
+        </footer>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-2">
+      <div class="flow"></div>
+      <div class="content">
+        <header class="topbar">
+          <div class="brand"><div class="mark"></div><span>Nexa<span>Flow</span></span></div>
+          <div class="page">2/5</div>
+        </header>
+        <div class="center">
+          <div class="eyebrow">The common problem</div>
+          <h2>不是没有客户，很多时候是 <span class="gold">follow-up 漏了</span>。</h2>
+          <div class="cards">
+            <div class="card"><div class="icon">WA</div><div><strong>客户信息分散</strong><span>WhatsApp、Messenger、Instagram DM、电话都在不同地方。</span></div></div>
+            <div class="card"><div class="icon">?</div><div><strong>老板忙起来忘记回</strong><span>客户问价、问时间、问服务内容，但没有统一记录。</span></div></div>
+            <div class="card"><div class="icon">$</div><div><strong>机会流失</strong><span>回复慢一步，客户可能已经找了另一家。</span></div></div>
+          </div>
+        </div>
+        <footer class="footer">
+          <div class="url">Scattered chats become missed revenue.</div>
+        </footer>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-3">
+      <div class="flow"></div>
+      <div class="content">
+        <header class="topbar">
+          <div class="brand"><div class="mark"></div><span>Nexa<span>Flow</span></span></div>
+          <div class="page">3/5</div>
+        </header>
+        <div class="center">
+          <div class="eyebrow">How it works</div>
+          <h2>一个链接，一个 inbox，更快 WhatsApp 回复。</h2>
+          <div class="diagram">
+            <div class="flow-row">
+              <div class="box">客户填写询盘</div>
+              <div class="arrow">→</div>
+              <div class="box">进入私人 inbox</div>
+            </div>
+            <div class="flow-row">
+              <div class="box">AI 分类重点</div>
+              <div class="arrow">→</div>
+              <div class="box">准备回复草稿</div>
+            </div>
+          </div>
+          <p class="lead">商家不需要先做完整网站，也可以拥有一个简单的客户询盘入口。</p>
+        </div>
+        <footer class="footer">
+          <div class="url">Enquiry link + private inbox + AI reply draft</div>
+        </footer>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-4">
+      <div class="flow"></div>
+      <div class="content">
+        <header class="topbar">
+          <div class="brand"><div class="mark"></div><span>Nexa<span>Flow</span></span></div>
+          <div class="page">4/5</div>
+        </header>
+        <div class="center">
+          <div class="eyebrow">Best fit merchants</div>
+          <h2>特别适合需要报价、预约和跟进的本地服务商家。</h2>
+          <div class="mini-grid">
+            <div class="mini-card"><strong>装修 / 室内设计</strong><span>报价、floor plan、预约看场、后续跟进。</span></div>
+            <div class="mini-card"><strong>美容 / 医美 / Salon</strong><span>配套询问、预约时间、客户资料整理。</span></div>
+            <div class="mini-card"><strong>清洁 / 维修 / Home Service</strong><span>地址、问题描述、紧急程度和服务安排。</span></div>
+            <div class="mini-card"><strong>补习 / 课程 / 顾问</strong><span>课程询问、学生资料、咨询和 follow-up。</span></div>
+          </div>
+          <div class="pill-row">
+            <div class="pill">WhatsApp enquiries</div>
+            <div class="pill">Quotation requests</div>
+            <div class="pill">Appointment booking</div>
+            <div class="pill">Follow-up records</div>
+          </div>
+        </div>
+        <footer class="footer">
+          <div class="url">Built for local service workflows.</div>
+        </footer>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-5">
+      <div class="flow"></div>
+      <div class="large-mark"><span>N</span></div>
+      <div class="content">
+        <header class="topbar">
+          <div class="brand"><div class="mark"></div><span>Nexa<span>Flow</span></span></div>
+          <div class="page">5/5</div>
+        </header>
+        <div class="center">
+          <div class="eyebrow">Start simple</div>
+          <h2>先试 1 个月。真的帮到你，再决定要不要继续用。</h2>
+          <p class="lead">我们会帮你设置 enquiry link 和商家 inbox。你只需要把链接放到 WhatsApp、Facebook、Instagram 或 Google Business Profile。</p>
+          <div class="cards">
+            <div class="card"><div class="icon">1</div><div><strong>开放 trial</strong><span>适合想先测试流程的本地服务商家。</span></div></div>
+            <div class="card"><div class="icon">2</div><div><strong>保护客户资料</strong><span>客户资料只用于回复、报价、预约和服务跟进。</span></div></div>
+            <div class="card"><div class="icon">3</div><div><strong>之后可扩展</strong><span>未来可延伸到 CRM、Billing、Inventory 和 Automation。</span></div></div>
+          </div>
+        </div>
+        <footer class="footer">
+          <div class="cta">DM / WhatsApp 我们试用</div>
+          <div class="url">nexaflowinfra.com</div>
+        </footer>
+      </div>
+    </section>
+  </main>
+  <script>
+    const selectedSlide = new URLSearchParams(window.location.search).get("slide");
+    if (selectedSlide) {
+      document.body.classList.add("export");
+      document.querySelectorAll(".slide").forEach((slide) => {
+        slide.classList.toggle("active", slide.id === `slide-${selectedSlide}`);
+      });
+    }
+  </script>
+</body>
+</html>
