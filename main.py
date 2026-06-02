@@ -3932,6 +3932,11 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="description" content="NexaFlow helps local service merchants manage enquiries, follow-ups, CRM, billing, inventory, and automation from one AI business ecosystem.">
+            <meta property="og:title" content="{safe_title}">
+            <meta property="og:description" content="AI business ecosystem for local service merchants. Start with NexaFlow Enquiry and organize customer follow-ups faster.">
+            <meta property="og:image" content="https://api.nexaflowinfra.com/assets/brand/nexaflow-final.png">
+            <meta property="og:type" content="website">
             <title>{safe_title}</title>
             <style>
                 :root {{
@@ -4819,6 +4824,7 @@ def landing_page():
                 <div class="actions">
                     <a class="btn" href="/ai-enquiry"><span data-lang="en">Start with Enquiry</span><span data-lang="zh" class="lang-hidden">先使用询盘助手</span></a>
                     <a class="btn secondary" href="#services"><span data-lang="en">View Services</span><span data-lang="zh" class="lang-hidden">查看服务</span></a>
+                    <a class="btn secondary" href="/merchant-login"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家登录</span></a>
                 </div>
             </div>
             <div class="hero-side">
@@ -4921,7 +4927,7 @@ def landing_page():
         <div class="section-head">
             <div>
                 <h2><span data-lang="en">Trust and data protection</span><span data-lang="zh" class="lang-hidden">信任与资料保护</span></h2>
-                <p><span data-lang="en">Customer data should be used only for replies, quotations, appointments, and service follow-up.</span><span data-lang="zh" class="lang-hidden">客户资料应只用于回复、报价、预约和服务跟进。</span></p>
+                <p><span data-lang="en">Customer data stays behind a private merchant inbox and should be used only for replies, quotations, appointments, and service follow-up. Merchants can delete individual enquiries when a record is no longer needed.</span><span data-lang="zh" class="lang-hidden">客户资料会放在商家私密 inbox 里，并且应只用于回复、报价、预约和服务跟进。当记录不再需要时，商家可以删除单个客户询盘。</span></p>
                 <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refund Policy</a> · <a href="/acceptable-use">Acceptable Use</a></p>
             </div>
         </div>
@@ -4935,6 +4941,70 @@ def landing_page():
                 localStorage.setItem("nexaflow_home_lang", lang);
             }}
             setProductLang(localStorage.getItem("nexaflow_home_lang") || "en");
+        </script>
+        """,
+        show_sales_contact=True,
+    )
+
+
+@app.get("/merchant-login", response_class=HTMLResponse)
+def merchant_login_page():
+    return merchant_html(
+        "NexaFlow Merchant Login",
+        "NexaFlow",
+        """
+        <section class="hero compact">
+            <div>
+                <div class="language-toggle" aria-label="Language">
+                    <button type="button" class="active" onclick="setLoginLang('en')" id="langEn">EN</button>
+                    <button type="button" onclick="setLoginLang('zh')" id="langZh">中文</button>
+                </div>
+                <div class="eyebrow">Merchant Login</div>
+                <h1><span data-lang="en">Open your private merchant inbox.</span><span data-lang="zh" class="lang-hidden">打开你的商家私密 inbox。</span></h1>
+                <p class="lead"><span data-lang="en">Enter your business slug and access key. The key is saved only in your browser, not placed in the URL.</span><span data-lang="zh" class="lang-hidden">输入 business slug 和 access key。Key 只会保存在你的浏览器，不会放进 URL。</span></p>
+            </div>
+        </section>
+        <section class="form-card">
+            <div class="toolbar">
+                <label>Business slug<input id="loginSlug" autocomplete="off" placeholder="your-business-slug"></label>
+                <label>Business access key<input id="loginKey" type="password" autocomplete="current-password" placeholder="biz_..."></label>
+            </div>
+            <div class="actions">
+                <button class="btn" onclick="openMerchantInbox()"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></button>
+                <a class="btn secondary" href="/"><span data-lang="en">Back to Services</span><span data-lang="zh" class="lang-hidden">返回服务页</span></a>
+            </div>
+            <div class="status" id="loginStatus"><span data-lang="en">Your access key protects customer enquiries. Do not share it publicly.</span><span data-lang="zh" class="lang-hidden">Access key 会保护客户询盘资料，请不要公开分享。</span></div>
+        </section>
+        <div class="section-head">
+            <div>
+                <h2><span data-lang="en">Privacy note</span><span data-lang="zh" class="lang-hidden">隐私提示</span></h2>
+                <p><span data-lang="en">Customer names, phone numbers, messages, notes, and follow-up records are shown only after a valid business access key is provided.</span><span data-lang="zh" class="lang-hidden">客户姓名、电话、留言、备注和跟进记录，只有输入有效 business access key 后才会显示。</span></p>
+            </div>
+        </div>
+        <script>
+            function normalizeSlug(value) {
+                return String(value || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+            }
+            function setLoginLang(lang) {
+                document.querySelectorAll("[data-lang]").forEach(item => {
+                    item.classList.toggle("lang-hidden", item.dataset.lang !== lang);
+                });
+                document.getElementById("langEn").classList.toggle("active", lang === "en");
+                document.getElementById("langZh").classList.toggle("active", lang === "zh");
+                localStorage.setItem("nexaflow_login_lang", lang);
+            }
+            function openMerchantInbox() {
+                const status = document.getElementById("loginStatus");
+                const slug = normalizeSlug(document.getElementById("loginSlug").value);
+                const key = document.getElementById("loginKey").value.trim();
+                if (!slug || !key) {
+                    status.textContent = "Please enter both business slug and access key.";
+                    return;
+                }
+                localStorage.setItem(`nexaflow_business_key_${slug}`, key);
+                window.location.href = `/inbox/${slug}`;
+            }
+            setLoginLang(localStorage.getItem("nexaflow_login_lang") || "en");
         </script>
         """,
         show_sales_contact=True,
@@ -4994,6 +5064,7 @@ def enquiry_app_page():
                 <div class="actions">
                     <a class="btn" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
                     <a class="btn secondary" href="#enquiry-pricing"><span data-lang="en">View Pricing</span><span data-lang="zh" class="lang-hidden">查看价格</span></a>
+                    <a class="btn secondary" href="/merchant-login"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家登录</span></a>
                 </div>
             </div>
             <div class="hero-side">
@@ -5047,6 +5118,7 @@ def enquiry_app_page():
         <section class="grid">
             <div class="card"><h3><span data-lang="en">Consent before submit</span><span data-lang="zh" class="lang-hidden">提交前同意</span></h3><p><span data-lang="en">Every enquiry records the privacy notice, consent status, and consent time.</span><span data-lang="zh" class="lang-hidden">每个询问都会记录隐私告知、同意状态和同意时间。</span></p></div>
             <div class="card"><h3><span data-lang="en">Private merchant inbox</span><span data-lang="zh" class="lang-hidden">商家私密 inbox</span></h3><p><span data-lang="en">Internal notes, deal value, follow-up dates, and WhatsApp links stay behind a business access key.</span><span data-lang="zh" class="lang-hidden">内部备注、成交金额、跟进日期和 WhatsApp 链接都由商家 access key 保护。</span></p></div>
+            <div class="card"><h3><span data-lang="en">Delete customer enquiries</span><span data-lang="zh" class="lang-hidden">删除客户询盘</span></h3><p><span data-lang="en">Merchants can delete individual enquiries when they no longer need the record or receive a valid deletion request.</span><span data-lang="zh" class="lang-hidden">当商家不再需要记录，或收到有效删除请求时，可以删除单个客户询盘。</span></p></div>
             <div class="card"><h3><span data-lang="en">Export and records</span><span data-lang="zh" class="lang-hidden">导出与记录</span></h3><p><span data-lang="en">Merchants can export their leads, while Terms and Privacy explain allowed use and responsibilities.</span><span data-lang="zh" class="lang-hidden">商家可以导出 leads，同时条款和隐私政策说明资料用途和责任。</span></p></div>
         </section>
         <div class="section-head" id="enquiry-pricing">
@@ -5659,6 +5731,11 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
+            }}
+            const savedBusinessKey = localStorage.getItem(`nexaflow_business_key_${{businessSlug}}`);
+            if (savedBusinessKey) {{
+                document.getElementById("businessKey").value = savedBusinessKey;
+                loadMerchantInbox();
             }}
         </script>
         """

@@ -54,8 +54,20 @@ def test_landing_page_loads():
     assert "SGD 49" in response.text
     assert "SGD 99+" in response.text
     assert "/ai-enquiry" in response.text
+    assert "/merchant-login" in response.text
+    assert "og:image" in response.text
     assert "nexaflow_home_lang" in response.text
     assert "<span>1</span>" not in response.text
+
+
+def test_merchant_login_page_loads():
+    response = client.get("/merchant-login")
+    assert response.status_code == 200
+    assert "Merchant Login" in response.text
+    assert "Business slug" in response.text
+    assert "Business access key" in response.text
+    assert "nexaflow_business_key_" in response.text
+    assert "/admin/dashboard" not in response.text
 
 
 def test_pricing_page_loads():
@@ -79,7 +91,9 @@ def test_enquiry_app_pages_load():
     assert "Data safety built in" in public_page.text
     assert "Consent before submit" in public_page.text
     assert "Private merchant inbox" in public_page.text
+    assert "Delete customer enquiries" in public_page.text
     assert "View Pricing" in public_page.text
+    assert "Merchant Login" in public_page.text
     assert "Start with a 30-day trial" in public_page.text
     assert "SGD 19" in public_page.text
     assert "WhatsApp Us" in public_page.text
