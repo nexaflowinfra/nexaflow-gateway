@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NexaFlow Carousel 02 English</title>
+  <style>
+    :root {
+      --bg: #030504;
+      --panel: rgba(12, 15, 14, .82);
+      --line: rgba(255, 255, 255, .14);
+      --text: #f8faf7;
+      --muted: #b9b3a5;
+      --soft: #dad0bd;
+      --teal: #2dd4bf;
+      --teal-soft: rgba(45, 212, 191, .24);
+      --gold: #f3c76a;
+      --gold-soft: rgba(243, 199, 106, .24);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 1080px;
+      height: 1350px;
+      margin: 0;
+      overflow: hidden;
+      background: #151515;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+    }
+
+    .slide {
+      width: 1080px;
+      height: 1350px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 14% 20%, var(--teal-soft), transparent 28%),
+        radial-gradient(circle at 88% 16%, var(--gold-soft), transparent 27%),
+        linear-gradient(145deg, #020303 0%, #061313 48%, #151006 100%);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.026) 0 1px, transparent 1px 78px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 78px);
+      opacity: .62;
+    }
+
+    .flow {
+      position: absolute;
+      left: -160px;
+      right: -160px;
+      bottom: -46px;
+      height: 380px;
+      opacity: .82;
+      background:
+        repeating-radial-gradient(ellipse at 18% 40%, rgba(45,212,191,.26) 0 1px, transparent 2px 18px),
+        repeating-radial-gradient(ellipse at 82% 44%, rgba(243,199,106,.26) 0 1px, transparent 2px 18px);
+      mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 74%, transparent 100%);
+      transform: skewY(-6deg);
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      padding: 58px 64px 54px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 34px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 31px;
+      font-weight: 950;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--teal), #f7f5ec 48%, var(--gold));
+      box-shadow: 0 0 34px rgba(45,212,191,.22);
+    }
+
+    .brand span span { color: var(--gold); }
+
+    .center {
+      display: grid;
+      align-content: center;
+    }
+
+    .eyebrow {
+      color: var(--gold);
+      font-size: 18px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 24px;
+    }
+
+    h2 {
+      margin: 0;
+      max-width: 940px;
+      font-size: 61px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .gold { color: var(--gold); }
+
+    .cards {
+      display: grid;
+      gap: 18px;
+      margin-top: 40px;
+    }
+
+    .card {
+      min-height: 132px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.07), transparent 70%),
+        var(--panel);
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      align-items: center;
+      gap: 20px;
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.28);
+    }
+
+    .icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      font-size: 36px;
+      font-weight: 950;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .card span {
+      color: var(--muted);
+      font-size: 23px;
+      line-height: 1.32;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .url {
+      color: var(--muted);
+      font-size: 22px;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <section class="slide">
+    <div class="flow"></div>
+    <div class="content">
+      <header>
+        <div class="brand"><div class="mark"></div><span>Nexa<span>Flow</span></span></div>
+      </header>
+
+      <div class="center">
+        <div class="eyebrow">The common problem</div>
+        <h2>Not a customer problem. It's a <span class="gold">follow-up problem</span>.</h2>
+
+        <div class="cards">
+          <div class="card">
+            <div class="icon">WA</div>
+            <div>
+              <strong>Customer messages are scattered</strong>
+              <span>WhatsApp, Messenger, Instagram DM, and calls are all in different places.</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="icon">?</div>
+            <div>
+              <strong>Busy owners forget to reply</strong>
+              <span>Customers ask about price, timing, and service details, but there is no clear record.</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="icon">$</div>
+            <div>
+              <strong>Opportunities are lost</strong>
+              <span>Reply one step too late, and the customer may already choose another provider.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="url">Scattered chats become missed revenue.</div>
+      </footer>
+    </div>
+  </section>
+</body>
+</html>
