@@ -119,6 +119,9 @@ def test_enquiry_app_pages_load():
     assert "loadTrialRequests" in admin_page.text
     assert "createInboxFromTrial" in admin_page.text
     assert "Send Setup WhatsApp" in admin_page.text
+    assert "trialRequestStats" in admin_page.text
+    assert "Urgent Follow-up" in admin_page.text
+    assert "Next action" in admin_page.text
     assert "/admin/dashboard" not in admin_page.text
     assert legacy_public_page.status_code == 200
     assert legacy_admin_page.status_code == 200
@@ -175,10 +178,15 @@ def test_trial_request_flow():
         headers={"X-Admin-Key": "test-admin"},
     )
     assert listed.status_code == 200
+    assert "stats" in listed.json()
+    assert listed.json()["stats"]["total"] >= 1
     matching = [item for item in listed.json()["trial_requests"] if item["id"] == created["id"]]
     assert matching
     assert matching[0]["contact_email"] == f"trial-{suffix}@example.com"
     assert matching[0]["whatsapp_url"].startswith("https://wa.me/")
+    assert matching[0]["age_days"] >= 0
+    assert matching[0]["follow_up_priority"] in {"low", "medium", "high"}
+    assert "WhatsApp" in matching[0]["next_action"] or "Contact" in matching[0]["next_action"]
 
     updated = client.patch(
         f"/apps/enquiry/api/trial-requests/{created['id']}",

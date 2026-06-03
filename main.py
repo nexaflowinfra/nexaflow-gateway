@@ -2536,7 +2536,37 @@ def send_business_onboarding(slug, owner_client_id=None):
     }
 
 
+def trial_request_followup_metadata(row):
+    created = parse_log_timestamp(row["created_at"])
+    updated = parse_log_timestamp(row["updated_at"])
+    now = datetime.now(timezone.utc)
+    age_days = max(0, int((now - created).total_seconds() // 86400)) if created else 0
+    untouched_days = max(0, int((now - updated).total_seconds() // 86400)) if updated else age_days
+    status = row["status"]
+
+    if status == "new":
+        if age_days >= 1:
+            return age_days, "high", "Contact this merchant today and confirm trial fit."
+        return age_days, "medium", "Send first WhatsApp reply and ask for setup details."
+    if status == "contacted":
+        if untouched_days >= 3:
+            return age_days, "medium", "Follow up and offer to create the merchant inbox."
+        return age_days, "low", "Wait for merchant response or prepare setup."
+    if status == "trial_setup":
+        if age_days >= 21:
+            return age_days, "high", "Ask for feedback and discuss paid plan before trial ends."
+        if age_days >= 7:
+            return age_days, "medium", "Check if the merchant has received real enquiries."
+        return age_days, "low", "Help merchant complete first test enquiry and share link."
+    if status == "won":
+        return age_days, "low", "Confirm payment, billing setup, and ongoing support."
+    if status == "lost":
+        return age_days, "low", "Record reason and archive unless they ask to restart."
+    return age_days, "low", "No follow-up required."
+
+
 def row_to_trial_request(row):
+    age_days, follow_up_priority, next_action = trial_request_followup_metadata(row)
     return {
         "id": row["id"],
         "business_name": row["business_name"],
@@ -2555,6 +2585,9 @@ def row_to_trial_request(row):
         "notification_error": row["notification_error"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
+        "age_days": age_days,
+        "follow_up_priority": follow_up_priority,
+        "next_action": next_action,
         "whatsapp_url": sales_whatsapp_url(
             f"Hi {row['contact_name']}, this is NexaFlow. Thanks for requesting the 30-day trial for {row['business_name']}. I can help set up your enquiry inbox."
         ),
@@ -2673,6 +2706,18 @@ def list_trial_requests(status=None, limit=100):
     with db_connection() as connection:
         rows = connection.execute(query, params).fetchall()
     return [row_to_trial_request(row) for row in rows]
+
+
+def trial_request_stats(requests):
+    return {
+        "total": len(requests),
+        "new": sum(1 for item in requests if item["status"] == "new"),
+        "contacted": sum(1 for item in requests if item["status"] == "contacted"),
+        "trial_setup": sum(1 for item in requests if item["status"] == "trial_setup"),
+        "won": sum(1 for item in requests if item["status"] == "won"),
+        "lost": sum(1 for item in requests if item["status"] == "lost"),
+        "urgent": sum(1 for item in requests if item["follow_up_priority"] == "high"),
+    }
 
 
 def update_trial_request_status(request_id, req):
@@ -6577,9 +6622,10 @@ def enquiry_admin_page():
             <button class="btn" onclick="loadTrialRequests()">Load Trial Requests</button>
         </div>
         <div class="status" id="trialRequestStatus">Enter admin key above to load trial requests.</div>
+        <section class="grid" id="trialRequestStats"></section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Message</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Message</th><th>Status</th><th>Age</th><th>Priority</th><th>Next action</th><th>Action</th></tr>
             </thead>
             <tbody id="trialRequestRows"></tbody>
         </table>
@@ -6736,6 +6782,13 @@ def enquiry_admin_page():
                 status.textContent = "Loading trial requests...";
                 try {
                     const data = await adminApi("/apps/enquiry/api/trial-requests?limit=100");
+                    const stats = data.stats || {};
+                    document.getElementById("trialRequestStats").innerHTML = `
+                        <section class="card"><h3>Total Trial Requests</h3><div class="price">${stats.total || 0}</div></section>
+                        <section class="card"><h3>Urgent Follow-up</h3><div class="price">${stats.urgent || 0}</div></section>
+                        <section class="card"><h3>Trial Setup</h3><div class="price">${stats.trial_setup || 0}</div></section>
+                        <section class="card"><h3>Won</h3><div class="price">${stats.won || 0}</div></section>
+                    `;
                     document.getElementById("trialRequestRows").innerHTML = data.trial_requests.map(item => `
                         <tr>
                             <td>${escapeHtml(item.created_at)}</td>
@@ -6745,6 +6798,9 @@ def enquiry_admin_page():
                             <td>${escapeHtml(item.monthly_enquiries || "")}</td>
                             <td>${escapeHtml(item.message || "")}</td>
                             <td>${escapeHtml(item.status)}</td>
+                            <td>${escapeHtml(item.age_days)} day(s)</td>
+                            <td><span class="lead-badge ${item.follow_up_priority === "high" ? "hot" : ""}">${escapeHtml(item.follow_up_priority)}</span></td>
+                            <td>${escapeHtml(item.next_action || "")}</td>
                             <td>
                                 ${item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.whatsapp_url)}">WhatsApp</a>` : ""}
                                 <button class="btn secondary" onclick="createInboxFromTrial(${item.id})">Create Inbox</button>
@@ -7813,8 +7869,10 @@ def get_trial_requests(
     x_admin_key: str | None = Header(default=None),
 ):
     admin_guard(admin_key, x_admin_key)
+    trial_requests = list_trial_requests(status=status, limit=limit)
     return {
-        "trial_requests": list_trial_requests(status=status, limit=limit),
+        "stats": trial_request_stats(trial_requests),
+        "trial_requests": trial_requests,
     }
 
 
