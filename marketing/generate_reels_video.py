@@ -21,6 +21,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 W, H = 1080, 1920
 OUT = ROOT / "marketing" / "nexaflow-enquiry-reels.mp4"
 SOURCE_PREVIEW = ROOT / "marketing" / "nexaflow-enquiry-reels-source-preview.png"
+PRODUCT_URL = "api.nexaflowinfra.com/ai-enquiry"
 MARKETING = ROOT / "marketing"
 
 FONT_BOLD = "C:/Windows/Fonts/msyhbd.ttc"
@@ -120,6 +121,16 @@ def rounded_rect(draw: ImageDraw.ImageDraw, box, radius=34, fill=(8, 10, 10, 210
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
 
 
+def ease_out(value: float) -> float:
+    value = max(0.0, min(1.0, value))
+    return 1 - (1 - value) ** 3
+
+
+def ease_in_out(value: float) -> float:
+    value = max(0.0, min(1.0, value))
+    return value * value * (3 - 2 * value)
+
+
 def draw_brand(draw: ImageDraw.ImageDraw, canvas: Image.Image) -> None:
     logo = Image.open(MARKETING / "nexaflow-social-avatar-icon.png").convert("RGBA")
     logo = fit_cover(logo, (58, 58)).convert("RGBA")
@@ -130,15 +141,29 @@ def draw_brand(draw: ImageDraw.ImageDraw, canvas: Image.Image) -> None:
 
 
 def draw_wave(draw: ImageDraw.ImageDraw, t: float) -> None:
-    for i in range(9):
-        y = 1450 + i * 34
+    for i in range(12):
+        y = 1435 + i * 30
         points = []
         for x in range(-60, W + 80, 18):
-            amp = 26 + i * 3
-            yy = y + math.sin((x / 115) + t * 4.0 + i * 0.45) * amp
+            amp = 24 + i * 4
+            yy = y + math.sin((x / 105) + t * 5.6 + i * 0.45) * amp
             points.append((x, yy))
         color = (45, 212, 191, max(35, 118 - i * 8)) if i % 2 == 0 else (243, 199, 106, max(32, 95 - i * 7))
-        draw.line(points, fill=color, width=2)
+        draw.line(points, fill=color, width=2 if i < 8 else 1)
+
+
+def draw_particles(draw: ImageDraw.ImageDraw, t: float) -> None:
+    for i in range(42):
+        base_x = (i * 97 + 120) % (W + 220) - 110
+        drift = (t * (28 + i % 7 * 4)) % (W + 220)
+        x = int((base_x + drift) % (W + 220) - 110)
+        y = int(320 + ((i * 151) % 980) + math.sin(t * 1.7 + i) * 18)
+        if y > 1380:
+            y -= 980
+        radius = 1 + (i % 3)
+        alpha = 28 + (i % 5) * 12
+        color = (45, 212, 191, alpha) if i % 2 == 0 else (243, 199, 106, alpha)
+        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
 
 
 def progress_bar(draw: ImageDraw.ImageDraw, t_abs: float, total: float) -> None:
@@ -146,6 +171,17 @@ def progress_bar(draw: ImageDraw.ImageDraw, t_abs: float, total: float) -> None:
     y = H - 68
     draw.rounded_rectangle((margin, y, W - margin, y + 8), radius=4, fill=(255, 255, 255, 35))
     draw.rounded_rectangle((margin, y, margin + int((W - margin * 2) * min(1, t_abs / total)), y + 8), radius=4, fill=(243, 199, 106, 220))
+
+
+def draw_light_sweep(canvas: Image.Image, t: float) -> None:
+    sweep = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(sweep)
+    x = int(-420 + (W + 840) * ((t * 0.22) % 1))
+    draw.polygon(
+        [(x, 0), (x + 210, 0), (x + 620, H), (x + 390, H)],
+        fill=(255, 255, 255, 18),
+    )
+    canvas.alpha_composite(sweep)
 
 
 def scene_bg(scene_idx: int, local_t: float, duration: float) -> Image.Image:
@@ -209,6 +245,8 @@ def draw_frame(scene_idx: int, local_t: float, scene_duration: float, t_abs: flo
     scene = SCENES[scene_idx]
     img = scene_bg(scene_idx, local_t, scene_duration)
     draw = ImageDraw.Draw(img)
+    draw_light_sweep(img, t_abs)
+    draw_particles(draw, t_abs)
     draw_wave(draw, t_abs)
     draw_brand(draw, img)
 
@@ -216,7 +254,8 @@ def draw_frame(scene_idx: int, local_t: float, scene_duration: float, t_abs: flo
     y_shift = int((1 - fade) * 28)
     alpha = int(255 * max(0, min(1, fade)))
 
-    x = 72
+    title_push = int((1 - ease_out(local_t / 0.8)) * 58)
+    x = 72 - title_push
     y = 430 + y_shift
     draw.text((x, y), scene["eyebrow"].upper(), font=font(25, True), fill=(243, 199, 106, alpha))
     y += 76
@@ -229,20 +268,31 @@ def draw_frame(scene_idx: int, local_t: float, scene_duration: float, t_abs: flo
     card_top = 1110
     for idx, text in enumerate(scene["cards"]):
         delay = idx * 0.15
-        card_fade = min(1, max(0, (local_t - 0.7 - delay) / 0.45))
+        card_fade = ease_out((local_t - 0.7 - delay) / 0.48)
+        if card_fade <= 0.02:
+            continue
         ca = int(210 * card_fade)
         cy = card_top + idx * 128 + int((1 - card_fade) * 24)
-        rounded_rect(draw, (72, cy, W - 72, cy + 96), radius=28, fill=(8, 10, 10, ca), outline=(255, 255, 255, int(42 * card_fade)))
+        slide_from = -84 if idx % 2 == 0 else 84
+        cx = int(slide_from * (1 - card_fade))
+        rounded_rect(draw, (72 + cx, cy, W - 72 + cx, cy + 96), radius=28, fill=(8, 10, 10, ca), outline=(255, 255, 255, int(42 * card_fade)))
         badge_fill = (243, 199, 106, int(255 * card_fade)) if idx == 0 else (45, 212, 191, int(220 * card_fade))
-        draw.rounded_rectangle((100, cy + 24, 148, cy + 72), radius=14, fill=(255, 255, 255, int(30 * card_fade)), outline=badge_fill, width=2)
-        draw.text((116, cy + 30), str(idx + 1), font=font(24, True), fill=(255, 255, 255, int(240 * card_fade)))
-        draw.text((174, cy + 27), text, font=font(31, True), fill=(248, 250, 247, int(250 * card_fade)))
+        draw.rounded_rectangle((100 + cx, cy + 24, 148 + cx, cy + 72), radius=14, fill=(255, 255, 255, int(30 * card_fade)), outline=badge_fill, width=2)
+        draw.text((116 + cx, cy + 30), str(idx + 1), font=font(24, True), fill=(255, 255, 255, int(240 * card_fade)))
+        draw.text((174 + cx, cy + 27), text, font=font(31, True), fill=(248, 250, 247, int(250 * card_fade)))
 
     if scene_idx == len(SCENES) - 1:
-        draw.rounded_rectangle((72, 1584, 540, 1668), radius=42, fill=(243, 199, 106, 240))
+        pulse = 1 + 0.035 * math.sin(t_abs * 7)
+        left, top, right, bottom = 72, 1584, 540, 1668
+        cx = (left + right) / 2
+        cy = (top + bottom) / 2
+        w = (right - left) * pulse
+        h = (bottom - top) * pulse
+        box = (int(cx - w / 2), int(cy - h / 2), int(cx + w / 2), int(cy + h / 2))
+        draw.rounded_rectangle(box, radius=42, fill=(243, 199, 106, 242))
         draw.text((112, 1604), "DM / WhatsApp 我们试用", font=font(30, True), fill=(5, 5, 5, 255))
 
-    draw.text((W - 332, H - 140), "nexaflowinfra.com", font=font(29, True), fill=(225, 214, 193, 225))
+    draw.text((W - 518, H - 140), PRODUCT_URL, font=font(27, True), fill=(225, 214, 193, 230))
     progress_bar(draw, t_abs, total)
     return img.convert("RGB")
 
