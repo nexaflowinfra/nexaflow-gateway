@@ -4690,6 +4690,47 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .setup-step strong {{ display: block; color: var(--ink); margin-bottom: 6px; }}
                 .setup-step span {{ color: var(--muted); font-size: 13px; }}
+                .onboarding-head {{
+                    margin-top: 0;
+                }}
+                .checklist {{
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 12px;
+                }}
+                .check-item {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 14px;
+                    background: #070707;
+                    min-height: 138px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }}
+                .check-item.done {{
+                    border-color: rgba(45,212,191,.55);
+                    background: linear-gradient(135deg, rgba(45,212,191,.10), rgba(243,199,106,.04)), #070707;
+                }}
+                .check-status {{
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 999px;
+                    border: 1px solid var(--line);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: var(--muted);
+                    font-size: 13px;
+                    font-weight: 800;
+                }}
+                .check-item.done .check-status {{
+                    background: var(--teal);
+                    border-color: var(--teal);
+                    color: #00110f;
+                }}
+                .check-item strong {{ color: var(--ink); }}
+                .check-item span {{ color: var(--muted); font-size: 13px; }}
                 .action-center {{
                     display: grid;
                     grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
@@ -4856,7 +4897,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
@@ -5901,6 +5942,16 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div class="setup-step"><strong>4. Track value</strong><span>Set follow-up dates, notes, and estimated deal value.</span></div>
         </section>
         <section class="form-card">
+            <div class="section-head onboarding-head">
+                <div>
+                    <h2>Trial launch checklist</h2>
+                    <p>Complete these once before sending the enquiry link to real customers.</p>
+                </div>
+                <button class="btn secondary" onclick="resetMerchantChecklist()">Reset</button>
+            </div>
+            <div class="checklist" id="merchantChecklist"></div>
+        </section>
+        <section class="form-card">
             <div class="toolbar">
                 <label>Business access key<input id="businessKey" type="password" placeholder="biz_..."></label>
                 <button class="btn" onclick="loadMerchantInbox()">Load Leads</button>
@@ -6001,6 +6052,13 @@ def merchant_enquiry_inbox_page(business_slug: str):
         </table>
         <script>
             const businessSlug = "{slug}";
+            const checklistStorageKey = `nexaflow_trial_checklist_${{businessSlug}}`;
+            const checklistSteps = [
+                ["loaded", "Load inbox", "Paste your business access key and load this private inbox."],
+                ["copied_link", "Copy enquiry link", "Share this link on WhatsApp, Facebook, Instagram, or Google Business Profile."],
+                ["settings", "Review settings", "Confirm business name, WhatsApp number, service summary, and opening hours."],
+                ["first_lead", "Receive first lead", "Submit one test enquiry before sending the link to real customers."]
+            ];
             function escapeHtml(value) {{
                 return String(value ?? "").replace(/[&<>"']/g, char => ({{
                     "&": "&amp;",
@@ -6018,6 +6076,36 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     throw new Error(await response.text());
                 }}
                 return response.json();
+            }}
+            function loadChecklistState() {{
+                try {{
+                    return JSON.parse(localStorage.getItem(checklistStorageKey) || "{{}}");
+                }} catch (error) {{
+                    return {{}};
+                }}
+            }}
+            function saveChecklistState(state) {{
+                localStorage.setItem(checklistStorageKey, JSON.stringify(state));
+            }}
+            function markChecklistStep(step, done = true) {{
+                const state = loadChecklistState();
+                state[step] = done;
+                saveChecklistState(state);
+                renderMerchantChecklist();
+            }}
+            function resetMerchantChecklist() {{
+                localStorage.removeItem(checklistStorageKey);
+                renderMerchantChecklist();
+            }}
+            function renderMerchantChecklist() {{
+                const state = loadChecklistState();
+                document.getElementById("merchantChecklist").innerHTML = checklistSteps.map(([key, title, detail], index) => `
+                    <div class="check-item ${{state[key] ? "done" : ""}}">
+                        <div class="check-status">${{state[key] ? "✓" : index + 1}}</div>
+                        <strong>${{escapeHtml(title)}}</strong>
+                        <span>${{escapeHtml(detail)}}</span>
+                    </div>
+                `).join("");
             }}
             async function merchantDownload(path) {{
                 const businessKey = document.getElementById("businessKey").value;
@@ -6043,6 +6131,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 try {{
                     await navigator.clipboard.writeText(value);
                     document.getElementById("merchantStatus").textContent = `${{label}} copied.`;
+                    if (label === "Customer link") markChecklistStep("copied_link");
                 }} catch (error) {{
                     document.getElementById("merchantStatus").textContent = `Copy failed. Select and copy this manually: ${{value}}`;
                 }}
@@ -6095,6 +6184,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     }});
                     fillMerchantSettings(profile);
                     status.textContent = "Saved. Your public enquiry page and WhatsApp follow-up are updated.";
+                    markChecklistStep("settings");
                     await loadMerchantInbox();
                 }} catch (error) {{
                     status.textContent = error.message;
@@ -6279,6 +6369,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     `;
                     renderActionCenter(data);
                     renderPipelineBoard(stats);
+                    localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
+                    markChecklistStep("loaded");
+                    if ((data.enquiries || []).length > 0) markChecklistStep("first_lead");
                     document.getElementById("merchantRows").innerHTML = data.enquiries.map(item => `
                         <tr>
                             <td>${{escapeHtml(item.created_at)}}</td>
@@ -6315,6 +6408,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 document.getElementById("businessKey").value = savedBusinessKey;
                 loadMerchantInbox();
             }}
+            renderMerchantChecklist();
         </script>
         """
     )

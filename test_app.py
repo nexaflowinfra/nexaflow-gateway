@@ -689,6 +689,11 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert "Today&apos;s best action" in response.text
     assert "Trial readiness" in response.text
     assert "chooseNextAction" in response.text
+    assert "Trial launch checklist" in response.text
+    assert "merchantChecklist" in response.text
+    assert "markChecklistStep" in response.text
+    assert "nexaflow_trial_checklist_" in response.text
+    assert "localStorage.setItem(`nexaflow_business_key_" in response.text
 
 
 def test_merchant_can_update_own_business_settings_only():
