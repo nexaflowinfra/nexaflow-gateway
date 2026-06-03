@@ -247,6 +247,23 @@ class MerchantEnquiryUpdate(BaseModel):
     deal_value: float | None = Field(default=None, ge=0, le=1000000000)
 
 
+class TrialRequestCreate(BaseModel):
+    business_name: str = Field(..., min_length=1, max_length=160)
+    contact_name: str = Field(..., min_length=1, max_length=120)
+    contact_email: str | None = Field(default=None, max_length=200)
+    whatsapp_phone: str = Field(..., min_length=5, max_length=40)
+    business_type: str = Field(default="service business", max_length=80)
+    city: str = Field(default="", max_length=120)
+    monthly_enquiries: str = Field(default="", max_length=80)
+    message: str = Field(default="", max_length=1000)
+    pdpa_consent: bool = False
+
+
+class TrialRequestUpdate(BaseModel):
+    status: str = Field(..., pattern="^(new|contacted|trial_setup|won|lost|spam)$")
+    internal_note: str | None = Field(default=None, max_length=1000)
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -745,6 +762,35 @@ def init_db():
         ensure_column(connection, "business_profiles", "client_id", "TEXT")
         ensure_column(connection, "business_profiles", "access_key_hash", "TEXT")
         ensure_column(connection, "business_profiles", "access_key_prefix", "TEXT")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS trial_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                business_name TEXT NOT NULL,
+                contact_name TEXT NOT NULL,
+                contact_email TEXT,
+                whatsapp_phone TEXT NOT NULL,
+                business_type TEXT,
+                city TEXT,
+                monthly_enquiries TEXT,
+                message TEXT,
+                pdpa_consent INTEGER NOT NULL DEFAULT 0,
+                consent_at TEXT,
+                status TEXT NOT NULL DEFAULT 'new',
+                internal_note TEXT,
+                notification_status TEXT,
+                notification_error TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        ensure_column(connection, "trial_requests", "monthly_enquiries", "TEXT")
+        ensure_column(connection, "trial_requests", "pdpa_consent", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(connection, "trial_requests", "consent_at", "TEXT")
+        ensure_column(connection, "trial_requests", "internal_note", "TEXT")
+        ensure_column(connection, "trial_requests", "notification_status", "TEXT")
+        ensure_column(connection, "trial_requests", "notification_error", "TEXT")
 
 
 def migration_applied(connection, name):
@@ -2464,6 +2510,166 @@ def send_business_onboarding(slug, owner_client_id=None):
         "rotated": True,
         "message": "A new business access key was generated and sent to the merchant contact email.",
     }
+
+
+def row_to_trial_request(row):
+    return {
+        "id": row["id"],
+        "business_name": row["business_name"],
+        "contact_name": row["contact_name"],
+        "contact_email": row["contact_email"],
+        "whatsapp_phone": row["whatsapp_phone"],
+        "business_type": row["business_type"],
+        "city": row["city"],
+        "monthly_enquiries": row["monthly_enquiries"],
+        "message": row["message"],
+        "pdpa_consent": bool(row["pdpa_consent"]),
+        "consent_at": row["consent_at"],
+        "status": row["status"],
+        "internal_note": row["internal_note"],
+        "notification_status": row["notification_status"],
+        "notification_error": row["notification_error"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "whatsapp_url": sales_whatsapp_url(
+            f"Hi {row['contact_name']}, this is NexaFlow. Thanks for requesting the 30-day trial for {row['business_name']}. I can help set up your enquiry inbox."
+        ),
+    }
+
+
+def trial_request_notification_email(request):
+    return f"""New NexaFlow Enquiry trial request
+
+Business:
+{request['business_name']}
+
+Contact:
+{request['contact_name']}
+{request.get('contact_email') or ''}
+{request['whatsapp_phone']}
+
+Business type:
+{request.get('business_type') or ''}
+
+City:
+{request.get('city') or ''}
+
+Monthly enquiries:
+{request.get('monthly_enquiries') or ''}
+
+Message:
+{request.get('message') or ''}
+
+Admin follow-up:
+Open /enquiry-admin and check Trial requests.
+"""
+
+
+def notify_trial_request(request):
+    to_email = (
+        os.getenv("NEXAFLOW_SALES_EMAIL")
+        or os.getenv("SALES_EMAIL")
+        or os.getenv("ADMIN_EMAIL")
+        or os.getenv("FROM_EMAIL")
+    )
+    if not to_email:
+        return {"status": "skipped", "provider": "none", "reason": "Sales email is not configured."}
+    return send_resend_email(
+        to_email,
+        f"New trial request: {request['business_name']}",
+        trial_request_notification_email(request),
+    )
+
+
+def create_trial_request(req):
+    if not req.pdpa_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="Consent is required to contact you about the NexaFlow Enquiry trial.",
+        )
+    enforce_enquiry_rate_limit("trial-request", req.whatsapp_phone, limit=3, window_seconds=3600)
+
+    timestamp = now_iso()
+    with db_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO trial_requests (
+                business_name, contact_name, contact_email, whatsapp_phone, business_type,
+                city, monthly_enquiries, message, pdpa_consent, consent_at, status,
+                internal_note, notification_status, notification_error, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', '', ?, ?, ?, ?)
+            """,
+            (
+                req.business_name.strip(),
+                req.contact_name.strip(),
+                normalize_email(req.contact_email),
+                req.whatsapp_phone.strip(),
+                req.business_type.strip() or "service business",
+                req.city.strip(),
+                req.monthly_enquiries.strip(),
+                req.message.strip(),
+                1,
+                timestamp,
+                None,
+                None,
+                timestamp,
+                timestamp,
+            ),
+        )
+        row = connection.execute(
+            "SELECT * FROM trial_requests WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+
+    trial_request = row_to_trial_request(row)
+    delivery = notify_trial_request(trial_request)
+    status = delivery.get("status")
+    error = delivery.get("error") or delivery.get("reason")
+    with db_connection() as connection:
+        connection.execute(
+            "UPDATE trial_requests SET notification_status = ?, notification_error = ?, updated_at = ? WHERE id = ?",
+            (status, error, now_iso(), trial_request["id"]),
+        )
+        updated = connection.execute(
+            "SELECT * FROM trial_requests WHERE id = ?",
+            (trial_request["id"],),
+        ).fetchone()
+    return row_to_trial_request(updated)
+
+
+def list_trial_requests(status=None, limit=100):
+    query = "SELECT * FROM trial_requests"
+    params = []
+    if status:
+        query += " WHERE status = ?"
+        params.append(status)
+    query += " ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+    with db_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+    return [row_to_trial_request(row) for row in rows]
+
+
+def update_trial_request_status(request_id, req):
+    timestamp = now_iso()
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM trial_requests WHERE id = ?",
+            (request_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Trial request not found")
+        note = req.internal_note.strip() if req.internal_note is not None else (row["internal_note"] or "")
+        connection.execute(
+            "UPDATE trial_requests SET status = ?, internal_note = ?, updated_at = ? WHERE id = ?",
+            (req.status, note, timestamp, request_id),
+        )
+        updated = connection.execute(
+            "SELECT * FROM trial_requests WHERE id = ?",
+            (request_id,),
+        ).fetchone()
+    return row_to_trial_request(updated)
 
 
 def extract_bearer_token(authorization):
@@ -5231,7 +5437,7 @@ def enquiry_app_page():
                     <li><span data-lang="en">AI reply drafts</span><span data-lang="zh" class="lang-hidden">AI 回复草稿</span></li>
                     <li><span data-lang="en">Manual onboarding support</span><span data-lang="zh" class="lang-hidden">人工协助开通</span></li>
                 </ul>
-                <a class="btn" target="_blank" rel="noopener" href="/contact-trial"><span data-lang="en">Request Trial</span><span data-lang="zh" class="lang-hidden">申请试用</span></a>
+                <a class="btn" href="/start-trial"><span data-lang="en">Request Trial</span><span data-lang="zh" class="lang-hidden">申请试用</span></a>
             </div>
             <div class="price-card">
                 <h3>Starter</h3>
@@ -5366,6 +5572,105 @@ def contact_trial():
     if not url:
         raise HTTPException(status_code=503, detail="Sales WhatsApp contact is not configured.")
     return RedirectResponse(url)
+
+
+@app.get("/start-trial", response_class=HTMLResponse)
+def start_trial_page():
+    whatsapp_url = sales_whatsapp_url("Hi NexaFlow, I submitted the trial request form and want to start the 30-day trial")
+    whatsapp_action = (
+        f'<a class="btn secondary" target="_blank" rel="noopener" href="{escape_html(whatsapp_url)}">WhatsApp after submit</a>'
+        if whatsapp_url
+        else ""
+    )
+    return merchant_html(
+        "Start NexaFlow Enquiry Trial",
+        "NexaFlow Trial",
+        f"""
+        <section class="hero compact">
+            <div>
+                <div class="eyebrow">30-day trial</div>
+                <h1>Start your AI WhatsApp enquiry inbox.</h1>
+                <p class="lead">Tell us about your business. We will help set up your enquiry link, private inbox, and WhatsApp follow-up flow.</p>
+                <div class="actions">
+                    <a class="btn secondary" href="/ai-enquiry">View product</a>
+                    {whatsapp_action}
+                </div>
+            </div>
+        </section>
+        <section class="admin-split">
+            <div class="form-card">
+                <h2>Trial request</h2>
+                <p>Best for local service businesses that receive enquiries through WhatsApp, Facebook, Instagram, referrals, or Google Business Profile.</p>
+                <label>Business name<input id="trialBusinessName" placeholder="ABC Renovation"></label>
+                <label>Your name<input id="trialContactName" placeholder="Alex Tan"></label>
+                <label>Email<input id="trialEmail" type="email" placeholder="you@example.com"></label>
+                <label>WhatsApp phone<input id="trialWhatsapp" placeholder="+65 9123 4567"></label>
+                <label>Business type<input id="trialType" placeholder="Renovation, beauty, cleaning, repair..."></label>
+                <label>City / Area<input id="trialCity" placeholder="Singapore, KL, JB..."></label>
+                <label>Monthly enquiries
+                    <select id="trialVolume">
+                        <option value="1-30">1-30</option>
+                        <option value="31-100">31-100</option>
+                        <option value="101-500">101-500</option>
+                        <option value="500+">500+</option>
+                        <option value="not sure">Not sure</option>
+                    </select>
+                </label>
+                <label>What do you want NexaFlow to help with?<textarea id="trialMessage" rows="4" placeholder="Example: We get WhatsApp enquiries but often forget follow-up."></textarea></label>
+                <label><input id="trialConsent" type="checkbox"> I agree that NexaFlow may collect and use this information to contact me about the trial, setup, support, and service follow-up. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
+                <div class="actions">
+                    <button class="btn" onclick="submitTrialRequest()">Submit trial request</button>
+                </div>
+                <div class="status" id="trialStatus">Submit this form first. We will follow up with setup steps.</div>
+            </div>
+            <div class="grid">
+                <div class="card accent-card"><h3>What happens next</h3><p>We check your business details, prepare the enquiry inbox, and send you the link and access key.</p></div>
+                <div class="card"><h3>No website needed</h3><p>You can share one enquiry link on WhatsApp, Facebook, Instagram, Google Business Profile, or your bio link.</p></div>
+                <div class="card"><h3>Privacy first</h3><p>Customer enquiries are kept inside a private merchant inbox and should only be used for service follow-up.</p></div>
+            </div>
+        </section>
+        <script>
+            function escapeHtml(value) {{
+                return String(value ?? "").replace(/[&<>"']/g, char => ({{
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }}[char]));
+            }}
+            async function submitTrialRequest() {{
+                const status = document.getElementById("trialStatus");
+                status.textContent = "Submitting trial request...";
+                try {{
+                    const response = await fetch("/apps/enquiry/api/trial-requests", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            business_name: document.getElementById("trialBusinessName").value,
+                            contact_name: document.getElementById("trialContactName").value,
+                            contact_email: document.getElementById("trialEmail").value,
+                            whatsapp_phone: document.getElementById("trialWhatsapp").value,
+                            business_type: document.getElementById("trialType").value,
+                            city: document.getElementById("trialCity").value,
+                            monthly_enquiries: document.getElementById("trialVolume").value,
+                            message: document.getElementById("trialMessage").value,
+                            pdpa_consent: document.getElementById("trialConsent").checked
+                        }})
+                    }});
+                    const result = await response.json();
+                    if (!response.ok) {{
+                        throw new Error(result.detail || JSON.stringify(result));
+                    }}
+                    status.innerHTML = `Received. Trial request #${{escapeHtml(result.id)}} is recorded. We will contact you on WhatsApp.`;
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+        </script>
+        """,
+        show_sales_contact=True,
+    )
 
 
 @app.get("/enquiry/{business_slug}", response_class=HTMLResponse)
@@ -6079,6 +6384,20 @@ def enquiry_admin_page():
         </section>
         <div class="section-head">
             <div>
+                <h2>Trial requests</h2>
+                <p>Follow up with merchants who requested the 30-day trial from the product page.</p>
+            </div>
+            <button class="btn" onclick="loadTrialRequests()">Load Trial Requests</button>
+        </div>
+        <div class="status" id="trialRequestStatus">Enter admin key above to load trial requests.</div>
+        <table>
+            <thead>
+                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Message</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody id="trialRequestRows"></tbody>
+        </table>
+        <div class="section-head">
+            <div>
                 <h2>All enquiries</h2>
                 <p>Owner view across every merchant profile.</p>
             </div>
@@ -6188,6 +6507,47 @@ def enquiry_admin_page():
                     await loadInbox();
                 } catch (error) {
                     document.getElementById("inboxStatus").textContent = error.message;
+                }
+            }
+            async function setTrialStatus(id, nextStatus) {
+                const status = document.getElementById("trialRequestStatus");
+                try {
+                    await adminApi(`/apps/enquiry/api/trial-requests/${id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: nextStatus })
+                    });
+                    await loadTrialRequests();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+            async function loadTrialRequests() {
+                const status = document.getElementById("trialRequestStatus");
+                status.textContent = "Loading trial requests...";
+                try {
+                    const data = await adminApi("/apps/enquiry/api/trial-requests?limit=100");
+                    document.getElementById("trialRequestRows").innerHTML = data.trial_requests.map(item => `
+                        <tr>
+                            <td>${escapeHtml(item.created_at)}</td>
+                            <td>${escapeHtml(item.business_name)}<br>${escapeHtml(item.city || "")}</td>
+                            <td>${escapeHtml(item.contact_name)}<br>${escapeHtml(item.whatsapp_phone)}<br>${escapeHtml(item.contact_email || "")}</td>
+                            <td>${escapeHtml(item.business_type || "")}</td>
+                            <td>${escapeHtml(item.monthly_enquiries || "")}</td>
+                            <td>${escapeHtml(item.message || "")}</td>
+                            <td>${escapeHtml(item.status)}</td>
+                            <td>
+                                ${item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.whatsapp_url)}">WhatsApp</a>` : ""}
+                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'contacted')">Contacted</button>
+                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'trial_setup')">Trial Setup</button>
+                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'won')">Won</button>
+                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'lost')">Lost</button>
+                            </td>
+                        </tr>
+                    `).join("");
+                    status.textContent = `Loaded ${data.trial_requests.length} trial requests.`;
+                } catch (error) {
+                    status.textContent = error.message;
                 }
             }
             async function loadInbox() {
@@ -7221,6 +7581,42 @@ def admin_action_items(admin_key: str | None = None, x_admin_key: str | None = H
 @app.post("/apps/enquiry/api/enquiries")
 def create_enquiry(req: EnquiryCreateRequest):
     return public_enquiry_response(create_enquiry_record(req))
+
+
+@app.post("/apps/enquiry/api/trial-requests")
+def submit_trial_request(req: TrialRequestCreate):
+    trial_request = create_trial_request(req)
+    return {
+        "id": trial_request["id"],
+        "business_name": trial_request["business_name"],
+        "status": trial_request["status"],
+        "created_at": trial_request["created_at"],
+        "message": "Trial request received. NexaFlow will follow up for setup.",
+    }
+
+
+@app.get("/apps/enquiry/api/trial-requests")
+def get_trial_requests(
+    status: str | None = Query(default=None, pattern="^(new|contacted|trial_setup|won|lost|spam)$"),
+    limit: int = Query(default=100, ge=1, le=500),
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return {
+        "trial_requests": list_trial_requests(status=status, limit=limit),
+    }
+
+
+@app.patch("/apps/enquiry/api/trial-requests/{request_id}")
+def patch_trial_request(
+    request_id: int,
+    req: TrialRequestUpdate,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return update_trial_request_status(request_id, req)
 
 
 @app.post("/apps/enquiry/api/business-profiles")

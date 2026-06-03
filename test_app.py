@@ -96,6 +96,7 @@ def test_enquiry_app_pages_load():
     assert "Merchant Login" in public_page.text
     assert "Start with a 30-day trial" in public_page.text
     assert "SGD 19" in public_page.text
+    assert "/start-trial" in public_page.text
     assert "WhatsApp Us" in public_page.text
     assert "wa.me" in public_page.text
     assert "/assets/brand/nexaflow-final.png" in public_page.text
@@ -114,6 +115,8 @@ def test_enquiry_app_pages_load():
     assert admin_page.status_code == 200
     assert "loadInbox" in admin_page.text
     assert "saveProfile" in admin_page.text
+    assert "Trial requests" in admin_page.text
+    assert "loadTrialRequests" in admin_page.text
     assert "/admin/dashboard" not in admin_page.text
     assert legacy_public_page.status_code == 200
     assert legacy_admin_page.status_code == 200
@@ -122,6 +125,67 @@ def test_enquiry_app_pages_load():
     assert trial_contact.status_code in {302, 307}
     assert "wa.me" in trial_contact.headers["location"]
     assert "30-day" in trial_contact.headers["location"]
+
+    trial_page = client.get("/start-trial")
+    assert trial_page.status_code == 200
+    assert "Start your AI WhatsApp enquiry inbox" in trial_page.text
+    assert "submitTrialRequest" in trial_page.text
+
+
+def test_trial_request_flow():
+    suffix = uuid.uuid4().hex[:8]
+    missing_consent = client.post(
+        "/apps/enquiry/api/trial-requests",
+        json={
+            "business_name": f"Trial Biz {suffix}",
+            "contact_name": "Alex Trial",
+            "whatsapp_phone": f"6599{suffix[:4]}",
+            "business_type": "renovation",
+            "pdpa_consent": False,
+        },
+    )
+    assert missing_consent.status_code == 400
+
+    create = client.post(
+        "/apps/enquiry/api/trial-requests",
+        json={
+            "business_name": f"Trial Biz {suffix}",
+            "contact_name": "Alex Trial",
+            "contact_email": f"trial-{suffix}@example.com",
+            "whatsapp_phone": f"6598{suffix[:4]}",
+            "business_type": "renovation",
+            "city": "Singapore",
+            "monthly_enquiries": "31-100",
+            "message": "We receive WhatsApp enquiries and need follow-up help.",
+            "pdpa_consent": True,
+        },
+    )
+    assert create.status_code == 200
+    created = create.json()
+    assert created["business_name"] == f"Trial Biz {suffix}"
+    assert created["status"] == "new"
+
+    blocked = client.get("/apps/enquiry/api/trial-requests")
+    assert blocked.status_code in {401, 403}
+
+    listed = client.get(
+        "/apps/enquiry/api/trial-requests",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert listed.status_code == 200
+    matching = [item for item in listed.json()["trial_requests"] if item["id"] == created["id"]]
+    assert matching
+    assert matching[0]["contact_email"] == f"trial-{suffix}@example.com"
+    assert matching[0]["whatsapp_url"].startswith("https://wa.me/")
+
+    updated = client.patch(
+        f"/apps/enquiry/api/trial-requests/{created['id']}",
+        json={"status": "contacted", "internal_note": "Sent setup checklist."},
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "contacted"
+    assert updated.json()["internal_note"] == "Sent setup checklist."
 
 
 def test_business_profile_create_and_public_form_loads():
