@@ -2672,6 +2672,52 @@ def update_trial_request_status(request_id, req):
     return row_to_trial_request(updated)
 
 
+def trial_request_to_business_profile(request_id):
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM trial_requests WHERE id = ?",
+            (request_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Trial request not found")
+
+        base_slug = normalize_slug(row["business_name"])
+        slug = base_slug
+        if connection.execute("SELECT slug FROM business_profiles WHERE slug = ?", (slug,)).fetchone():
+            slug = normalize_slug(f"{base_slug}-{request_id}")
+
+    profile = upsert_business_profile(
+        BusinessProfileRequest(
+            slug=slug,
+            business_name=row["business_name"],
+            business_type=row["business_type"] or "service business",
+            whatsapp_phone=row["whatsapp_phone"],
+            contact_email=row["contact_email"],
+            offer_summary=(
+                row["message"]
+                or f"{row['business_name']} customer enquiries and WhatsApp follow-up."
+            ),
+            reply_tone="friendly and professional",
+            opening_hours="",
+            status="active",
+            rotate_access_key=True,
+        )
+    )
+
+    updated_request = update_trial_request_status(
+        request_id,
+        TrialRequestUpdate(
+            status="trial_setup",
+            internal_note=f"Business profile created: {profile['slug']}",
+        ),
+    )
+    return {
+        "trial_request": updated_request,
+        "profile": profile,
+        "message": "Business profile and merchant inbox created from trial request.",
+    }
+
+
 def extract_bearer_token(authorization):
     if not authorization:
         return None
@@ -6522,6 +6568,26 @@ def enquiry_admin_page():
                     status.textContent = error.message;
                 }
             }
+            async function createInboxFromTrial(id) {
+                const status = document.getElementById("trialRequestStatus");
+                status.textContent = "Creating merchant inbox from trial request...";
+                try {
+                    const result = await adminApi(`/apps/enquiry/api/trial-requests/${id}/create-profile`, {
+                        method: "POST"
+                    });
+                    const profile = result.profile;
+                    status.innerHTML = `
+                        Created inbox for ${escapeHtml(profile.business_name)}.
+                        Form: <a target="_blank" href="${escapeHtml(profile.form_url)}">${escapeHtml(profile.form_url)}</a>.
+                        Inbox: <a target="_blank" href="${escapeHtml(profile.inbox_url)}">${escapeHtml(profile.inbox_url)}</a>.
+                        Access key: <strong>${escapeHtml(profile.business_access_key || "not rotated")}</strong>
+                    `;
+                    await loadTrialRequests();
+                    await loadProfiles();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
             async function loadTrialRequests() {
                 const status = document.getElementById("trialRequestStatus");
                 status.textContent = "Loading trial requests...";
@@ -6538,6 +6604,7 @@ def enquiry_admin_page():
                             <td>${escapeHtml(item.status)}</td>
                             <td>
                                 ${item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.whatsapp_url)}">WhatsApp</a>` : ""}
+                                <button class="btn secondary" onclick="createInboxFromTrial(${item.id})">Create Inbox</button>
                                 <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'contacted')">Contacted</button>
                                 <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'trial_setup')">Trial Setup</button>
                                 <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'won')">Won</button>
@@ -7617,6 +7684,16 @@ def patch_trial_request(
 ):
     admin_guard(admin_key, x_admin_key)
     return update_trial_request_status(request_id, req)
+
+
+@app.post("/apps/enquiry/api/trial-requests/{request_id}/create-profile")
+def create_profile_from_trial_request(
+    request_id: int,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return trial_request_to_business_profile(request_id)
 
 
 @app.post("/apps/enquiry/api/business-profiles")

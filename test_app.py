@@ -117,6 +117,7 @@ def test_enquiry_app_pages_load():
     assert "saveProfile" in admin_page.text
     assert "Trial requests" in admin_page.text
     assert "loadTrialRequests" in admin_page.text
+    assert "createInboxFromTrial" in admin_page.text
     assert "/admin/dashboard" not in admin_page.text
     assert legacy_public_page.status_code == 200
     assert legacy_admin_page.status_code == 200
@@ -186,6 +187,18 @@ def test_trial_request_flow():
     assert updated.status_code == 200
     assert updated.json()["status"] == "contacted"
     assert updated.json()["internal_note"] == "Sent setup checklist."
+
+    profile = client.post(
+        f"/apps/enquiry/api/trial-requests/{created['id']}/create-profile",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    payload = profile.json()
+    assert payload["trial_request"]["status"] == "trial_setup"
+    assert payload["profile"]["business_name"] == f"Trial Biz {suffix}"
+    assert payload["profile"]["business_access_key"].startswith("biz_")
+    assert payload["profile"]["form_url"].startswith("/enquiry/")
+    assert payload["profile"]["inbox_url"].startswith("/inbox/")
 
 
 def test_business_profile_create_and_public_form_loads():
