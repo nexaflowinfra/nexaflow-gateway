@@ -4391,6 +4391,99 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .setup-step strong {{ display: block; color: var(--ink); margin-bottom: 6px; }}
                 .setup-step span {{ color: var(--muted); font-size: 13px; }}
+                .action-center {{
+                    display: grid;
+                    grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+                    gap: 14px;
+                    margin: 18px 0;
+                }}
+                .action-card {{
+                    border: 1px solid rgba(243,199,106,.42);
+                    border-radius: 8px;
+                    padding: 18px;
+                    background:
+                        linear-gradient(135deg, rgba(243,199,106,.11), rgba(45,212,191,.055)),
+                        var(--surface);
+                }}
+                .action-card h3 {{ margin-bottom: 6px; }}
+                .action-list {{
+                    display: grid;
+                    gap: 10px;
+                    margin-top: 12px;
+                }}
+                .action-item {{
+                    display: grid;
+                    grid-template-columns: 28px 1fr;
+                    gap: 10px;
+                    align-items: start;
+                    color: var(--muted);
+                    font-size: 14px;
+                }}
+                .action-item strong {{
+                    display: block;
+                    color: var(--ink);
+                    margin-bottom: 2px;
+                }}
+                .action-dot {{
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 999px;
+                    display: inline-grid;
+                    place-items: center;
+                    color: #000000;
+                    background: linear-gradient(135deg, var(--gold), #ffffff);
+                    font-size: 13px;
+                    font-weight: 900;
+                }}
+                .pipeline-board {{
+                    display: grid;
+                    grid-template-columns: repeat(5, minmax(0, 1fr));
+                    gap: 10px;
+                    margin: 14px 0 18px;
+                }}
+                .stage-card {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background: var(--surface);
+                    padding: 13px;
+                    min-height: 96px;
+                }}
+                .stage-card strong {{
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 8px;
+                    color: var(--ink);
+                    margin-bottom: 8px;
+                }}
+                .stage-card span {{
+                    color: var(--muted);
+                    font-size: 12px;
+                }}
+                .lead-badges {{
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                    margin-top: 8px;
+                }}
+                .lead-badge {{
+                    display: inline-flex;
+                    align-items: center;
+                    border-radius: 999px;
+                    border: 1px solid var(--line);
+                    padding: 3px 8px;
+                    color: var(--muted);
+                    font-size: 12px;
+                    font-weight: 700;
+                    background: rgba(255,255,255,.03);
+                }}
+                .lead-badge.hot {{ color: #ffffff; border-color: rgba(243,199,106,.5); background: rgba(243,199,106,.12); }}
+                .next-action {{
+                    display: block;
+                    margin-top: 8px;
+                    color: var(--brand-strong);
+                    font-size: 12px;
+                    font-weight: 800;
+                }}
                 details.form-card summary {{
                     cursor: pointer;
                     color: var(--ink);
@@ -4464,7 +4557,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
@@ -5452,7 +5545,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 <p>Prioritize hot leads first, then mark each one as contacted, quoted, won, or lost.</p>
             </div>
         </div>
+        <section class="action-center" id="merchantActionCenter"></section>
         <section class="grid" id="merchantStats"></section>
+        <section class="pipeline-board" id="merchantPipelineBoard"></section>
         <section class="form-card">
             <div class="toolbar">
                 <label>Status
@@ -5647,6 +5742,88 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 document.getElementById("filterSearch").value = "";
                 loadMerchantInbox();
             }}
+            function formatMoney(value) {{
+                return Number(value || 0).toLocaleString(undefined, {{ maximumFractionDigits: 0 }});
+            }}
+            function statusLabel(value) {{
+                return {{
+                    new: "New",
+                    contacted: "Contacted",
+                    quoted: "Quoted",
+                    won: "Won",
+                    lost: "Lost",
+                    spam: "Spam"
+                }}[value] || value || "Unknown";
+            }}
+            function chooseNextAction(item) {{
+                if (item.status === "new" && item.priority === "hot") return "Reply now and mark Contacted";
+                if (item.status === "new") return "Send first WhatsApp reply";
+                if (item.status === "contacted") return "Set follow-up date or mark Quoted";
+                if (item.status === "quoted") return "Follow up and close Won/Lost";
+                if (item.follow_up_at) return "Review scheduled follow-up";
+                return "Add note and next follow-up";
+            }}
+            function isDueFollowUp(item) {{
+                if (!item.follow_up_at || ["won", "lost", "spam"].includes(item.status)) return false;
+                const due = new Date(item.follow_up_at.slice(0, 10) + "T00:00:00");
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return !Number.isNaN(due.getTime()) && due <= today;
+            }}
+            function renderActionCenter(data) {{
+                const stats = data.stats || {{}};
+                const leads = data.enquiries || [];
+                const due = stats.due_followups || 0;
+                const hot = (stats.by_priority || {{}}).hot || 0;
+                const newCount = (stats.by_status || {{}}).new || 0;
+                const quoted = (stats.by_status || {{}}).quoted || 0;
+                const topLead = leads.find(isDueFollowUp) || leads.find(item => item.priority === "hot" && item.status !== "won" && item.status !== "lost") || leads.find(item => item.status === "new");
+                const firstAction = due > 0
+                    ? ["Follow up due leads", `${{due}} lead(s) need attention today.`]
+                    : hot > 0
+                        ? ["Reply to hot leads", `${{hot}} hot lead(s) should be contacted first.`]
+                        : newCount > 0
+                            ? ["Contact new leads", `${{newCount}} new lead(s) are waiting for first reply.`]
+                            : ["Keep pipeline updated", "No urgent leads. Review quoted leads and close won/lost."];
+                document.getElementById("merchantActionCenter").innerHTML = `
+                    <div class="action-card">
+                        <h3>Today&apos;s best action</h3>
+                        <p>${{escapeHtml(firstAction[1])}}</p>
+                        <div class="action-list">
+                            <div class="action-item"><span class="action-dot">1</span><div><strong>${{escapeHtml(firstAction[0])}}</strong><span>${{topLead ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.` : "Share your enquiry link and wait for new submissions."}}</span></div></div>
+                            <div class="action-item"><span class="action-dot">2</span><div><strong>Save lead details</strong><span>Add follow-up date, note, and estimated deal value after every customer reply.</span></div></div>
+                            <div class="action-item"><span class="action-dot">3</span><div><strong>Close the loop</strong><span>Move quoted leads to Won or Lost so your pipeline stays clean.</span></div></div>
+                        </div>
+                    </div>
+                    <div class="action-card">
+                        <h3>Trial readiness</h3>
+                        <p>Use this checklist before sending the link to real customers.</p>
+                        <div class="lead-badges">
+                            <span class="lead-badge">Business settings</span>
+                            <span class="lead-badge">Customer link copied</span>
+                            <span class="lead-badge">WhatsApp tested</span>
+                            <span class="lead-badge">Follow-up date used</span>
+                        </div>
+                        <span class="next-action">Goal: get 3-5 real enquiries during trial week one.</span>
+                    </div>
+                `;
+            }}
+            function renderPipelineBoard(stats) {{
+                const byStatus = (stats || {{}}).by_status || {{}};
+                const stages = [
+                    ["new", "First reply needed"],
+                    ["contacted", "Waiting for customer"],
+                    ["quoted", "Follow up to close"],
+                    ["won", "Revenue captured"],
+                    ["lost", "Learn and archive"]
+                ];
+                document.getElementById("merchantPipelineBoard").innerHTML = stages.map(([key, hint]) => `
+                    <div class="stage-card">
+                        <strong>${{statusLabel(key)}} <span>${{byStatus[key] || 0}}</span></strong>
+                        <span>${{hint}}</span>
+                    </div>
+                `).join("");
+            }}
             async function setMerchantStatus(id, status) {{
                 try {{
                     await merchantApi(`/apps/enquiry/api/merchant/enquiries/${{id}}?business_slug=${{businessSlug}}`, {{
@@ -5699,9 +5876,11 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     document.getElementById("merchantStats").innerHTML = `
                         <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
                         <section class="card"><h3>Hot</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
-                        <section class="card"><h3>Pipeline Value</h3><div class="price">${{Number(stats.pipeline_value || 0).toLocaleString()}}</div></section>
+                        <section class="card"><h3>Pipeline Value</h3><div class="price">${{formatMoney(stats.pipeline_value)}}</div></section>
                         <section class="card"><h3>Due Follow-ups</h3><div class="price">${{stats.due_followups || 0}}</div></section>
                     `;
+                    renderActionCenter(data);
+                    renderPipelineBoard(stats);
                     document.getElementById("merchantRows").innerHTML = data.enquiries.map(item => `
                         <tr>
                             <td>${{escapeHtml(item.created_at)}}</td>
@@ -5714,9 +5893,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <td><input id="deal-value-${{item.id}}" type="number" min="0" step="0.01" value="${{item.deal_value ?? ""}}" placeholder="0"></td>
                             <td>
                                 <textarea id="note-${{item.id}}" placeholder="Internal follow-up note">${{escapeHtml(item.internal_note || "")}}</textarea>
+                                <span class="next-action">${{escapeHtml(chooseNextAction(item))}}</span>
                                 <button class="btn secondary" onclick="saveMerchantNote(${{item.id}})">Save Details</button>
                             </td>
-                            <td>${{escapeHtml(item.status)}}</td>
+                            <td><span class="lead-badge ${{item.priority === "hot" ? "hot" : ""}}">${{escapeHtml(statusLabel(item.status))}}</span></td>
                             <td>
                                 ${{item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${{escapeHtml(item.whatsapp_url)}}">WhatsApp</a>` : ""}}
                                 <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">Contacted</button>

@@ -585,6 +585,30 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
     assert all(item["id"] != lead_one.json()["id"] for item in after_delete.json()["enquiries"])
 
 
+def test_merchant_inbox_includes_action_center_and_pipeline_board():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"inbox-ui-{suffix}"
+    create = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Inbox UI Merchant",
+            "business_type": "renovation",
+            "whatsapp_phone": "6591110000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+
+    response = client.get(f"/inbox/{slug}")
+    assert response.status_code == 200
+    assert "merchantActionCenter" in response.text
+    assert "merchantPipelineBoard" in response.text
+    assert "Today&apos;s best action" in response.text
+    assert "Trial readiness" in response.text
+    assert "chooseNextAction" in response.text
+
+
 def test_merchant_can_update_own_business_settings_only():
     suffix = uuid.uuid4().hex[:8]
     slug_one = f"settings-one-{suffix}"
