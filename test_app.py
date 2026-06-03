@@ -118,6 +118,7 @@ def test_enquiry_app_pages_load():
     assert "Trial requests" in admin_page.text
     assert "loadTrialRequests" in admin_page.text
     assert "createInboxFromTrial" in admin_page.text
+    assert "Send Setup WhatsApp" in admin_page.text
     assert "/admin/dashboard" not in admin_page.text
     assert legacy_public_page.status_code == 200
     assert legacy_admin_page.status_code == 200
@@ -199,6 +200,10 @@ def test_trial_request_flow():
     assert payload["profile"]["business_access_key"].startswith("biz_")
     assert payload["profile"]["form_url"].startswith("/enquiry/")
     assert payload["profile"]["inbox_url"].startswith("/inbox/")
+    assert "Customer enquiry link" in payload["onboarding_message"]
+    assert payload["profile"]["business_access_key"] in payload["onboarding_message"]
+    assert payload["onboarding_whatsapp_url"].startswith("https://wa.me/")
+    assert "Business%20access%20key" in payload["onboarding_whatsapp_url"]
 
 
 def test_business_profile_create_and_public_form_loads():

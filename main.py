@@ -2494,6 +2494,30 @@ Keep this access key private. If it is exposed or lost, ask the NexaFlow operato
 """
 
 
+def merchant_onboarding_whatsapp_message(profile, access_key):
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    form_url = f"{site_url}{profile['form_url']}"
+    inbox_url = f"{site_url}{profile['inbox_url']}"
+    return f"""Hi {profile['business_name']}, your NexaFlow Enquiry 30-day trial inbox is ready.
+
+Customer enquiry link:
+{form_url}
+
+Private merchant inbox:
+{inbox_url}
+
+Business access key:
+{access_key}
+
+Simple setup:
+1. Open the private inbox.
+2. Paste the access key and load leads.
+3. Share the enquiry link on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.
+4. When a lead arrives, follow up from the inbox and update the status.
+
+Please keep the access key private because it protects your customer enquiry data."""
+
+
 def send_business_onboarding(slug, owner_client_id=None):
     profile = rotate_business_access_key(slug, owner_client_id=owner_client_id)
     if not profile.get("contact_email"):
@@ -2711,9 +2735,15 @@ def trial_request_to_business_profile(request_id):
             internal_note=f"Business profile created: {profile['slug']}",
         ),
     )
+    onboarding_message = merchant_onboarding_whatsapp_message(
+        profile,
+        profile["business_access_key"],
+    )
     return {
         "trial_request": updated_request,
         "profile": profile,
+        "onboarding_message": onboarding_message,
+        "onboarding_whatsapp_url": whatsapp_url_for_phone(row["whatsapp_phone"], onboarding_message),
         "message": "Business profile and merchant inbox created from trial request.",
     }
 
@@ -4149,6 +4179,10 @@ def base_html(title, body):
 
 def sales_whatsapp_url(message="Hi NexaFlow, I want to know more about NexaFlow Enquiry"):
     phone = os.getenv("NEXAFLOW_SALES_WHATSAPP_PHONE") or os.getenv("NEXAFLOW_WHATSAPP_PHONE") or "60176731323"
+    return whatsapp_url_for_phone(phone, message)
+
+
+def whatsapp_url_for_phone(phone, message):
     digits = normalize_phone_for_whatsapp(phone)
     if not digits:
         return None
@@ -4612,6 +4646,19 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     padding: 12px;
                     min-height: 46px;
                     color: var(--muted);
+                    font-size: 13px;
+                }}
+                pre {{
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    background: #050505;
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 12px;
+                    max-height: 320px;
+                    overflow: auto;
+                    color: var(--muted);
+                    font-family: Consolas, Menlo, monospace;
                     font-size: 13px;
                 }}
                 .price {{
@@ -6581,6 +6628,8 @@ def enquiry_admin_page():
                         Form: <a target="_blank" href="${escapeHtml(profile.form_url)}">${escapeHtml(profile.form_url)}</a>.
                         Inbox: <a target="_blank" href="${escapeHtml(profile.inbox_url)}">${escapeHtml(profile.inbox_url)}</a>.
                         Access key: <strong>${escapeHtml(profile.business_access_key || "not rotated")}</strong>
+                        ${result.onboarding_whatsapp_url ? `<br><a class="btn secondary" target="_blank" href="${escapeHtml(result.onboarding_whatsapp_url)}">Send Setup WhatsApp</a>` : ""}
+                        <pre>${escapeHtml(result.onboarding_message || "")}</pre>
                     `;
                     await loadTrialRequests();
                     await loadProfiles();
