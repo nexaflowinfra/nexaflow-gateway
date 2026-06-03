@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from hashlib import sha256
 from html import escape as escape_html
 from math import ceil
@@ -780,6 +780,8 @@ def init_db():
                 internal_note TEXT,
                 notification_status TEXT,
                 notification_error TEXT,
+                trial_started_at TEXT,
+                trial_ends_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -791,6 +793,8 @@ def init_db():
         ensure_column(connection, "trial_requests", "internal_note", "TEXT")
         ensure_column(connection, "trial_requests", "notification_status", "TEXT")
         ensure_column(connection, "trial_requests", "notification_error", "TEXT")
+        ensure_column(connection, "trial_requests", "trial_started_at", "TEXT")
+        ensure_column(connection, "trial_requests", "trial_ends_at", "TEXT")
 
 
 def migration_applied(connection, name):
@@ -2539,34 +2543,44 @@ def send_business_onboarding(slug, owner_client_id=None):
 def trial_request_followup_metadata(row):
     created = parse_log_timestamp(row["created_at"])
     updated = parse_log_timestamp(row["updated_at"])
+    trial_ends_at = parse_log_timestamp(row["trial_ends_at"]) if "trial_ends_at" in row.keys() else None
     now = datetime.now(timezone.utc)
     age_days = max(0, int((now - created).total_seconds() // 86400)) if created else 0
     untouched_days = max(0, int((now - updated).total_seconds() // 86400)) if updated else age_days
+    days_until_trial_end = (
+        int((trial_ends_at - now).total_seconds() // 86400) + 1
+        if trial_ends_at
+        else None
+    )
     status = row["status"]
 
     if status == "new":
         if age_days >= 1:
-            return age_days, "high", "Contact this merchant today and confirm trial fit."
-        return age_days, "medium", "Send first WhatsApp reply and ask for setup details."
+            return age_days, days_until_trial_end, "high", "Contact this merchant today and confirm trial fit."
+        return age_days, days_until_trial_end, "medium", "Send first WhatsApp reply and ask for setup details."
     if status == "contacted":
         if untouched_days >= 3:
-            return age_days, "medium", "Follow up and offer to create the merchant inbox."
-        return age_days, "low", "Wait for merchant response or prepare setup."
+            return age_days, days_until_trial_end, "medium", "Follow up and offer to create the merchant inbox."
+        return age_days, days_until_trial_end, "low", "Wait for merchant response or prepare setup."
     if status == "trial_setup":
-        if age_days >= 21:
-            return age_days, "high", "Ask for feedback and discuss paid plan before trial ends."
+        if days_until_trial_end is not None and days_until_trial_end <= 0:
+            return age_days, days_until_trial_end, "high", "Trial ended. Ask for feedback and offer paid plan."
+        if days_until_trial_end is not None and days_until_trial_end <= 7:
+            return age_days, days_until_trial_end, "high", "Trial ending soon. Ask for feedback and discuss paid plan."
+        if days_until_trial_end is not None and days_until_trial_end <= 14:
+            return age_days, days_until_trial_end, "medium", "Check usage and prepare conversion conversation."
         if age_days >= 7:
-            return age_days, "medium", "Check if the merchant has received real enquiries."
-        return age_days, "low", "Help merchant complete first test enquiry and share link."
+            return age_days, days_until_trial_end, "medium", "Check if the merchant has received real enquiries."
+        return age_days, days_until_trial_end, "low", "Help merchant complete first test enquiry and share link."
     if status == "won":
-        return age_days, "low", "Confirm payment, billing setup, and ongoing support."
+        return age_days, days_until_trial_end, "low", "Confirm payment, billing setup, and ongoing support."
     if status == "lost":
-        return age_days, "low", "Record reason and archive unless they ask to restart."
-    return age_days, "low", "No follow-up required."
+        return age_days, days_until_trial_end, "low", "Record reason and archive unless they ask to restart."
+    return age_days, days_until_trial_end, "low", "No follow-up required."
 
 
 def row_to_trial_request(row):
-    age_days, follow_up_priority, next_action = trial_request_followup_metadata(row)
+    age_days, days_until_trial_end, follow_up_priority, next_action = trial_request_followup_metadata(row)
     return {
         "id": row["id"],
         "business_name": row["business_name"],
@@ -2583,9 +2597,12 @@ def row_to_trial_request(row):
         "internal_note": row["internal_note"],
         "notification_status": row["notification_status"],
         "notification_error": row["notification_error"],
+        "trial_started_at": row["trial_started_at"] if "trial_started_at" in row.keys() else None,
+        "trial_ends_at": row["trial_ends_at"] if "trial_ends_at" in row.keys() else None,
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "age_days": age_days,
+        "days_until_trial_end": days_until_trial_end,
         "follow_up_priority": follow_up_priority,
         "next_action": next_action,
         "whatsapp_url": sales_whatsapp_url(
@@ -2717,6 +2734,13 @@ def trial_request_stats(requests):
         "won": sum(1 for item in requests if item["status"] == "won"),
         "lost": sum(1 for item in requests if item["status"] == "lost"),
         "urgent": sum(1 for item in requests if item["follow_up_priority"] == "high"),
+        "ending_soon": sum(
+            1
+            for item in requests
+            if item["status"] == "trial_setup"
+            and item["days_until_trial_end"] is not None
+            and item["days_until_trial_end"] <= 7
+        ),
     }
 
 
@@ -2772,6 +2796,14 @@ def trial_request_to_business_profile(request_id):
             rotate_access_key=True,
         )
     )
+
+    trial_started_at = now_iso()
+    trial_ends_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    with db_connection() as connection:
+        connection.execute(
+            "UPDATE trial_requests SET trial_started_at = ?, trial_ends_at = ?, updated_at = ? WHERE id = ?",
+            (trial_started_at, trial_ends_at, now_iso(), request_id),
+        )
 
     updated_request = update_trial_request_status(
         request_id,
@@ -6625,7 +6657,7 @@ def enquiry_admin_page():
         <section class="grid" id="trialRequestStats"></section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Message</th><th>Status</th><th>Age</th><th>Priority</th><th>Next action</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Message</th><th>Status</th><th>Age</th><th>Trial End</th><th>Priority</th><th>Next action</th><th>Action</th></tr>
             </thead>
             <tbody id="trialRequestRows"></tbody>
         </table>
@@ -6786,7 +6818,7 @@ def enquiry_admin_page():
                     document.getElementById("trialRequestStats").innerHTML = `
                         <section class="card"><h3>Total Trial Requests</h3><div class="price">${stats.total || 0}</div></section>
                         <section class="card"><h3>Urgent Follow-up</h3><div class="price">${stats.urgent || 0}</div></section>
-                        <section class="card"><h3>Trial Setup</h3><div class="price">${stats.trial_setup || 0}</div></section>
+                        <section class="card"><h3>Ending Soon</h3><div class="price">${stats.ending_soon || 0}</div></section>
                         <section class="card"><h3>Won</h3><div class="price">${stats.won || 0}</div></section>
                     `;
                     document.getElementById("trialRequestRows").innerHTML = data.trial_requests.map(item => `
@@ -6799,6 +6831,7 @@ def enquiry_admin_page():
                             <td>${escapeHtml(item.message || "")}</td>
                             <td>${escapeHtml(item.status)}</td>
                             <td>${escapeHtml(item.age_days)} day(s)</td>
+                            <td>${item.trial_ends_at ? `${escapeHtml(item.days_until_trial_end)} day(s)<br>${escapeHtml(item.trial_ends_at.slice(0, 10))}` : "not started"}</td>
                             <td><span class="lead-badge ${item.follow_up_priority === "high" ? "hot" : ""}">${escapeHtml(item.follow_up_priority)}</span></td>
                             <td>${escapeHtml(item.next_action || "")}</td>
                             <td>

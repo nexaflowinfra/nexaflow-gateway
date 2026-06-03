@@ -121,6 +121,8 @@ def test_enquiry_app_pages_load():
     assert "Send Setup WhatsApp" in admin_page.text
     assert "trialRequestStats" in admin_page.text
     assert "Urgent Follow-up" in admin_page.text
+    assert "Ending Soon" in admin_page.text
+    assert "Trial End" in admin_page.text
     assert "Next action" in admin_page.text
     assert "/admin/dashboard" not in admin_page.text
     assert legacy_public_page.status_code == 200
@@ -185,6 +187,7 @@ def test_trial_request_flow():
     assert matching[0]["contact_email"] == f"trial-{suffix}@example.com"
     assert matching[0]["whatsapp_url"].startswith("https://wa.me/")
     assert matching[0]["age_days"] >= 0
+    assert matching[0]["days_until_trial_end"] is None
     assert matching[0]["follow_up_priority"] in {"low", "medium", "high"}
     assert "WhatsApp" in matching[0]["next_action"] or "Contact" in matching[0]["next_action"]
 
@@ -204,6 +207,9 @@ def test_trial_request_flow():
     assert profile.status_code == 200
     payload = profile.json()
     assert payload["trial_request"]["status"] == "trial_setup"
+    assert payload["trial_request"]["trial_started_at"]
+    assert payload["trial_request"]["trial_ends_at"]
+    assert 29 <= payload["trial_request"]["days_until_trial_end"] <= 30
     assert payload["profile"]["business_name"] == f"Trial Biz {suffix}"
     assert payload["profile"]["business_access_key"].startswith("biz_")
     assert payload["profile"]["form_url"].startswith("/enquiry/")
@@ -212,6 +218,16 @@ def test_trial_request_flow():
     assert payload["profile"]["business_access_key"] in payload["onboarding_message"]
     assert payload["onboarding_whatsapp_url"].startswith("https://wa.me/")
     assert "Business%20access%20key" in payload["onboarding_whatsapp_url"]
+
+    listed_after_setup = client.get(
+        "/apps/enquiry/api/trial-requests",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    matching_after_setup = [
+        item for item in listed_after_setup.json()["trial_requests"] if item["id"] == created["id"]
+    ]
+    assert matching_after_setup[0]["trial_ends_at"]
+    assert "ending_soon" in listed_after_setup.json()["stats"]
 
 
 def test_business_profile_create_and_public_form_loads():
