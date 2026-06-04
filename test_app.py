@@ -137,6 +137,7 @@ def test_enquiry_app_pages_load():
     assert trial_page.status_code == 200
     assert "Start your AI WhatsApp enquiry inbox" in trial_page.text
     assert "submitTrialRequest" in trial_page.text
+    assert "trialLeadSource" in trial_page.text
 
 
 def test_trial_request_flow():
@@ -163,6 +164,9 @@ def test_trial_request_flow():
             "business_type": "renovation",
             "city": "Singapore",
             "monthly_enquiries": "31-100",
+            "lead_source": "gmail",
+            "campaign": "acra-batch-1",
+            "referrer": "https://www.linkedin.com/company/nexaflow",
             "message": "We receive WhatsApp enquiries and need follow-up help.",
             "pdpa_consent": True,
         },
@@ -171,6 +175,8 @@ def test_trial_request_flow():
     created = create.json()
     assert created["business_name"] == f"Trial Biz {suffix}"
     assert created["status"] == "new"
+    assert created["lead_source"] == "gmail"
+    assert created["campaign"] == "acra-batch-1"
 
     blocked = client.get("/apps/enquiry/api/trial-requests")
     assert blocked.status_code in {401, 403}
@@ -185,6 +191,9 @@ def test_trial_request_flow():
     matching = [item for item in listed.json()["trial_requests"] if item["id"] == created["id"]]
     assert matching
     assert matching[0]["contact_email"] == f"trial-{suffix}@example.com"
+    assert matching[0]["lead_source"] == "gmail"
+    assert matching[0]["campaign"] == "acra-batch-1"
+    assert matching[0]["referrer"] == "https://www.linkedin.com/company/nexaflow"
     assert matching[0]["whatsapp_url"].startswith("https://wa.me/")
     assert matching[0]["age_days"] >= 0
     assert matching[0]["days_until_trial_end"] is None

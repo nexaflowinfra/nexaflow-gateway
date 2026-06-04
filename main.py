@@ -255,6 +255,9 @@ class TrialRequestCreate(BaseModel):
     business_type: str = Field(default="service business", max_length=80)
     city: str = Field(default="", max_length=120)
     monthly_enquiries: str = Field(default="", max_length=80)
+    lead_source: str = Field(default="", max_length=80)
+    campaign: str = Field(default="", max_length=120)
+    referrer: str = Field(default="", max_length=300)
     message: str = Field(default="", max_length=1000)
     pdpa_consent: bool = False
 
@@ -773,6 +776,9 @@ def init_db():
                 business_type TEXT,
                 city TEXT,
                 monthly_enquiries TEXT,
+                lead_source TEXT,
+                campaign TEXT,
+                referrer TEXT,
                 message TEXT,
                 pdpa_consent INTEGER NOT NULL DEFAULT 0,
                 consent_at TEXT,
@@ -788,6 +794,9 @@ def init_db():
             """
         )
         ensure_column(connection, "trial_requests", "monthly_enquiries", "TEXT")
+        ensure_column(connection, "trial_requests", "lead_source", "TEXT")
+        ensure_column(connection, "trial_requests", "campaign", "TEXT")
+        ensure_column(connection, "trial_requests", "referrer", "TEXT")
         ensure_column(connection, "trial_requests", "pdpa_consent", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(connection, "trial_requests", "consent_at", "TEXT")
         ensure_column(connection, "trial_requests", "internal_note", "TEXT")
@@ -2590,6 +2599,9 @@ def row_to_trial_request(row):
         "business_type": row["business_type"],
         "city": row["city"],
         "monthly_enquiries": row["monthly_enquiries"],
+        "lead_source": row["lead_source"] if "lead_source" in row.keys() else "",
+        "campaign": row["campaign"] if "campaign" in row.keys() else "",
+        "referrer": row["referrer"] if "referrer" in row.keys() else "",
         "message": row["message"],
         "pdpa_consent": bool(row["pdpa_consent"]),
         "consent_at": row["consent_at"],
@@ -2631,6 +2643,15 @@ City:
 Monthly enquiries:
 {request.get('monthly_enquiries') or ''}
 
+Lead source:
+{request.get('lead_source') or 'unknown'}
+
+Campaign:
+{request.get('campaign') or ''}
+
+Referrer:
+{request.get('referrer') or ''}
+
 Message:
 {request.get('message') or ''}
 
@@ -2669,10 +2690,10 @@ def create_trial_request(req):
             """
             INSERT INTO trial_requests (
                 business_name, contact_name, contact_email, whatsapp_phone, business_type,
-                city, monthly_enquiries, message, pdpa_consent, consent_at, status,
+                city, monthly_enquiries, lead_source, campaign, referrer, message, pdpa_consent, consent_at, status,
                 internal_note, notification_status, notification_error, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', '', ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', '', ?, ?, ?, ?)
             """,
             (
                 req.business_name.strip(),
@@ -2682,6 +2703,9 @@ def create_trial_request(req):
                 req.business_type.strip() or "service business",
                 req.city.strip(),
                 req.monthly_enquiries.strip(),
+                req.lead_source.strip() or "direct",
+                req.campaign.strip(),
+                req.referrer.strip(),
                 req.message.strip(),
                 1,
                 timestamp,
@@ -5827,6 +5851,18 @@ def start_trial_page():
                         <option value="not sure">Not sure</option>
                     </select>
                 </label>
+                <label>How did you find NexaFlow?
+                    <select id="trialLeadSource">
+                        <option value="direct">Direct / not sure</option>
+                        <option value="gmail">Email invitation</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="referral">Referral</option>
+                    </select>
+                </label>
                 <label>What do you want NexaFlow to help with?<textarea id="trialMessage" rows="4" placeholder="Example: We get WhatsApp enquiries but often forget follow-up."></textarea></label>
                 <label><input id="trialConsent" type="checkbox"> I agree that NexaFlow may collect and use this information to contact me about the trial, setup, support, and service follow-up. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
                 <div class="actions">
@@ -5852,6 +5888,10 @@ def start_trial_page():
             }}
             async function submitTrialRequest() {{
                 const status = document.getElementById("trialStatus");
+                const params = new URLSearchParams(window.location.search);
+                const sourceFromUrl = params.get("source") || params.get("utm_source") || "";
+                const campaignFromUrl = params.get("campaign") || params.get("utm_campaign") || "";
+                const selectedSource = document.getElementById("trialLeadSource").value;
                 status.textContent = "Submitting trial request...";
                 try {{
                     const response = await fetch("/apps/enquiry/api/trial-requests", {{
@@ -5865,6 +5905,9 @@ def start_trial_page():
                             business_type: document.getElementById("trialType").value,
                             city: document.getElementById("trialCity").value,
                             monthly_enquiries: document.getElementById("trialVolume").value,
+                            lead_source: sourceFromUrl || selectedSource,
+                            campaign: campaignFromUrl,
+                            referrer: document.referrer || "",
                             message: document.getElementById("trialMessage").value,
                             pdpa_consent: document.getElementById("trialConsent").checked
                         }})
@@ -5878,6 +5921,14 @@ def start_trial_page():
                     status.textContent = error.message;
                 }}
             }}
+            window.addEventListener("DOMContentLoaded", () => {{
+                const params = new URLSearchParams(window.location.search);
+                const source = params.get("source") || params.get("utm_source");
+                const select = document.getElementById("trialLeadSource");
+                if (source && [...select.options].some(option => option.value === source)) {{
+                    select.value = source;
+                }}
+            }});
         </script>
         """,
         show_sales_contact=True,
@@ -6657,7 +6708,7 @@ def enquiry_admin_page():
         <section class="grid" id="trialRequestStats"></section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Message</th><th>Status</th><th>Age</th><th>Trial End</th><th>Priority</th><th>Next action</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Source</th><th>Message</th><th>Status</th><th>Age</th><th>Trial End</th><th>Priority</th><th>Next action</th><th>Action</th></tr>
             </thead>
             <tbody id="trialRequestRows"></tbody>
         </table>
@@ -6828,6 +6879,7 @@ def enquiry_admin_page():
                             <td>${escapeHtml(item.contact_name)}<br>${escapeHtml(item.whatsapp_phone)}<br>${escapeHtml(item.contact_email || "")}</td>
                             <td>${escapeHtml(item.business_type || "")}</td>
                             <td>${escapeHtml(item.monthly_enquiries || "")}</td>
+                            <td>${escapeHtml(item.lead_source || "direct")}${item.campaign ? `<br>${escapeHtml(item.campaign)}` : ""}${item.referrer ? `<br><small>${escapeHtml(item.referrer.slice(0, 80))}</small>` : ""}</td>
                             <td>${escapeHtml(item.message || "")}</td>
                             <td>${escapeHtml(item.status)}</td>
                             <td>${escapeHtml(item.age_days)} day(s)</td>
@@ -7889,6 +7941,9 @@ def submit_trial_request(req: TrialRequestCreate):
         "id": trial_request["id"],
         "business_name": trial_request["business_name"],
         "status": trial_request["status"],
+        "lead_source": trial_request["lead_source"],
+        "campaign": trial_request["campaign"],
+        "referrer": trial_request["referrer"],
         "created_at": trial_request["created_at"],
         "message": "Trial request received. NexaFlow will follow up for setup.",
     }
