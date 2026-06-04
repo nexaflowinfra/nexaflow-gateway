@@ -100,22 +100,38 @@ def add_glow(img, x, y, color, radius, alpha):
     img.alpha_composite(layer)
 
 
+def fit_cover(img, size, zoom=1.0):
+    img = img.convert("RGB")
+    sw, sh = size
+    scale = max(sw / img.width, sh / img.height) * zoom
+    nw, nh = int(img.width * scale), int(img.height * scale)
+    resized = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    left = (nw - sw) // 2
+    top = (nh - sh) // 2
+    return resized.crop((left, top, left + sw, top + sh))
+
+
 def draw_background(t):
-    img = Image.new("RGBA", (W, H), (*BG, 255))
-    add_glow(img, 145, 200, TEAL, 320, 78)
-    add_glow(img, 960, 280, GOLD, 330, 74)
-    add_glow(img, 520, 1540, TEAL, 420, 32)
+    source = ROOT.parent / "nexaflow-brand-final.png"
+    if not source.exists():
+        source = ROOT.parent / "nexaflow-social-cover-photo.png"
+    if source.exists():
+        img = fit_cover(Image.open(source), (W, H), zoom=1.52).convert("RGBA")
+        img = img.filter(ImageFilter.GaussianBlur(10))
+        dim = Image.new("RGBA", (W, H), (0, 0, 0, 184))
+        img.alpha_composite(dim)
+    else:
+        img = Image.new("RGBA", (W, H), (*BG, 255))
+    add_glow(img, 145, 200, TEAL, 300, 42)
+    add_glow(img, 960, 280, GOLD, 300, 42)
+    add_glow(img, 520, 1560, TEAL, 380, 22)
     d = ImageDraw.Draw(img, "RGBA")
-    for x in range(0, W, 78):
-        d.line((x, 0, x, H), fill=(255, 255, 255, 3), width=1)
-    for y in range(0, H, 78):
-        d.line((0, y, W, y), fill=(255, 255, 255, 2), width=1)
 
     offset = int((t * 22) % 38)
-    for i in range(28):
-        y = 1350 + i * 18 + offset
-        d.arc((-320, y - 290, 1400, y + 410), 190, 350, fill=(*TEAL, max(5, 38 - i)), width=2)
-        d.arc((-220, y - 230, 1480, y + 360), 200, 358, fill=(*GOLD, max(4, 30 - i)), width=2)
+    for i in range(13):
+        y = 1365 + i * 34 + offset
+        d.arc((-320, y - 290, 1400, y + 410), 190, 350, fill=(*TEAL, max(8, 54 - i * 3)), width=2)
+        d.arc((-220, y - 230, 1480, y + 360), 200, 358, fill=(*GOLD, max(7, 44 - i * 3)), width=2)
     return img
 
 

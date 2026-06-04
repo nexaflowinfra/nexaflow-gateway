@@ -38,18 +38,21 @@
       position: relative;
       overflow: hidden;
       background:
-        radial-gradient(circle at 16% 12%, rgba(45, 212, 191, .24), transparent 30%),
-        radial-gradient(circle at 90% 18%, rgba(243, 199, 106, .24), transparent 30%),
+        linear-gradient(180deg, rgba(3,5,4,.2), rgba(3,5,4,.78)),
+        radial-gradient(circle at 16% 12%, rgba(45, 212, 191, .18), transparent 34%),
+        radial-gradient(circle at 90% 18%, rgba(243, 199, 106, .18), transparent 34%),
+        url("../nexaflow-brand-final.png"),
         linear-gradient(145deg, #020303 0%, #061313 50%, #151006 100%);
+      background-size: cover;
+      background-position: center;
     }
 
     .grid-bg {
       position: absolute;
       inset: 0;
-      background:
-        repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 78px),
-        repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 78px);
-      opacity: .16;
+      background: rgba(0,0,0,.54);
+      backdrop-filter: blur(12px);
+      opacity: 1;
     }
 
     .flow {
@@ -58,10 +61,10 @@
       right: -260px;
       bottom: -60px;
       height: 650px;
-      opacity: .44;
+      opacity: .24;
       background:
-        repeating-radial-gradient(ellipse at 22% 42%, rgba(45,212,191,.28) 0 1px, transparent 2px 18px),
-        repeating-radial-gradient(ellipse at 80% 40%, rgba(243,199,106,.25) 0 1px, transparent 2px 18px);
+        repeating-radial-gradient(ellipse at 22% 42%, rgba(45,212,191,.18) 0 1px, transparent 2px 24px),
+        repeating-radial-gradient(ellipse at 80% 40%, rgba(243,199,106,.18) 0 1px, transparent 2px 24px);
       mask-image: linear-gradient(180deg, transparent 0%, #000 30%, #000 76%, transparent 100%);
       transform: skewY(-7deg);
     }
