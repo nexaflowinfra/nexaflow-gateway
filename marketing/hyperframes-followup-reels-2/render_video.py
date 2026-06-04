@@ -127,11 +127,6 @@ def draw_background(t):
     add_glow(img, 520, 1560, TEAL, 380, 22)
     d = ImageDraw.Draw(img, "RGBA")
 
-    offset = int((t * 22) % 38)
-    for i in range(13):
-        y = 1365 + i * 34 + offset
-        d.arc((-320, y - 290, 1400, y + 410), 190, 350, fill=(*TEAL, max(8, 54 - i * 3)), width=2)
-        d.arc((-220, y - 230, 1480, y + 360), 200, 358, fill=(*GOLD, max(7, 44 - i * 3)), width=2)
     return img
 
 
