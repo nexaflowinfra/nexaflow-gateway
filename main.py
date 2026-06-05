@@ -4406,6 +4406,15 @@ def nexaflow_brand_final_image():
     return FileResponse(path, media_type="image/png")
 
 
+@app.get("/assets/brand/nexaflow-icon.png")
+@app.get("/favicon.ico")
+def nexaflow_brand_icon_image():
+    path = MARKETING_DIR / "nexaflow-social-avatar-icon.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Brand icon not found.")
+    return FileResponse(path, media_type="image/png")
+
+
 def merchant_html(title, business_name, body, show_sales_contact=False):
     safe_title = escape_html(title)
     safe_business_name = escape_html(business_name)
@@ -4432,6 +4441,8 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
             <meta property="og:description" content="AI business ecosystem for local service merchants. Start with NexaFlow Enquiry and organize customer follow-ups faster.">
             <meta property="og:image" content="https://api.nexaflowinfra.com/assets/brand/nexaflow-final.png">
             <meta property="og:type" content="website">
+            <link rel="icon" type="image/png" href="/assets/brand/nexaflow-icon.png">
+            <link rel="apple-touch-icon" href="/assets/brand/nexaflow-icon.png">
             <title>{safe_title}</title>
             <style>
                 :root {{
@@ -4516,11 +4527,12 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     text-decoration: none;
                 }}
                 .mark {{
-                    width: 28px;
-                    height: 28px;
-                    border-radius: 6px;
-                    background: linear-gradient(135deg, var(--teal), #f2f2f2 48%, var(--gold));
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 8px;
                     display: inline-block;
+                    object-fit: cover;
+                    box-shadow: 0 0 18px rgba(243,199,106,.18);
                 }}
                 main {{
                     max-width: 1120px;
@@ -5122,7 +5134,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
         <body>
             <header>
                 <nav>
-                    <a class="brand" href="#"><span class="mark"></span><span>{safe_business_name}</span></a>
+                    <a class="brand" href="/"><img class="mark" src="/assets/brand/nexaflow-icon.png" alt="NexaFlow logo"><span>{safe_business_name}</span></a>
                     {sales_contact_nav}
                 </nav>
             </header>

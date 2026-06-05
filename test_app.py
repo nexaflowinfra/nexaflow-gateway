@@ -62,8 +62,17 @@ def test_landing_page_loads():
     assert "/ai-enquiry" in response.text
     assert "/merchant-login" in response.text
     assert "og:image" in response.text
+    assert 'rel="icon"' in response.text
+    assert "/assets/brand/nexaflow-icon.png" in response.text
+    assert 'alt="NexaFlow logo"' in response.text
     assert "nexaflow_home_lang" in response.text
     assert "<span>1</span>" not in response.text
+    icon_asset = client.get("/assets/brand/nexaflow-icon.png")
+    assert icon_asset.status_code == 200
+    assert icon_asset.headers["content-type"].startswith("image/png")
+    favicon = client.get("/favicon.ico")
+    assert favicon.status_code == 200
+    assert favicon.headers["content-type"].startswith("image/png")
 
 
 def test_merchant_login_page_loads():
@@ -112,6 +121,8 @@ def test_enquiry_app_pages_load():
     assert "WhatsApp Us" in public_page.text
     assert "wa.me" in public_page.text
     assert "/assets/brand/nexaflow-final.png" in public_page.text
+    assert "/assets/brand/nexaflow-icon.png" in public_page.text
+    assert 'alt="NexaFlow logo"' in public_page.text
     assert "Built as a business ecosystem" in public_page.text
     assert "Enquiry" in public_page.text
     assert "Automation" in public_page.text
