@@ -54,6 +54,8 @@ F_BODY = font(26, False)
 F_ZH = font(36, True)
 F_EN = font(27, True)
 F_URL = font(30, True)
+PLATFORM_ASSETS = ROOT / "platform-assets"
+PLATFORM_CACHE = {}
 
 
 def ease_out(x):
@@ -139,71 +141,25 @@ def draw_brand(img):
     d.text((nx, 61), "Flow", font=F_BRAND, fill=GOLD)
 
 
-def rounded_mask(size, radius):
-    mask = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size - 1, size - 1), radius=radius, fill=255)
-    return mask
-
-
-def make_whatsapp_icon(size=64):
-    icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(icon, "RGBA")
-    green = (37, 211, 102)
-    # App icon background.
-    d.rounded_rectangle((0, 0, size - 1, size - 1), radius=15, fill=(*green, 255))
-    # Filled chat bubble and handset, matching the familiar WhatsApp app mark.
-    d.ellipse((11, 9, 54, 52), fill=(255, 255, 255, 255))
-    d.polygon([(21, 48), (12, 58), (17, 43)], fill=(255, 255, 255, 255))
-    d.arc((22, 20, 45, 43), start=118, end=315, fill=(*green, 255), width=7)
-    d.line((24, 23, 30, 30), fill=(*green, 255), width=6)
-    d.line((38, 38, 46, 43), fill=(*green, 255), width=6)
-    return icon
-
-
-def make_instagram_icon(size=64):
-    arr = np.zeros((size, size, 4), dtype=np.uint8)
-    c1 = np.array([64, 93, 230], dtype=np.float32)
-    c2 = np.array([193, 53, 132], dtype=np.float32)
-    c3 = np.array([253, 244, 151], dtype=np.float32)
-    c4 = np.array([245, 96, 64], dtype=np.float32)
-    for yy in range(size):
-        for xx in range(size):
-            u = xx / (size - 1)
-            v = yy / (size - 1)
-            top = c1 * (1 - u) + c2 * u
-            bottom = c3 * (1 - u) + c4 * u
-            color = top * (1 - v) + bottom * v
-            arr[yy, xx, :3] = np.clip(color, 0, 255)
-            arr[yy, xx, 3] = 255
-    icon = Image.fromarray(arr, "RGBA")
-    icon.putalpha(rounded_mask(size, 15))
-    d = ImageDraw.Draw(icon, "RGBA")
-    d.rounded_rectangle((15, 15, 49, 49), radius=10, outline=(255, 255, 255, 255), width=5)
-    d.ellipse((25, 25, 39, 39), outline=(255, 255, 255, 255), width=5)
-    d.ellipse((42, 19, 48, 25), fill=(255, 255, 255, 255))
-    return icon
-
-
-def make_facebook_icon(size=64):
-    icon = Image.new("RGBA", (size, size), (24, 119, 242, 255))
-    icon.putalpha(rounded_mask(size, 15))
-    d = ImageDraw.Draw(icon, "RGBA")
-    fnt = font(70, True)
-    bbox = d.textbbox((0, 0), "f", font=fnt)
-    tw = bbox[2] - bbox[0]
-    d.text(((size - tw) / 2 + 3, 4), "f", font=fnt, fill=(255, 255, 255, 255))
-    return icon
+def load_platform_icon(platform, size=58):
+    key = (platform, size)
+    if key in PLATFORM_CACHE:
+        return PLATFORM_CACHE[key].copy()
+    source = PLATFORM_ASSETS / f"{platform}.png"
+    if not source.exists():
+        raise FileNotFoundError(f"Missing platform logo asset: {source}")
+    icon = Image.open(source).convert("RGBA")
+    icon.thumbnail((size, size), Image.Resampling.LANCZOS)
+    square = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    square.alpha_composite(icon, ((size - icon.width) // 2, (size - icon.height) // 2))
+    PLATFORM_CACHE[key] = square
+    return square.copy()
 
 
 def draw_platform_logo(layer, x, y, platform, alpha):
     d = ImageDraw.Draw(layer, "RGBA")
     d.rounded_rectangle((x, y, x + 78, y + 78), radius=22, fill=(255, 255, 255, int(18 * alpha)), outline=(255, 255, 255, int(36 * alpha)), width=2)
-    factories = {
-        "whatsapp": make_whatsapp_icon,
-        "instagram": make_instagram_icon,
-        "facebook": make_facebook_icon,
-    }
-    icon = factories[platform](58)
+    icon = load_platform_icon(platform, 58)
     if alpha < 1:
         icon_alpha = icon.getchannel("A").point(lambda p: int(p * alpha))
         icon.putalpha(icon_alpha)
