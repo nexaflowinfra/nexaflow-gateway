@@ -250,25 +250,27 @@ def draw_scene_4(img, _t, alpha):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer, "RGBA")
     a = int(255 * alpha)
-    y = 350
+    y = 330
     d.text((64, y), "NEXAFLOW ENQUIRY", font=F_EYEBROW, fill=(*GOLD, a))
-    y += 76
-    d.text((64, y), "一个 enquiry link。", font=F_H2, fill=(*TEXT, a))
-    y += 78
-    d.text((64, y), "一个 private inbox。", font=F_H2, fill=(*TEXT, a))
-    y += 62
-    d.text((64, y), "One link. One organized follow-up place.", font=font(31, True), fill=(*SOFT, a))
-    box = (64, 655, 1016, 1330)
+    y += 72
+    d.text((64, y), "One link.", font=F_H1, fill=(*TEXT, a))
+    y += 96
+    d.text((64, y), "One inbox.", font=F_H1, fill=(*TEXT, a))
+    y += 96
+    d.text((64, y), "一个链接接询盘，一个 inbox 做跟进。", font=font(34, True), fill=(*GOLD, a))
+    y += 56
+    d.text((64, y), "Customers submit. Merchants follow up faster.", font=font(29, True), fill=(*SOFT, a))
+    box = (64, 690, 1016, 1338)
     d.rounded_rectangle(box, radius=34, fill=(*PANEL2, int(242 * alpha)), outline=(255, 255, 255, int(35 * alpha)), width=2)
-    d.text((98, 690), "Merchant Inbox", font=F_CARD, fill=(*TEXT, a))
-    d.rounded_rectangle((720, 682, 974, 730), radius=24, fill=(*GOLD, int(44 * alpha)), outline=(*GOLD, int(110 * alpha)), width=2)
-    d.text((748, 692), "AI reply draft", font=F_BODY, fill=(*GOLD, a))
+    d.text((98, 725), "Merchant Inbox", font=F_CARD, fill=(*TEXT, a))
+    d.rounded_rectangle((720, 716, 974, 764), radius=24, fill=(*GOLD, int(44 * alpha)), outline=(*GOLD, int(110 * alpha)), width=2)
+    d.text((748, 726), "AI reply draft", font=F_BODY, fill=(*GOLD, a))
     rows = [
         ("New lead: Renovation quote", "Status: New · Priority: Hot · Follow-up: Today"),
         ("Customer asks for appointment", "WhatsApp reply prepared. Merchant checks and sends."),
         ("Every lead stays visible", "No more lost enquiries inside chat history."),
     ]
-    ry = 780
+    ry = 814
     for title, body in rows:
         d.rounded_rectangle((98, ry, 982, ry + 132), radius=22, fill=(8, 10, 10, int(244 * alpha)), outline=(255, 255, 255, int(28 * alpha)), width=1)
         d.text((128, ry + 24), title, font=font(28, True), fill=(*TEXT, a))
