@@ -411,6 +411,59 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     assert saved["consent_at"]
 
 
+def test_enquiry_tracks_marketing_attribution_and_source_stats():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"attrib-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Attribution Merchant",
+            "business_type": "repair",
+            "whatsapp_phone": "6591234567",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+
+    created = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Meta Lead",
+            "phone": "6591112222",
+            "message": "Need urgent repair quotation today",
+            "source": "instagram",
+            "campaign": "june-reels-2",
+            "referrer": "https://www.instagram.com/nexaflowinfra",
+            "page_url": "https://merchant.example.com/contact",
+            "pdpa_consent": True,
+        },
+    )
+    assert created.status_code == 200
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        headers={"X-Business-Key": profile.json()["business_access_key"]},
+    )
+    assert listing.status_code == 200
+    saved = next(item for item in listing.json()["enquiries"] if item["id"] == created.json()["id"])
+    assert saved["source"] == "instagram"
+    assert saved["campaign"] == "june-reels-2"
+    assert saved["referrer"] == "https://www.instagram.com/nexaflowinfra"
+    assert saved["page_url"] == "https://merchant.example.com/contact"
+    assert listing.json()["stats"]["by_source"]["instagram"] >= 1
+
+    exported = client.get(
+        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug}",
+        headers={"X-Business-Key": profile.json()["business_access_key"]},
+    )
+    assert exported.status_code == 200
+    assert "instagram" in exported.text
+    assert "june-reels-2" in exported.text
+    assert "https://merchant.example.com/contact" in exported.text
+
+
 def test_enquiry_requires_pdpa_consent():
     response = client.post(
         "/apps/enquiry/api/enquiries",
@@ -469,6 +522,35 @@ def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
     assert saved["whatsapp_url"].startswith("https://wa.me/6588889999")
     assert saved["merchant_notification_status"] == "skipped"
     assert "contact_email" in saved["merchant_notification_error"]
+
+
+def test_public_business_profile_hides_internal_fields():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"public-profile-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Public Profile Merchant",
+            "business_type": "beauty",
+            "whatsapp_phone": "6591234567",
+            "contact_email": "owner@example.com",
+            "offer_summary": "Beauty enquiries",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+
+    public = client.get(f"/apps/enquiry/api/business-profiles/{slug}")
+    assert public.status_code == 200
+    body = public.json()
+    assert body["business_name"] == "Public Profile Merchant"
+    assert body["form_url"] == f"/enquiry/{slug}"
+    assert body["embed_url"] == f"/embed/enquiry/{slug}.js"
+    assert "contact_email" not in body
+    assert "whatsapp_phone" not in body
+    assert "access_key_prefix" not in body
+    assert "client_id" not in body
 
 
 def test_enquiry_create_notifies_business_contact_when_email_configured():
@@ -774,6 +856,20 @@ def test_merchant_can_update_own_business_settings_only():
     assert updated.json()["business_name"] == "Apex Repair"
     assert updated.json()["contact_email"] == "owner@example.com"
     assert updated.json()["access_key_prefix"] == profile_one.json()["access_key_prefix"]
+
+    loaded_profile = client.get(
+        f"/apps/enquiry/api/merchant/profile?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert loaded_profile.status_code == 200
+    assert loaded_profile.json()["business_name"] == "Apex Repair"
+    assert loaded_profile.json()["contact_email"] == "owner@example.com"
+
+    blocked_profile = client.get(
+        f"/apps/enquiry/api/merchant/profile?business_slug={slug_two}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked_profile.status_code == 403
 
     blocked = client.patch(
         f"/apps/enquiry/api/merchant/profile?business_slug={slug_two}",

@@ -210,6 +210,9 @@ class EnquiryCreateRequest(BaseModel):
     business_type: str = Field(default="general", max_length=80)
     message: str = Field(..., min_length=3, max_length=4000)
     source: str = Field(default="web", max_length=80)
+    campaign: str = Field(default="", max_length=120)
+    referrer: str = Field(default="", max_length=300)
+    page_url: str = Field(default="", max_length=500)
     pdpa_consent: bool = False
 
 
@@ -714,6 +717,9 @@ def init_db():
                 business_type TEXT,
                 message TEXT NOT NULL,
                 source TEXT,
+                campaign TEXT,
+                referrer TEXT,
+                page_url TEXT,
                 intent TEXT,
                 priority TEXT,
                 estimated_value TEXT,
@@ -734,6 +740,9 @@ def init_db():
             """
         )
         ensure_column(connection, "enquiries", "business_slug", "TEXT")
+        ensure_column(connection, "enquiries", "campaign", "TEXT")
+        ensure_column(connection, "enquiries", "referrer", "TEXT")
+        ensure_column(connection, "enquiries", "page_url", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_status", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_error", "TEXT")
         ensure_column(connection, "enquiries", "internal_note", "TEXT")
@@ -2248,6 +2257,19 @@ def default_enquiry_profile():
     }
 
 
+def public_business_profile_response(profile):
+    return {
+        "slug": profile["slug"],
+        "business_name": profile["business_name"],
+        "business_type": profile["business_type"],
+        "offer_summary": profile["offer_summary"] or "",
+        "opening_hours": profile["opening_hours"] or "",
+        "status": profile["status"],
+        "form_url": profile["form_url"],
+        "embed_url": profile["embed_url"],
+    }
+
+
 def get_business_profile(slug):
     if not slug:
         return default_enquiry_profile()
@@ -2979,6 +3001,9 @@ def row_to_enquiry(row):
         "business_type": row["business_type"],
         "message": row["message"],
         "source": row["source"],
+        "campaign": row["campaign"] if "campaign" in row.keys() else "",
+        "referrer": row["referrer"] if "referrer" in row.keys() else "",
+        "page_url": row["page_url"] if "page_url" in row.keys() else "",
         "intent": row["intent"],
         "priority": row["priority"],
         "estimated_value": row["estimated_value"],
@@ -3184,10 +3209,11 @@ def create_enquiry_record(req):
         cursor = connection.execute(
             """
             INSERT INTO enquiries (
-                business_slug, name, phone, email, business_type, message, source, intent,
+                business_slug, name, phone, email, business_type, message, source, campaign,
+                referrer, page_url, intent,
                 priority, estimated_value, reply_draft, whatsapp_url, merchant_notification_status,
                 merchant_notification_error, pdpa_consent, consent_at, consent_notice, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile["slug"],
@@ -3197,6 +3223,9 @@ def create_enquiry_record(req):
                 business_type.strip() or "general",
                 req.message.strip(),
                 req.source.strip() or "web",
+                req.campaign.strip(),
+                req.referrer.strip(),
+                req.page_url.strip(),
                 classification["intent"],
                 classification["priority"],
                 classification["estimated_value"],
@@ -3309,6 +3338,9 @@ def enquiries_to_csv(enquiries):
         "pdpa_consent",
         "consent_at",
         "source",
+        "campaign",
+        "referrer",
+        "page_url",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
@@ -3318,7 +3350,7 @@ def enquiries_to_csv(enquiries):
 
 
 def enquiry_stats(business_slug=None):
-    query = "SELECT status, priority, intent, deal_value, follow_up_at FROM enquiries"
+    query = "SELECT status, priority, intent, source, deal_value, follow_up_at FROM enquiries"
     params = []
     if business_slug:
         query += " WHERE business_slug = ?"
@@ -3331,6 +3363,7 @@ def enquiry_stats(business_slug=None):
         "by_status": {},
         "by_priority": {},
         "by_intent": {},
+        "by_source": {},
         "pipeline_value": 0,
         "won_value": 0,
         "scheduled_followups": 0,
@@ -3340,6 +3373,8 @@ def enquiry_stats(business_slug=None):
         stats["by_status"][row["status"]] = stats["by_status"].get(row["status"], 0) + 1
         stats["by_priority"][row["priority"]] = stats["by_priority"].get(row["priority"], 0) + 1
         stats["by_intent"][row["intent"]] = stats["by_intent"].get(row["intent"], 0) + 1
+        source = row["source"] or "unknown"
+        stats["by_source"][source] = stats["by_source"].get(source, 0) + 1
         value = float(row["deal_value"] or 0)
         if row["status"] != "lost":
             stats["pipeline_value"] += value
@@ -6012,6 +6047,11 @@ def public_enquiry_form_page(business_slug: str):
             }}
             async function submitEnquiry() {{
                 const status = document.getElementById("enquiryStatus");
+                const params = new URLSearchParams(window.location.search);
+                const sourceFromUrl = params.get("source") || params.get("utm_source") || "public-form";
+                const campaignFromUrl = params.get("campaign") || params.get("utm_campaign") || "";
+                const referrerFromUrl = params.get("referrer") || document.referrer || "";
+                const pageUrlFromUrl = params.get("page_url") || window.location.href;
                 if (!document.getElementById("pdpaConsent").checked) {{
                     status.textContent = "Please agree to the privacy notice before submitting.";
                     return;
@@ -6029,7 +6069,10 @@ def public_enquiry_form_page(business_slug: str):
                             business_type: "{business_type}",
                             message: document.getElementById("leadMessage").value,
                             pdpa_consent: document.getElementById("pdpaConsent").checked,
-                            source: "public-form"
+                            source: sourceFromUrl,
+                            campaign: campaignFromUrl,
+                            referrer: referrerFromUrl,
+                            page_url: pageUrlFromUrl
                         }})
                     }});
                     if (!response.ok) {{
@@ -6174,7 +6217,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
         </section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Lead</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody id="merchantRows"></tbody>
         </table>
@@ -6492,6 +6535,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     document.getElementById("merchantStats").innerHTML = `
                         <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
                         <section class="card"><h3>Hot</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
+                        <section class="card"><h3>Top Source</h3><div class="price">${{escapeHtml(Object.entries(stats.by_source || {{}}).sort((a, b) => b[1] - a[1])[0]?.[0] || "none")}}</div></section>
                         <section class="card"><h3>Pipeline Value</h3><div class="price">${{formatMoney(stats.pipeline_value)}}</div></section>
                         <section class="card"><h3>Due Follow-ups</h3><div class="price">${{stats.due_followups || 0}}</div></section>
                     `;
@@ -6504,6 +6548,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <tr>
                             <td>${{escapeHtml(item.created_at)}}</td>
                             <td>${{escapeHtml(item.name)}}<br>${{escapeHtml(item.phone)}}<br>${{escapeHtml(item.email || "")}}</td>
+                            <td>${{escapeHtml(item.source || "unknown")}}${{item.campaign ? `<br>${{escapeHtml(item.campaign)}}` : ""}}${{item.referrer ? `<br><small>${{escapeHtml(item.referrer.slice(0, 80))}}</small>` : ""}}</td>
                             <td>${{escapeHtml(item.intent)}}</td>
                             <td>${{escapeHtml(item.priority)}}</td>
                             <td>${{escapeHtml(item.message)}}</td>
@@ -6619,7 +6664,11 @@ def enquiry_embed_script(business_slug: str):
 
   var iframe = document.createElement("iframe");
   iframe.title = config.businessName + " enquiry form";
-  iframe.src = config.formUrl;
+  var formUrl = new URL(config.formUrl);
+  formUrl.searchParams.set("source", "website-widget");
+  formUrl.searchParams.set("referrer", window.location.href);
+  formUrl.searchParams.set("page_url", window.location.href);
+  iframe.src = formUrl.toString();
   iframe.loading = "lazy";
   iframe.style.width = "100%";
   iframe.style.height = "calc(100% - 45px)";
@@ -6723,7 +6772,7 @@ def enquiry_admin_page():
         <section class="grid" id="inboxStats"></section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Lead</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Merchant</th><th>Lead</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody id="enquiryRows"></tbody>
         </table>
@@ -6911,11 +6960,14 @@ def enquiry_admin_page():
                         <section class="card"><h3>Total</h3><div class="price">${stats.total || 0}</div></section>
                         <section class="card"><h3>Hot</h3><div class="price">${(stats.by_priority || {}).hot || 0}</div></section>
                         <section class="card"><h3>New</h3><div class="price">${(stats.by_status || {}).new || 0}</div></section>
+                        <section class="card"><h3>Top Source</h3><div class="price">${escapeHtml(Object.entries(stats.by_source || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "none")}</div></section>
                     `;
                     document.getElementById("enquiryRows").innerHTML = data.enquiries.map(item => `
                         <tr>
                             <td>${escapeHtml(item.created_at)}</td>
+                            <td>${escapeHtml(item.business_slug || "")}</td>
                             <td>${escapeHtml(item.name)}<br>${escapeHtml(item.phone)}<br>${escapeHtml(item.email || "")}</td>
+                            <td>${escapeHtml(item.source || "unknown")}${item.campaign ? `<br>${escapeHtml(item.campaign)}` : ""}${item.referrer ? `<br><small>${escapeHtml(item.referrer.slice(0, 80))}</small>` : ""}</td>
                             <td>${escapeHtml(item.intent)}</td>
                             <td>${escapeHtml(item.priority)}</td>
                             <td>${escapeHtml(item.message)}</td>
@@ -8021,14 +8073,7 @@ def get_public_business_profile(business_slug: str):
     profile = get_business_profile(business_slug)
     if profile["status"] != "active":
         raise HTTPException(status_code=404, detail="Business profile not found")
-    return {
-        "slug": profile["slug"],
-        "business_name": profile["business_name"],
-        "business_type": profile["business_type"],
-        "offer_summary": profile["offer_summary"],
-        "opening_hours": profile["opening_hours"],
-        "form_url": profile["form_url"],
-    }
+    return public_business_profile_response(profile)
 
 
 @app.get("/apps/enquiry/api/enquiries")
@@ -8137,6 +8182,21 @@ def send_enquiry_followup_digest(
 ):
     admin_guard(admin_key, x_admin_key)
     return send_due_followup_digest(business_slug=business_slug, dry_run=dry_run)
+
+
+@app.get("/apps/enquiry/api/merchant/profile")
+def get_merchant_business_profile(
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    return business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
 
 
 @app.patch("/apps/enquiry/api/merchant/profile")
