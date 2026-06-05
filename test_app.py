@@ -53,6 +53,12 @@ def test_landing_page_loads():
     assert "SGD 19" in response.text
     assert "SGD 49" in response.text
     assert "SGD 99+" in response.text
+    assert "Singapore" in response.text
+    assert "Malaysia" in response.text
+    assert "MYR 59" in response.text
+    assert "MYR 149" in response.text
+    assert "MYR 299+" in response.text
+    assert "nexaflow_home_market" in response.text
     assert "/ai-enquiry" in response.text
     assert "/merchant-login" in response.text
     assert "og:image" in response.text
@@ -96,6 +102,12 @@ def test_enquiry_app_pages_load():
     assert "Merchant Login" in public_page.text
     assert "Start with a 30-day trial" in public_page.text
     assert "SGD 19" in public_page.text
+    assert "Singapore" in public_page.text
+    assert "Malaysia" in public_page.text
+    assert "MYR 59" in public_page.text
+    assert "MYR 149" in public_page.text
+    assert "MYR 299+" in public_page.text
+    assert "nexaflow_enquiry_market" in public_page.text
     assert "/start-trial" in public_page.text
     assert "WhatsApp Us" in public_page.text
     assert "wa.me" in public_page.text

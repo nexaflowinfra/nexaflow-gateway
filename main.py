@@ -4605,7 +4605,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     background: linear-gradient(135deg, var(--gold), #ffffff);
                     color: #000000;
                 }}
-                .lang-hidden {{ display: none !important; }}
+                .lang-hidden, .market-hidden {{ display: none !important; }}
                 .btn {{
                     display: inline-flex;
                     align-items: center;
@@ -4781,6 +4781,11 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     color: var(--muted);
                     font-size: 13px;
                     font-weight: 500;
+                }}
+                .plan-price [data-market] {{
+                    color: var(--ink);
+                    font-size: inherit;
+                    font-weight: 900;
                 }}
                 .price-card ul {{
                     margin: 0;
@@ -5460,9 +5465,14 @@ def landing_page():
                     <button type="button" class="active" onclick="setProductLang('en')" id="langEn">EN</button>
                     <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
                 </div>
+                <div class="language-toggle" aria-label="Market">
+                    <button type="button" class="active" onclick="setProductMarket('sg')" id="marketSg">Singapore</button>
+                    <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
+                </div>
                 <div class="eyebrow">NexaFlow AI Business Ecosystem</div>
                 <h1><span data-lang="en">One link to your business tools.</span><span data-lang="zh" class="lang-hidden">一个入口，管理你的生意工具。</span></h1>
                 <p class="lead"><span data-lang="en">Choose the service you need first. Start with enquiries today, then add CRM, billing, inventory, or automation when your business is ready.</span><span data-lang="zh" class="lang-hidden">先选择你现在最需要的服务。可以从询盘管理开始，之后再加入 CRM、账单、库存或自动化。</span></p>
+                <p class="lead"><span data-market="sg">Built for Singapore service merchants that need PDPA-aware enquiry capture and WhatsApp follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia service merchants that need simple enquiry capture, WhatsApp follow-up, and local pricing.</span></p>
                 <div class="actions">
                     <a class="btn" href="/ai-enquiry"><span data-lang="en">Start with Enquiry</span><span data-lang="zh" class="lang-hidden">先使用询盘助手</span></a>
                     <a class="btn secondary" href="#services"><span data-lang="en">View Services</span><span data-lang="zh" class="lang-hidden">查看服务</span></a>
@@ -5536,19 +5546,19 @@ def landing_page():
             </div>
             <div class="price-card">
                 <h3><span data-lang="en">Enquiry Starter</span><span data-lang="zh" class="lang-hidden">询盘入门版</span></h3>
-                <div class="plan-price">SGD 19 <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 19</span><span data-market="my" class="market-hidden">MYR 59</span> <span>/ month</span></div>
                 <p><span data-lang="en">For small service teams that want organized leads and faster WhatsApp follow-up.</span><span data-lang="zh" class="lang-hidden">适合想整理客户询问，并更快 WhatsApp 跟进的小型服务团队。</span></p>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
             </div>
             <div class="price-card highlight">
                 <h3>Enquiry Pro</h3>
-                <div class="plan-price">SGD 49 <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 149</span> <span>/ month</span></div>
                 <p><span data-lang="en">For growing service businesses with daily enquiries and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">适合每天都有客户询问，并需要跟进提醒的成长型商家。</span></p>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
             </div>
             <div class="price-card">
                 <h3>Business</h3>
-                <div class="plan-price">SGD 99+ <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 99+</span><span data-market="my" class="market-hidden">MYR 299+</span> <span>/ month</span></div>
                 <p><span data-lang="en">For teams, multiple outlets, higher enquiry volume, or custom workflow setup.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店、更高询盘量或需要客制流程的商家。</span></p>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Business</span><span data-lang="zh" class="lang-hidden">申请 Business</span></a>
             </div>
@@ -5582,7 +5592,16 @@ def landing_page():
                 document.getElementById("langZh").classList.toggle("active", lang === "zh");
                 localStorage.setItem("nexaflow_home_lang", lang);
             }}
+            function setProductMarket(market) {{
+                document.querySelectorAll("[data-market]").forEach(item => {{
+                    item.classList.toggle("market-hidden", item.dataset.market !== market);
+                }});
+                document.getElementById("marketSg").classList.toggle("active", market === "sg");
+                document.getElementById("marketMy").classList.toggle("active", market === "my");
+                localStorage.setItem("nexaflow_home_market", market);
+            }}
             setProductLang(localStorage.getItem("nexaflow_home_lang") || "en");
+            setProductMarket(localStorage.getItem("nexaflow_home_market") || "sg");
         </script>
         """,
         show_sales_contact=True,
@@ -5697,12 +5716,17 @@ def enquiry_app_page():
                     <button type="button" class="active" onclick="setProductLang('en')" id="langEn">EN</button>
                     <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
                 </div>
+                <div class="language-toggle" aria-label="Market">
+                    <button type="button" class="active" onclick="setProductMarket('sg')" id="marketSg">Singapore</button>
+                    <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
+                </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
                 <h1><span data-lang="en">AI WhatsApp enquiry assistant for local service businesses</span><span data-lang="zh" class="lang-hidden">给本地服务商家的 AI WhatsApp 询盘助手</span></h1>
                 <p class="lead">
                     <span data-lang="en">Collect customer enquiries, understand buyer intent, alert the merchant, and prepare a WhatsApp-ready reply.</span>
                     <span data-lang="zh" class="lang-hidden">自动收集客户询问、判断客户想要什么、通知商家，并准备好可直接用于 WhatsApp 的回复。</span>
                 </p>
+                <p class="lead"><span data-market="sg">For Singapore service merchants: PDPA-aware enquiry capture, private inbox, and WhatsApp follow-up.</span><span data-market="my" class="market-hidden">For Malaysia service merchants: simple enquiry capture, private inbox, and WhatsApp follow-up with MYR pricing.</span></p>
                 <div class="actions">
                     <a class="btn" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
                     <a class="btn secondary" href="#enquiry-pricing"><span data-lang="en">View Pricing</span><span data-lang="zh" class="lang-hidden">查看价格</span></a>
@@ -5784,7 +5808,7 @@ def enquiry_app_page():
             </div>
             <div class="price-card">
                 <h3>Starter</h3>
-                <div class="plan-price">SGD 19 <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 19</span><span data-market="my" class="market-hidden">MYR 59</span> <span>/ month</span></div>
                 <p><span data-lang="en">For solo owners and small service shops.</span><span data-lang="zh" class="lang-hidden">适合个人老板或小型服务商家。</span></p>
                 <ul>
                     <li><span data-lang="en">1 business inbox</span><span data-lang="zh" class="lang-hidden">1 个商家 inbox</span></li>
@@ -5795,7 +5819,7 @@ def enquiry_app_page():
             </div>
             <div class="price-card highlight">
                 <h3>Pro</h3>
-                <div class="plan-price">SGD 49 <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 149</span> <span>/ month</span></div>
                 <p><span data-lang="en">For growing businesses with daily enquiries.</span><span data-lang="zh" class="lang-hidden">适合每天都有客户询问的成长型商家。</span></p>
                 <ul>
                     <li><span data-lang="en">Everything in Starter</span><span data-lang="zh" class="lang-hidden">包含 Starter 全部功能</span></li>
@@ -5806,7 +5830,7 @@ def enquiry_app_page():
             </div>
             <div class="price-card">
                 <h3>Business</h3>
-                <div class="plan-price">SGD 99+ <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 99+</span><span data-market="my" class="market-hidden">MYR 299+</span> <span>/ month</span></div>
                 <p><span data-lang="en">For teams, multiple outlets, or custom workflows.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店或需要客制流程的商家。</span></p>
                 <ul>
                     <li><span data-lang="en">Multiple inboxes</span><span data-lang="zh" class="lang-hidden">多个商家 inbox</span></li>
@@ -5858,7 +5882,16 @@ def enquiry_app_page():
                 document.getElementById("langZh").classList.toggle("active", lang === "zh");
                 localStorage.setItem("nexaflow_enquiry_lang", lang);
             }
+            function setProductMarket(market) {
+                document.querySelectorAll("[data-market]").forEach(item => {
+                    item.classList.toggle("market-hidden", item.dataset.market !== market);
+                });
+                document.getElementById("marketSg").classList.toggle("active", market === "sg");
+                document.getElementById("marketMy").classList.toggle("active", market === "my");
+                localStorage.setItem("nexaflow_enquiry_market", market);
+            }
             setProductLang(localStorage.getItem("nexaflow_enquiry_lang") || "en");
+            setProductMarket(localStorage.getItem("nexaflow_enquiry_market") || "sg");
             function escapeHtml(value) {
                 return String(value ?? "").replace(/[&<>"']/g, char => ({
                     "&": "&amp;",
