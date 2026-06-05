@@ -902,6 +902,64 @@ def test_merchant_can_update_own_business_settings_only():
     assert "6588889999" in saved["whatsapp_url"]
 
 
+def test_merchant_share_links_are_tracked_and_business_scoped():
+    suffix = uuid.uuid4().hex[:8]
+    slug_one = f"share-one-{suffix}"
+    slug_two = f"share-two-{suffix}"
+    profile_one = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_one,
+            "business_name": "Share One",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    profile_two = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_two,
+            "business_name": "Share Two",
+            "business_type": "beauty",
+            "whatsapp_phone": "6592220000",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile_one.status_code == 200
+    assert profile_two.status_code == 200
+    business_key = profile_one.json()["business_access_key"]
+
+    missing_key = client.get(
+        f"/apps/enquiry/api/merchant/share-links?business_slug={slug_one}&campaign=fb-june"
+    )
+    assert missing_key.status_code == 401
+
+    blocked = client.get(
+        f"/apps/enquiry/api/merchant/share-links?business_slug={slug_two}&campaign=fb-june",
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked.status_code == 403
+
+    response = client.get(
+        f"/apps/enquiry/api/merchant/share-links?business_slug={slug_one}&campaign=fb-june",
+        headers={"X-Business-Key": business_key},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["business_slug"] == slug_one
+    assert body["campaign"] == "fb-june"
+    assert "/embed/enquiry/" in body["embed_code"]
+    assert slug_one in body["embed_code"]
+    assert "source=facebook" in body["links"]["facebook"]["url"]
+    assert "campaign=fb-june" in body["links"]["facebook"]["url"]
+    assert "source=instagram" in body["links"]["instagram"]["url"]
+    assert "source=whatsapp" in body["links"]["whatsapp"]["url"]
+    assert "source=google-business" in body["links"]["google_business"]["url"]
+    assert body["copy"]["whatsapp_text"].endswith(body["links"]["whatsapp"]["url"])
+    assert profile_one.json()["business_access_key"] not in json.dumps(body)
+
+
 def test_merchant_can_export_own_enquiries_csv_only():
     suffix = uuid.uuid4().hex[:8]
     slug_one = f"export-one-{suffix}"

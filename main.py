@@ -2270,6 +2270,79 @@ def public_business_profile_response(profile):
     }
 
 
+def site_absolute_url(path):
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    return f"{site_url}{path}"
+
+
+def tracked_enquiry_url(profile, source, campaign="merchant-share"):
+    params = {
+        "source": source,
+        "campaign": campaign,
+    }
+    return f"{site_absolute_url(profile['form_url'])}?{urlencode(params)}"
+
+
+def merchant_share_links(profile, campaign="merchant-share"):
+    campaign = (campaign or "merchant-share").strip()[:120] or "merchant-share"
+    form_url = site_absolute_url(profile["form_url"])
+    inbox_url = site_absolute_url(profile["inbox_url"])
+    embed_url = site_absolute_url(profile["embed_url"])
+    embed_code = f'<script src="{embed_url}"></script>'
+    links = {
+        "direct": {
+            "label": "Direct customer link",
+            "source": "direct",
+            "url": tracked_enquiry_url(profile, "direct", campaign),
+        },
+        "whatsapp": {
+            "label": "WhatsApp share link",
+            "source": "whatsapp",
+            "url": tracked_enquiry_url(profile, "whatsapp", campaign),
+        },
+        "instagram": {
+            "label": "Instagram bio or DM link",
+            "source": "instagram",
+            "url": tracked_enquiry_url(profile, "instagram", campaign),
+        },
+        "facebook": {
+            "label": "Facebook post or group link",
+            "source": "facebook",
+            "url": tracked_enquiry_url(profile, "facebook", campaign),
+        },
+        "google_business": {
+            "label": "Google Business Profile link",
+            "source": "google-business",
+            "url": tracked_enquiry_url(profile, "google-business", campaign),
+        },
+        "website_widget": {
+            "label": "Website widget code",
+            "source": "website-widget",
+            "url": tracked_enquiry_url(profile, "website-widget", campaign),
+            "embed_code": embed_code,
+        },
+    }
+    caption = (
+        f"Hi, you can send your enquiry to {profile['business_name']} here: "
+        f"{links['direct']['url']}"
+    )
+    return {
+        "business_slug": profile["slug"],
+        "campaign": campaign,
+        "form_url": form_url,
+        "inbox_url": inbox_url,
+        "embed_url": embed_url,
+        "embed_code": embed_code,
+        "links": links,
+        "copy": {
+            "short_caption": caption,
+            "whatsapp_text": f"Hi, please submit your enquiry here so we can follow up properly: {links['whatsapp']['url']}",
+            "instagram_bio": links["instagram"]["url"],
+            "facebook_post": caption,
+        },
+    }
+
+
 def get_business_profile(slug):
     if not slug:
         return default_enquiry_profile()
@@ -6302,7 +6375,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 try {{
                     await navigator.clipboard.writeText(value);
                     document.getElementById("merchantStatus").textContent = `${{label}} copied.`;
-                    if (label === "Customer link") markChecklistStep("copied_link");
+                    if (label.includes("Customer enquiry")) markChecklistStep("copied_link");
                 }} catch (error) {{
                     document.getElementById("merchantStatus").textContent = `Copy failed. Select and copy this manually: ${{value}}`;
                 }}
@@ -6311,17 +6384,30 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const value = document.getElementById(id)?.textContent || "";
                 await copyMerchantText(value, label);
             }}
-            function renderShareLinks(profile) {{
-                const formUrl = absoluteUrl(profile.form_url || `/enquiry/${{businessSlug}}`);
-                const inboxUrl = absoluteUrl(profile.inbox_url || `/inbox/${{businessSlug}}`);
-                const embedUrl = absoluteUrl(profile.embed_url || `/embed/enquiry/${{businessSlug}}.js`);
-                const embedCode = `<script src="${{embedUrl}}"><\\/script>`;
+            function renderShareLinks(payload) {{
+                const links = payload.links || {{}};
+                const inboxUrl = payload.inbox_url || absoluteUrl(`/inbox/${{businessSlug}}`);
+                const embedCode = payload.embed_code || "";
+                const shareRows = [
+                    ["merchantShareDirect", "Customer enquiry link", links.direct?.url],
+                    ["merchantShareWhatsapp", "WhatsApp share link", links.whatsapp?.url],
+                    ["merchantShareInstagram", "Instagram bio / DM link", links.instagram?.url],
+                    ["merchantShareFacebook", "Facebook post / group link", links.facebook?.url],
+                    ["merchantShareGoogle", "Google Business Profile link", links.google_business?.url],
+                ].filter(([, , value]) => value);
                 document.getElementById("merchantShareLinks").innerHTML = `
                     <div class="share-links">
+                        ${{shareRows.map(([id, label, value]) => `
+                            <div class="share-link-box">
+                                <strong>${{escapeHtml(label)}}</strong>
+                                <code id="${{id}}">${{escapeHtml(value)}}</code>
+                                <button class="btn secondary" onclick="copyMerchantElement('${{id}}', '${{escapeHtml(label)}}')">Copy Link</button>
+                            </div>
+                        `).join("")}}
                         <div class="share-link-box">
-                            <strong>Customer enquiry link</strong>
-                            <code id="merchantFormUrl">${{escapeHtml(formUrl)}}</code>
-                            <button class="btn secondary" onclick="copyMerchantElement('merchantFormUrl', 'Customer link')">Copy Link</button>
+                            <strong>Ready caption</strong>
+                            <code id="merchantShareCaption">${{escapeHtml(payload.copy?.short_caption || "")}}</code>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantShareCaption', 'Caption')">Copy Text</button>
                         </div>
                         <div class="share-link-box">
                             <strong>Private inbox link</strong>
@@ -6335,6 +6421,14 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         </div>
                     </div>
                 `;
+            }}
+            async function loadMerchantShareLinks() {{
+                try {{
+                    const data = await merchantApi(`/apps/enquiry/api/merchant/share-links?business_slug=${{businessSlug}}&campaign=merchant-share`);
+                    renderShareLinks(data);
+                }} catch (error) {{
+                    document.getElementById("merchantShareLinks").innerHTML = `<div class="status">Share links could not load: ${{escapeHtml(error.message)}}</div>`;
+                }}
             }}
             async function saveMerchantSettings() {{
                 const status = document.getElementById("settingsStatus");
@@ -6530,7 +6624,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 try {{
                     const data = await merchantApi(`/apps/enquiry/api/merchant/enquiries?${{merchantQuery(100)}}`);
                     fillMerchantSettings(data.business);
-                    renderShareLinks(data.business);
+                    await loadMerchantShareLinks();
                     const stats = data.stats || {{}};
                     document.getElementById("merchantStats").innerHTML = `
                         <section class="card"><h3>Total</h3><div class="price">${{stats.total || 0}}</div></section>
@@ -8197,6 +8291,23 @@ def get_merchant_business_profile(
         x_business_key=x_business_key,
         authorization=authorization,
     )
+
+
+@app.get("/apps/enquiry/api/merchant/share-links")
+def get_merchant_share_links(
+    business_slug: str,
+    campaign: str = Query(default="merchant-share", max_length=120),
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return merchant_share_links(profile, campaign=campaign)
 
 
 @app.patch("/apps/enquiry/api/merchant/profile")
