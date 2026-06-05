@@ -3244,6 +3244,80 @@ def send_due_followup_digest(business_slug=None, dry_run=False):
     }
 
 
+def trial_automation_report(limit=100):
+    requests = list_trial_requests(limit=limit)
+    urgent = [
+        {
+            "id": item["id"],
+            "business_name": item["business_name"],
+            "contact_name": item["contact_name"],
+            "contact_email": item["contact_email"],
+            "whatsapp_phone": item["whatsapp_phone"],
+            "status": item["status"],
+            "follow_up_priority": item["follow_up_priority"],
+            "days_until_trial_end": item["days_until_trial_end"],
+            "next_action": item["next_action"],
+        }
+        for item in requests
+        if item["follow_up_priority"] == "high"
+    ]
+    return {
+        "stats": trial_request_stats(requests),
+        "urgent_count": len(urgent),
+        "urgent": urgent[:20],
+    }
+
+
+def deployment_automation_report():
+    checks = deployment_check_items()
+    failed = [item for item in checks if not item["ok"]]
+    return {
+        "ok": len(failed) == 0,
+        "total": len(checks),
+        "failed_count": len(failed),
+        "failed": failed,
+    }
+
+
+def run_backend_automation_once(dry_run=True, include_backup=False):
+    tasks = {}
+    tasks["deployment_checks"] = deployment_automation_report()
+    tasks["trial_requests"] = trial_automation_report(limit=200)
+    tasks["followup_digest"] = send_due_followup_digest(dry_run=dry_run)
+
+    if include_backup:
+        if dry_run:
+            tasks["backup"] = {
+                "status": "dry_run",
+                "reason": "Backup not created while dry_run=true.",
+                "scheduler": backup_scheduler_status(),
+            }
+        else:
+            tasks["backup"] = {
+                "status": "created",
+                "backup": create_sqlite_backup(),
+                "scheduler": backup_scheduler_status(),
+            }
+    else:
+        tasks["backup"] = {
+            "status": "skipped",
+            "reason": "Set include_backup=true to create a backup during this automation run.",
+            "scheduler": backup_scheduler_status(),
+        }
+
+    return {
+        "ran_at": now_iso(),
+        "dry_run": dry_run,
+        "include_backup": include_backup,
+        "tasks": tasks,
+        "next_step": (
+            "Review dry_run output, then schedule this endpoint with dry_run=false when email and backup settings are ready."
+            if dry_run
+            else "Automation run completed. Review task results for skipped or failed items."
+        ),
+    }
+
+
 def public_enquiry_response(enquiry):
     return {
         "id": enquiry["id"],
@@ -4087,6 +4161,17 @@ def deploy_check(admin_key: str | None = None, x_admin_key: str | None = Header(
         "ready": all(check["ok"] for check in checks),
         "checks": checks,
     }
+
+
+@app.post("/admin/automation/run")
+def run_admin_backend_automation(
+    dry_run: bool = True,
+    include_backup: bool = False,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return run_backend_automation_once(dry_run=dry_run, include_backup=include_backup)
 
 
 def money(amount):

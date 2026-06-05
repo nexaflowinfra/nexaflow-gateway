@@ -1310,6 +1310,83 @@ def test_admin_can_send_due_followup_digest_preview():
     assert "Digest Future Buyer" not in body
 
 
+def test_admin_backend_automation_runner_previews_operational_tasks():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"automation-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Automation Service",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+            "contact_email": f"automation-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    due_lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Automation Due Buyer",
+            "phone": "6591112222",
+            "message": "Need quotation this week",
+            "pdpa_consent": True,
+        },
+    )
+    assert due_lead.status_code == 200
+    assert client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{due_lead.json()['id']}?business_slug={slug}",
+        json={"follow_up_at": "2000-01-01", "internal_note": "Automation preview note."},
+        headers={"X-Business-Key": business_key},
+    ).status_code == 200
+
+    trial = client.post(
+        "/apps/enquiry/api/trial-requests",
+        json={
+            "business_name": f"Automation Trial {suffix}",
+            "contact_name": "Trial Owner",
+            "contact_email": f"automation-trial-{suffix}@example.com",
+            "whatsapp_phone": "6599998888",
+            "business_type": "cleaning",
+            "city": "Singapore",
+            "monthly_enquiries": "10-30",
+            "lead_source": "test",
+            "message": "We need follow-up automation.",
+            "pdpa_consent": True,
+        },
+    )
+    assert trial.status_code == 200
+
+    unauthorized = client.post("/admin/automation/run")
+    assert unauthorized.status_code == 401
+
+    response = client.post(
+        "/admin/automation/run?dry_run=true&include_backup=true",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dry_run"] is True
+    assert body["include_backup"] is True
+    assert "deployment_checks" in body["tasks"]
+    assert "trial_requests" in body["tasks"]
+    assert "followup_digest" in body["tasks"]
+    assert "backup" in body["tasks"]
+    assert body["tasks"]["backup"]["status"] == "dry_run"
+    assert body["tasks"]["followup_digest"]["dry_run"] is True
+    assert body["tasks"]["followup_digest"]["sent"] >= 1
+    assert any(
+        result.get("business_slug") == slug and result.get("due_count") == 1
+        for result in body["tasks"]["followup_digest"]["results"]
+    )
+    assert body["tasks"]["trial_requests"]["stats"]["total"] >= 1
+    assert body["next_step"]
+
+
 def test_public_enquiry_rate_limit_blocks_repeated_spam():
     suffix = uuid.uuid4().hex[:8]
     slug = f"rate-{suffix}"
