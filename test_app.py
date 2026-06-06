@@ -369,7 +369,11 @@ def test_business_profile_create_and_public_form_loads():
     assert "Customer enquiry link" in inbox.text
     assert "copyMerchantElement" in inbox.text
     assert "Website widget code" in inbox.text
-    assert "1. Load inbox" in inbox.text
+    assert "Today&apos;s focus" in inbox.text
+    assert "Fast shortcuts" in inbox.text
+    assert "Main customer link" in inbox.text
+    assert "Copy Main Link" in inbox.text
+    assert "Lead pipeline" in inbox.text
     assert "Pipeline Value" in inbox.text
     assert "filterPriority" in inbox.text
     assert "filterFollowUp" in inbox.text
@@ -908,8 +912,13 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert response.status_code == 200
     assert "merchantActionCenter" in response.text
     assert "merchantPipelineBoard" in response.text
-    assert "Today&apos;s best action" in response.text
-    assert "Trial readiness" in response.text
+    assert "Today&apos;s focus" in response.text
+    assert "Setup status" in response.text
+    assert "Fast shortcuts" in response.text
+    assert "Main customer link" in response.text
+    assert "Suggested caption" in response.text
+    assert "merchantShareDirectPrimary" in response.text
+    assert "Lead pipeline" in response.text
     assert "chooseNextAction" in response.text
     assert "Trial launch checklist" in response.text
     assert "merchantChecklist" in response.text

@@ -6886,22 +6886,6 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 <p class="lead">View customer enquiries, follow up on WhatsApp, and keep every lead moving.</p>
             </div>
         </section>
-        <section class="setup-panel">
-            <div class="setup-step"><strong>1. Load inbox</strong><span>Paste your business access key once to unlock your leads.</span></div>
-            <div class="setup-step"><strong>2. Share link</strong><span>Send your enquiry link to customers or place it on your website.</span></div>
-            <div class="setup-step"><strong>3. Follow up</strong><span>Open hot leads first and use the WhatsApp reply draft.</span></div>
-            <div class="setup-step"><strong>4. Track value</strong><span>Set follow-up dates, notes, and estimated deal value.</span></div>
-        </section>
-        <section class="form-card">
-            <div class="section-head onboarding-head">
-                <div>
-                    <h2>Trial launch checklist</h2>
-                    <p>Complete these once before sending the enquiry link to real customers.</p>
-                </div>
-                <button class="btn secondary" onclick="resetMerchantChecklist()">Reset</button>
-            </div>
-            <div class="checklist" id="merchantChecklist"></div>
-        </section>
         <section class="form-card">
             <div class="toolbar">
                 <label>Business access key<input id="businessKey" type="password" placeholder="biz_..."></label>
@@ -6909,8 +6893,24 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 <button class="btn secondary" onclick="exportMerchantCsv()">Export CSV</button>
             </div>
             <div class="status" id="merchantStatus">Enter your business access key to load this inbox.</div>
+        </section>
+        <section class="action-center" id="merchantActionCenter"></section>
+        <section class="grid" id="merchantStats"></section>
+        <section class="form-card" id="merchantQuickShare">
+            <div class="section-head onboarding-head">
+                <div>
+                    <h2>Share your enquiry link</h2>
+                    <p>Use one link on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.</p>
+                </div>
+            </div>
             <div id="merchantShareLinks"></div>
         </section>
+        <details class="form-card">
+            <summary>Trial launch checklist</summary>
+            <p>Complete these once before sending the enquiry link to real customers.</p>
+            <button class="btn secondary" onclick="resetMerchantChecklist()">Reset</button>
+            <div class="checklist" id="merchantChecklist"></div>
+        </details>
         <details class="form-card">
             <summary>Business settings</summary>
             <p>Update these only when your WhatsApp, email, service summary, or opening hours change.</p>
@@ -6947,12 +6947,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
         </details>
         <div class="section-head">
             <div>
-                <h2>Pipeline</h2>
+                <h2>Lead pipeline</h2>
                 <p>Prioritize hot leads first, then mark each one as contacted, quoted, won, or lost.</p>
             </div>
         </div>
-        <section class="action-center" id="merchantActionCenter"></section>
-        <section class="grid" id="merchantStats"></section>
         <section class="pipeline-board" id="merchantPipelineBoard"></section>
         <section class="form-card">
             <div class="toolbar">
@@ -7113,6 +7111,22 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     ["merchantShareGoogle", "Google Business Profile link", links.google_business?.url],
                 ].filter(([, , value]) => value);
                 document.getElementById("merchantShareLinks").innerHTML = `
+                    <div class="action-center">
+                        <div class="action-card">
+                            <h3>Main customer link</h3>
+                            <p>Send this to customers when they ask for price, appointment, stock, or service details.</p>
+                            <code id="merchantShareDirectPrimary">${{escapeHtml(links.direct?.url || "")}}</code>
+                            <div class="toolbar">
+                                <button class="btn" onclick="copyMerchantElement('merchantShareDirectPrimary', 'Customer enquiry link')">Copy Main Link</button>
+                                <button class="btn secondary" onclick="copyMerchantElement('merchantShareCaption', 'Caption')">Copy Caption</button>
+                            </div>
+                        </div>
+                        <div class="action-card">
+                            <h3>Suggested caption</h3>
+                            <p>Use this in WhatsApp status, Facebook post, Instagram bio, or customer chat.</p>
+                            <code id="merchantShareCaption">${{escapeHtml(payload.copy?.short_caption || "")}}</code>
+                        </div>
+                    </div>
                     <div class="share-links">
                         ${{shareRows.map(([id, label, value]) => `
                             <div class="share-link-box">
@@ -7121,11 +7135,6 @@ def merchant_enquiry_inbox_page(business_slug: str):
                                 <button class="btn secondary" onclick="copyMerchantElement('${{id}}', '${{escapeHtml(label)}}')">Copy Link</button>
                             </div>
                         `).join("")}}
-                        <div class="share-link-box">
-                            <strong>Ready caption</strong>
-                            <code id="merchantShareCaption">${{escapeHtml(payload.copy?.short_caption || "")}}</code>
-                            <button class="btn secondary" onclick="copyMerchantElement('merchantShareCaption', 'Caption')">Copy Text</button>
-                        </div>
                         <div class="share-link-box">
                             <strong>Private inbox link</strong>
                             <code id="merchantInboxUrl">${{escapeHtml(inboxUrl)}}</code>
@@ -7264,21 +7273,30 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             : ["Keep pipeline updated", "No urgent leads. Review quoted leads and close won/lost."];
                 document.getElementById("merchantActionCenter").innerHTML = `
                     <div class="action-card">
-                        <h3>Today&apos;s best action</h3>
+                        <h3>Today&apos;s focus</h3>
                         <p>${{escapeHtml(firstAction[1])}}</p>
                         <div class="action-list">
                             <div class="action-item"><span class="action-dot">1</span><div><strong>${{escapeHtml(firstAction[0])}}</strong><span>${{topLead ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.` : "Share your enquiry link and wait for new submissions."}}</span></div></div>
-                            <div class="action-item"><span class="action-dot">2</span><div><strong>Save lead details</strong><span>Add follow-up date, note, and estimated deal value after every customer reply.</span></div></div>
-                            <div class="action-item"><span class="action-dot">3</span><div><strong>Close the loop</strong><span>Move quoted leads to Won or Lost so your pipeline stays clean.</span></div></div>
+                            <div class="action-item"><span class="action-dot">2</span><div><strong>Reply on WhatsApp</strong><span>Use the prepared draft, then mark the lead as Contacted or Quoted.</span></div></div>
+                            <div class="action-item"><span class="action-dot">3</span><div><strong>Set next follow-up</strong><span>Add a date so the lead does not disappear inside chat history.</span></div></div>
                         </div>
                     </div>
                     <div class="action-card">
-                        <h3>Trial readiness</h3>
+                        <h3>Setup status</h3>
                         <p>${{escapeHtml(onboarding.percent ?? 0)}}% ready · ${{escapeHtml(onboarding.next_action || "Complete setup before promotion.")}}</p>
                         <div class="lead-badges">
                             ${{onboardingChecks.map(item => `<span class="lead-badge ${{item.done ? "hot" : ""}}">${{item.done ? "Done" : "Todo"}} · ${{escapeHtml(item.label)}}</span>`).join("")}}
                         </div>
-                        <span class="next-action">Goal: get 3-5 real enquiries during trial week one.</span>
+                        <span class="next-action">Target: get 3-5 real enquiries in trial week one.</span>
+                    </div>
+                    <div class="action-card">
+                        <h3>Fast shortcuts</h3>
+                        <p>Most merchants only need these three actions every day.</p>
+                        <div class="lead-badges">
+                            <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">New leads</button>
+                            <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">Due follow-ups</button>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantShareDirect', 'Customer enquiry link')">Copy enquiry link</button>
+                        </div>
                     </div>
                 `;
             }}
