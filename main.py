@@ -7587,6 +7587,13 @@ def admin_dashboard():
         </table>
         <h2>Margin Guard</h2>
         <div class="status" id="readiness">Readiness checks will appear here.</div>
+        <h2>Backend Automation</h2>
+        <div class="status" id="automationStatus">Run a dry preview before enabling scheduled automation.</div>
+        <div class="toolbar">
+            <button class="btn" onclick="runAutomation(true, false)">Dry Run Preview</button>
+            <button class="btn secondary" onclick="runAutomation(true, true)">Dry Run + Backup Check</button>
+            <button class="btn secondary" onclick="runAutomation(false, true)">Run + Create Backup</button>
+        </div>
         <h2>Backups</h2>
         <div class="status" id="backupScheduler">Backup scheduler status will appear here.</div>
         <div class="toolbar">
@@ -7678,6 +7685,44 @@ def admin_dashboard():
                     const result = await response.json();
                     status.textContent = `Offsite test: ${result.result.status}\\n${result.result.reason || result.result.key || ""}`;
                     await loadAdmin();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+            function renderAutomationResult(result) {
+                const tasks = result.tasks || {};
+                const deploy = tasks.deployment_checks || {};
+                const trials = tasks.trial_requests || {};
+                const followups = tasks.followup_digest || {};
+                const backup = tasks.backup || {};
+                document.getElementById("automationStatus").textContent = [
+                    `Ran at: ${result.ran_at || "unknown"}`,
+                    `Dry run: ${result.dry_run}`,
+                    `Deployment checks ok: ${deploy.ok} (${deploy.failed_count || 0} failed)`,
+                    `Trial urgent items: ${trials.urgent_count || 0}`,
+                    `Follow-up digest: processed ${followups.processed || 0}, sent ${followups.sent || 0}, skipped ${followups.skipped || 0}`,
+                    `Backup: ${backup.status || "unknown"} - ${backup.reason || backup.backup?.name || ""}`,
+                    `Next: ${result.next_step || ""}`
+                ].join("\\n");
+            }
+            async function runAutomation(dryRun = true, includeBackup = false) {
+                const adminKey = document.getElementById("adminKey").value;
+                const status = document.getElementById("automationStatus");
+                status.textContent = "Running backend automation...";
+                try {
+                    const response = await fetch(`/admin/automation/run?dry_run=${dryRun}&include_backup=${includeBackup}`, {
+                        method: "POST",
+                        headers: { "X-Admin-Key": adminKey }
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+                    const result = await response.json();
+                    renderAutomationResult(result);
+                    if (!dryRun || includeBackup) {
+                        await loadAdmin();
+                        renderAutomationResult(result);
+                    }
                 } catch (error) {
                     status.textContent = error.message;
                 }

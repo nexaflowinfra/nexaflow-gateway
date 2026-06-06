@@ -85,6 +85,18 @@ def test_merchant_login_page_loads():
     assert "/admin/dashboard" not in response.text
 
 
+def test_admin_dashboard_includes_backend_automation_panel():
+    response = client.get("/admin/dashboard")
+    assert response.status_code == 200
+    assert "Backend Automation" in response.text
+    assert "automationStatus" in response.text
+    assert "runAutomation(true, false)" in response.text
+    assert "runAutomation(true, true)" in response.text
+    assert "runAutomation(false, true)" in response.text
+    assert "/admin/automation/run" in response.text
+    assert "renderAutomationResult" in response.text
+
+
 def test_pricing_page_loads():
     response = client.get("/pricing")
     assert response.status_code == 200
