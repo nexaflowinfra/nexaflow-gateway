@@ -2178,6 +2178,20 @@ def admin_action_items_data():
             )
         )
 
+    for merchant in merchant_health_report(limit=200)["merchants"]:
+        if merchant["risk_level"] == "high":
+            items.append(
+                action_item(
+                    f"merchant-health:{merchant['business_slug']}",
+                    "high",
+                    "merchant",
+                    "Merchant workflow needs attention",
+                    f"{merchant['business_name']} is {merchant['onboarding_status']} with {merchant['due_followups']} due follow-up(s) and {merchant['new_leads']} new lead(s).",
+                    merchant.get("business_slug"),
+                    merchant["next_action"],
+                )
+            )
+
     failed_checks = [check for check in deployment_check_items() if not check["ok"]]
     for check in failed_checks:
         items.append(
@@ -3633,6 +3647,7 @@ def run_backend_automation_once(dry_run=True, include_backup=False):
     tasks = {}
     tasks["deployment_checks"] = deployment_automation_report()
     tasks["trial_requests"] = trial_automation_report(limit=200)
+    tasks["merchant_health"] = merchant_health_report(limit=200)
     tasks["followup_digest"] = send_due_followup_digest(dry_run=dry_run)
     tasks["data_retention"] = cleanup_expired_enquiries(dry_run=dry_run)
 
@@ -3984,6 +3999,88 @@ def business_profile_onboarding_status(profile):
         "next_action": next_action,
         "missing_keys": [item["key"] for item in missing],
         "checks": checks,
+    }
+
+
+def merchant_health_report(limit=100, business_slug=None):
+    merchants = []
+    profiles = [get_business_profile(business_slug)] if business_slug else list_business_profiles()
+    for profile in profiles:
+        stats = enquiry_stats(business_slug=profile["slug"])
+        onboarding = business_profile_onboarding_status(profile)
+        due_followups = int(stats.get("due_followups") or 0)
+        new_leads = int((stats.get("by_status") or {}).get("new") or 0)
+        total_leads = int(stats.get("total") or 0)
+        score = 100
+        score -= max(0, onboarding["total"] - onboarding["completed"]) * 12
+        score -= min(due_followups * 12, 36)
+        score -= min(new_leads * 6, 24)
+        if profile["status"] != "active":
+            score -= 30
+        score = max(0, min(100, score))
+
+        if profile["status"] != "active":
+            risk_level = "high"
+            next_action = "Merchant profile is paused. Confirm whether to restore or keep disabled."
+        elif onboarding["status"] == "needs_setup":
+            risk_level = "high"
+            next_action = onboarding["next_action"]
+        elif due_followups > 0:
+            risk_level = "high"
+            next_action = f"{due_followups} follow-up(s) are due. Contact these leads before they go cold."
+        elif onboarding["status"] == "ready_for_test":
+            risk_level = "medium"
+            next_action = "Ask the merchant to submit one test enquiry, then share the link with real customers."
+        elif new_leads > 0:
+            risk_level = "medium"
+            next_action = f"{new_leads} new lead(s) need first reply."
+        else:
+            risk_level = "low"
+            next_action = "Merchant is operational. Review pipeline value and conversion weekly."
+
+        merchants.append(
+            {
+                "business_slug": profile["slug"],
+                "business_name": profile["business_name"],
+                "status": profile["status"],
+                "health_score": score,
+                "risk_level": risk_level,
+                "onboarding_status": onboarding["status"],
+                "onboarding_percent": onboarding["percent"],
+                "missing_setup": onboarding["missing_keys"],
+                "total_leads": total_leads,
+                "new_leads": new_leads,
+                "due_followups": due_followups,
+                "pipeline_value": stats.get("pipeline_value") or 0,
+                "won_value": stats.get("won_value") or 0,
+                "next_action": next_action,
+            }
+        )
+
+    severity_order = {"high": 0, "medium": 1, "low": 2}
+    merchants = sorted(
+        merchants,
+        key=lambda item: (
+            severity_order.get(item["risk_level"], 9),
+            item["health_score"],
+            item["business_name"].lower(),
+        ),
+    )
+    visible_merchants = merchants[:limit]
+    return {
+        "generated_at": now_iso(),
+        "summary": {
+            "total": len(visible_merchants),
+            "high": sum(1 for item in visible_merchants if item["risk_level"] == "high"),
+            "medium": sum(1 for item in visible_merchants if item["risk_level"] == "medium"),
+            "low": sum(1 for item in visible_merchants if item["risk_level"] == "low"),
+            "needs_setup": sum(1 for item in visible_merchants if item["onboarding_status"] == "needs_setup"),
+            "ready_for_test": sum(1 for item in visible_merchants if item["onboarding_status"] == "ready_for_test"),
+            "live": sum(1 for item in visible_merchants if item["onboarding_status"] == "live"),
+            "due_followups": sum(item["due_followups"] for item in visible_merchants),
+            "new_leads": sum(item["new_leads"] for item in visible_merchants),
+        },
+        "merchants": visible_merchants,
     }
 
 
@@ -8065,6 +8162,14 @@ def admin_dashboard():
             </thead>
             <tbody id="actionItems"></tbody>
         </table>
+        <h2>Merchant Health</h2>
+        <div class="status" id="merchantHealthSummary">Merchant health will appear here.</div>
+        <table>
+            <thead>
+                <tr><th>Risk</th><th>Merchant</th><th>Readiness</th><th>Leads</th><th>Follow-ups</th><th>Next action</th></tr>
+            </thead>
+            <tbody id="merchantHealthRows"></tbody>
+        </table>
         <h2>Clients</h2>
         <div class="status" id="status">Enter the admin key and refresh.</div>
         <table>
@@ -8214,11 +8319,14 @@ def admin_dashboard():
                 const followups = tasks.followup_digest || {};
                 const retention = tasks.data_retention || {};
                 const backup = tasks.backup || {};
+                const merchantHealth = tasks.merchant_health || {};
+                const merchantSummary = merchantHealth.summary || {};
                 document.getElementById("automationStatus").textContent = [
                     `Ran at: ${result.ran_at || "unknown"}`,
                     `Dry run: ${result.dry_run}`,
                     `Deployment checks ok: ${deploy.ok} (${deploy.failed_count || 0} failed)`,
                     `Trial urgent items: ${trials.urgent_count || 0}`,
+                    `Merchant health: ${merchantSummary.high || 0} high risk, ${merchantSummary.due_followups || 0} due follow-up(s)`,
                     `Follow-up digest: processed ${followups.processed || 0}, sent ${followups.sent || 0}, skipped ${followups.skipped || 0}`,
                     `Data retention: expired ${retention.expired || 0}, deleted ${retention.deleted || 0}`,
                     `Backup: ${backup.status || "unknown"} - ${backup.reason || backup.backup?.name || ""}`,
@@ -8306,11 +8414,12 @@ def admin_dashboard():
                 const status = document.getElementById("status");
                 status.textContent = "Loading...";
                 try {
-                    const [clients, stats, report, actions, events, notifications, checks, backups, audit] = await Promise.all([
+                    const [clients, stats, report, actions, merchantHealth, events, notifications, checks, backups, audit] = await Promise.all([
                         api("/admin/clients", adminKey),
                         api("/admin/usage-stats", adminKey),
                         api("/admin/revenue-report", adminKey),
                         api("/admin/action-items", adminKey),
+                        api("/admin/merchant-health", adminKey),
                         api("/admin/payment-events?limit=12", adminKey),
                         api("/admin/notifications?limit=12", adminKey),
                         api("/admin/deploy-check", adminKey),
@@ -8359,6 +8468,25 @@ def admin_dashboard():
                             <td>${escapeHtml(item.client_id || "")}</td>
                             <td><strong>${escapeHtml(item.title)}</strong><br>${escapeHtml(item.detail)}</td>
                             <td>${escapeHtml(item.action || "")}</td>
+                        </tr>
+                    `).join("");
+                    const merchantSummary = merchantHealth.summary || {};
+                    document.getElementById("merchantHealthSummary").textContent = [
+                        `Total merchants: ${merchantSummary.total || 0}`,
+                        `High risk: ${merchantSummary.high || 0}`,
+                        `Ready for test: ${merchantSummary.ready_for_test || 0}`,
+                        `Live: ${merchantSummary.live || 0}`,
+                        `New leads waiting: ${merchantSummary.new_leads || 0}`,
+                        `Due follow-ups: ${merchantSummary.due_followups || 0}`
+                    ].join("\\n");
+                    document.getElementById("merchantHealthRows").innerHTML = (merchantHealth.merchants || []).slice(0, 20).map(merchant => `
+                        <tr>
+                            <td>${escapeHtml(merchant.risk_level)}<br>${escapeHtml(merchant.health_score)}%</td>
+                            <td>${escapeHtml(merchant.business_name)}<br><small>${escapeHtml(merchant.business_slug)}</small></td>
+                            <td>${escapeHtml(merchant.onboarding_status)}<br>${escapeHtml(merchant.onboarding_percent)}%</td>
+                            <td>${escapeHtml(merchant.total_leads)} total<br>${escapeHtml(merchant.new_leads)} new</td>
+                            <td>${escapeHtml(merchant.due_followups)} due</td>
+                            <td>${escapeHtml(merchant.next_action || "")}</td>
                         </tr>
                     `).join("");
                     document.getElementById("clients").innerHTML = clients.clients.map(client => `
@@ -8824,6 +8952,17 @@ def admin_revenue_report(admin_key: str | None = None, x_admin_key: str | None =
 def admin_action_items(admin_key: str | None = None, x_admin_key: str | None = Header(default=None)):
     admin_guard(admin_key, x_admin_key)
     return admin_action_items_data()
+
+
+@app.get("/admin/merchant-health")
+def admin_merchant_health(
+    limit: int = Query(default=100, ge=1, le=500),
+    business_slug: str | None = None,
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return merchant_health_report(limit=limit, business_slug=business_slug)
 
 
 @app.post("/apps/enquiry/api/enquiries")

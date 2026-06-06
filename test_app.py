@@ -95,6 +95,9 @@ def test_admin_dashboard_includes_backend_automation_panel():
     assert "runAutomation(false, true)" in response.text
     assert "/admin/automation/run" in response.text
     assert "renderAutomationResult" in response.text
+    assert "Merchant Health" in response.text
+    assert "/admin/merchant-health" in response.text
+    assert "merchantHealthRows" in response.text
     assert "Data Protection" in response.text
     assert "runRetentionCleanup(true)" in response.text
     assert "runRetentionCleanup(false)" in response.text
@@ -1075,6 +1078,56 @@ def test_business_onboarding_readiness_updates_after_first_enquiry():
     assert any(item["key"] == "first_enquiry" and item["done"] for item in onboarding["checks"])
 
 
+def test_admin_merchant_health_flags_due_followups():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"health-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Health Merchant",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+            "contact_email": f"health-{suffix}@example.com",
+            "offer_summary": "Repair quotation and appointment follow-up.",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Health Buyer",
+            "phone": "6512345678",
+            "message": "Need a repair quote urgently.",
+            "pdpa_consent": True,
+        },
+    )
+    assert lead.status_code == 200
+    assert client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{lead.json()['id']}?business_slug={slug}",
+        json={"follow_up_at": "2000-01-01", "internal_note": "Customer asked for callback."},
+        headers={"X-Business-Key": business_key},
+    ).status_code == 200
+
+    unauthorized = client.get("/admin/merchant-health")
+    assert unauthorized.status_code == 401
+
+    health = client.get(
+        f"/admin/merchant-health?business_slug={slug}",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert health.status_code == 200
+    merchant = next(item for item in health.json()["merchants"] if item["business_slug"] == slug)
+    assert merchant["risk_level"] == "high"
+    assert merchant["due_followups"] == 1
+    assert merchant["onboarding_status"] == "live"
+    assert health.json()["summary"]["due_followups"] >= 1
+
+
 def test_merchant_share_links_are_tracked_and_business_scoped():
     suffix = uuid.uuid4().hex[:8]
     slug_one = f"share-one-{suffix}"
@@ -1533,6 +1586,7 @@ def test_admin_backend_automation_runner_previews_operational_tasks():
     assert body["include_backup"] is True
     assert "deployment_checks" in body["tasks"]
     assert "trial_requests" in body["tasks"]
+    assert "merchant_health" in body["tasks"]
     assert "followup_digest" in body["tasks"]
     assert "data_retention" in body["tasks"]
     assert "backup" in body["tasks"]
@@ -1540,6 +1594,8 @@ def test_admin_backend_automation_runner_previews_operational_tasks():
     assert body["tasks"]["followup_digest"]["dry_run"] is True
     assert body["tasks"]["followup_digest"]["sent"] >= 1
     assert body["tasks"]["data_retention"]["dry_run"] is True
+    assert body["tasks"]["merchant_health"]["summary"]["total"] >= 1
+    assert body["tasks"]["merchant_health"]["summary"]["due_followups"] >= 1
     assert any(
         result.get("business_slug") == slug and result.get("due_count") == 1
         for result in body["tasks"]["followup_digest"]["results"]
