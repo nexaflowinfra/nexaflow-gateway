@@ -166,6 +166,7 @@ def test_enquiry_app_pages_load():
     assert "Conversion Due" in admin_page.text
     assert "Upgrade WhatsApp" in admin_page.text
     assert "Prepare Upgrade WhatsApp" in admin_page.text
+    assert "Readiness" in admin_page.text
     assert "Trial End" in admin_page.text
     assert "Next action" in admin_page.text
     assert "/admin/dashboard" not in admin_page.text
@@ -1014,6 +1015,64 @@ def test_merchant_can_update_own_business_settings_only():
     saved = next(item for item in listing.json()["enquiries"] if item["id"] == lead.json()["id"])
     assert "6588889999" in saved["whatsapp_url"]
     assert saved["follow_up_at"] == ""
+
+
+def test_business_onboarding_readiness_updates_after_first_enquiry():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"readiness-{suffix}"
+    create = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Readiness Merchant",
+            "business_type": "renovation",
+            "whatsapp_phone": "6591110000",
+            "contact_email": f"owner-{suffix}@example.com",
+            "offer_summary": "Renovation quotation and site visit booking.",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+    business_key = create.json()["business_access_key"]
+
+    admin_profiles = client.get(
+        "/apps/enquiry/api/business-profiles",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    profile = next(item for item in admin_profiles.json()["profiles"] if item["slug"] == slug)
+    assert profile["onboarding"]["status"] == "ready_for_test"
+    assert profile["onboarding"]["percent"] >= 60
+    assert "first_enquiry" in profile["onboarding"]["missing_keys"]
+
+    listing_before = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing_before.status_code == 200
+    assert listing_before.json()["onboarding"]["status"] == "ready_for_test"
+    assert listing_before.json()["onboarding"]["next_action"]
+
+    lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Ready Buyer",
+            "phone": "6512345678",
+            "message": "I need a renovation quotation this week.",
+            "pdpa_consent": True,
+        },
+    )
+    assert lead.status_code == 200
+
+    listing_after = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    onboarding = listing_after.json()["onboarding"]
+    assert onboarding["status"] == "live"
+    assert onboarding["percent"] == 100
+    assert onboarding["missing_keys"] == []
+    assert any(item["key"] == "first_enquiry" and item["done"] for item in onboarding["checks"])
 
 
 def test_merchant_share_links_are_tracked_and_business_scoped():

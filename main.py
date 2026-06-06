@@ -3918,6 +3918,75 @@ def enquiry_stats(business_slug=None):
     return stats
 
 
+def business_profile_onboarding_status(profile):
+    stats = enquiry_stats(business_slug=profile["slug"])
+    checks = [
+        {
+            "key": "business_profile",
+            "label": "Business profile",
+            "done": bool(profile.get("business_name") and profile.get("business_type") and profile.get("offer_summary")),
+            "detail": "Business name, service type, and offer summary are filled.",
+        },
+        {
+            "key": "whatsapp",
+            "label": "WhatsApp number",
+            "done": bool(normalize_phone_for_whatsapp(profile.get("whatsapp_phone") or "")),
+            "detail": "Merchant WhatsApp number is ready for follow-up links.",
+        },
+        {
+            "key": "notification_email",
+            "label": "Notification email",
+            "done": bool(profile.get("contact_email")),
+            "detail": "Merchant can receive new enquiry and follow-up email alerts.",
+        },
+        {
+            "key": "business_access_key",
+            "label": "Private inbox access",
+            "done": bool(profile.get("access_key_prefix")),
+            "detail": "Business access key has been generated.",
+        },
+        {
+            "key": "first_enquiry",
+            "label": "First enquiry received",
+            "done": stats["total"] > 0,
+            "detail": "At least one test or customer enquiry has reached the inbox.",
+        },
+        {
+            "key": "followup_ready",
+            "label": "Follow-up workflow",
+            "done": stats["scheduled_followups"] > 0 or stats["due_followups"] > 0 or stats["total"] > 0,
+            "detail": "Leads can be tracked with statuses, notes, and follow-up dates.",
+        },
+    ]
+    completed = sum(1 for item in checks if item["done"])
+    total = len(checks)
+    required_done = all(
+        item["done"]
+        for item in checks
+        if item["key"] in {"business_profile", "whatsapp", "notification_email", "business_access_key"}
+    )
+    if required_done and stats["total"] > 0:
+        status = "live"
+        next_action = "Share the enquiry link with real customers and monitor follow-ups."
+    elif required_done:
+        status = "ready_for_test"
+        next_action = "Submit one test enquiry before sending the link to customers."
+    else:
+        status = "needs_setup"
+        next_action = "Complete the missing setup items before promotion."
+
+    missing = [item for item in checks if not item["done"]]
+    return {
+        "status": status,
+        "completed": completed,
+        "total": total,
+        "percent": round((completed / total) * 100) if total else 0,
+        "next_action": next_action,
+        "missing_keys": [item["key"] for item in missing],
+        "checks": checks,
+    }
+
+
 def stripe_secret_key():
     return (os.getenv("STRIPE_SECRET_KEY") or "").strip()
 
@@ -7082,6 +7151,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
             function renderActionCenter(data) {{
                 const stats = data.stats || {{}};
                 const leads = data.enquiries || [];
+                const onboarding = data.onboarding || {{}};
+                const onboardingChecks = onboarding.checks || [];
                 const due = stats.due_followups || 0;
                 const hot = (stats.by_priority || {{}}).hot || 0;
                 const newCount = (stats.by_status || {{}}).new || 0;
@@ -7106,12 +7177,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     </div>
                     <div class="action-card">
                         <h3>Trial readiness</h3>
-                        <p>Use this checklist before sending the link to real customers.</p>
+                        <p>${{escapeHtml(onboarding.percent ?? 0)}}% ready · ${{escapeHtml(onboarding.next_action || "Complete setup before promotion.")}}</p>
                         <div class="lead-badges">
-                            <span class="lead-badge">Business settings</span>
-                            <span class="lead-badge">Customer link copied</span>
-                            <span class="lead-badge">WhatsApp tested</span>
-                            <span class="lead-badge">Follow-up date used</span>
+                            ${{onboardingChecks.map(item => `<span class="lead-badge ${{item.done ? "hot" : ""}}">${{item.done ? "Done" : "Todo"}} · ${{escapeHtml(item.label)}}</span>`).join("")}}
                         </div>
                         <span class="next-action">Goal: get 3-5 real enquiries during trial week one.</span>
                     </div>
@@ -7392,7 +7460,7 @@ def enquiry_admin_page():
                     </div>
                 </div>
                 <table>
-                    <thead><tr><th>Business</th><th>Slug</th><th>Type</th><th>Status</th><th>Key Prefix</th><th>Links</th></tr></thead>
+                    <thead><tr><th>Business</th><th>Slug</th><th>Type</th><th>Status</th><th>Readiness</th><th>Key Prefix</th><th>Links</th></tr></thead>
                     <tbody id="profileRows"></tbody>
                 </table>
             </div>
@@ -7499,6 +7567,10 @@ def enquiry_admin_page():
                             <td>${escapeHtml(profile.slug)}</td>
                             <td>${escapeHtml(profile.business_type)}</td>
                             <td>${escapeHtml(profile.status)}</td>
+                            <td>
+                                <span class="lead-badge ${profile.onboarding?.status === "live" ? "hot" : ""}">${escapeHtml(profile.onboarding?.status || "unknown")}</span>
+                                <br><small>${escapeHtml(profile.onboarding?.percent ?? 0)}% · ${escapeHtml(profile.onboarding?.next_action || "")}</small>
+                            </td>
                             <td>${escapeHtml(profile.access_key_prefix || "not set")}</td>
                             <td>
                                 <a class="btn secondary" href="${escapeHtml(profile.form_url)}" target="_blank">Form</a>
@@ -8826,8 +8898,11 @@ def get_business_profiles(
     x_admin_key: str | None = Header(default=None),
 ):
     admin_guard(admin_key, x_admin_key)
+    profiles = list_business_profiles()
+    for profile in profiles:
+        profile["onboarding"] = business_profile_onboarding_status(profile)
     return {
-        "profiles": list_business_profiles(),
+        "profiles": profiles,
     }
 
 
@@ -8895,9 +8970,11 @@ def list_merchant_enquiries(
         x_business_key=x_business_key,
         authorization=authorization,
     )
+    stats = enquiry_stats(business_slug=profile["slug"])
     return {
         "business": profile,
-        "stats": enquiry_stats(business_slug=profile["slug"]),
+        "onboarding": business_profile_onboarding_status(profile),
+        "stats": stats,
         "enquiries": list_enquiry_records(
             status=status,
             business_slug=profile["slug"],
