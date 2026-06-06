@@ -3,7 +3,7 @@ import uuid
 import hmac
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 os.environ.setdefault("ADMIN_KEY", "test-admin")
 os.environ.setdefault("API_KEY_PEPPER", "test-pepper")
@@ -1437,16 +1437,94 @@ def test_admin_backend_automation_runner_previews_operational_tasks():
     assert "deployment_checks" in body["tasks"]
     assert "trial_requests" in body["tasks"]
     assert "followup_digest" in body["tasks"]
+    assert "data_retention" in body["tasks"]
     assert "backup" in body["tasks"]
     assert body["tasks"]["backup"]["status"] == "dry_run"
     assert body["tasks"]["followup_digest"]["dry_run"] is True
     assert body["tasks"]["followup_digest"]["sent"] >= 1
+    assert body["tasks"]["data_retention"]["dry_run"] is True
     assert any(
         result.get("business_slug") == slug and result.get("due_count") == 1
         for result in body["tasks"]["followup_digest"]["results"]
     )
     assert body["tasks"]["trial_requests"]["stats"]["total"] >= 1
     assert body["next_step"]
+
+
+def test_admin_data_retention_cleanup_previews_and_deletes_expired_enquiries():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"retention-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Retention Service",
+            "business_type": "repair",
+            "whatsapp_phone": "6591110000",
+            "data_retention_days": 30,
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+
+    lead = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Expired Buyer",
+            "phone": "6590001111",
+            "message": "Need old repair quote",
+            "pdpa_consent": True,
+        },
+    )
+    assert lead.status_code == 200
+    old_timestamp = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+    with main.db_connection() as connection:
+        connection.execute(
+            "UPDATE enquiries SET created_at = ?, updated_at = ? WHERE id = ?",
+            (old_timestamp, old_timestamp, lead.json()["id"]),
+        )
+
+    unauthorized = client.post(f"/admin/data-retention/cleanup?business_slug={slug}")
+    assert unauthorized.status_code == 401
+
+    preview = client.post(
+        f"/admin/data-retention/cleanup?business_slug={slug}&dry_run=true",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert preview.status_code == 200
+    assert preview.json()["expired"] == 1
+    assert preview.json()["deleted"] == 0
+
+    still_listed = client.get(
+        f"/apps/enquiry/api/enquiries?business_slug={slug}",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert any(item["id"] == lead.json()["id"] for item in still_listed.json()["enquiries"])
+
+    cleaned = client.post(
+        f"/admin/data-retention/cleanup?business_slug={slug}&dry_run=false",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert cleaned.status_code == 200
+    assert cleaned.json()["expired"] == 1
+    assert cleaned.json()["deleted"] == 1
+
+    after = client.get(
+        f"/apps/enquiry/api/enquiries?business_slug={slug}",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert all(item["id"] != lead.json()["id"] for item in after.json()["enquiries"])
+
+    audit = client.get(
+        f"/admin/data-audit-events?business_slug={slug}&event_type=enquiry.retention_deleted",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert audit.status_code == 200
+    assert audit.json()["events"][0]["metadata"]["count"] == 1
+    audit_payload = json.dumps(audit.json()["events"])
+    assert "Expired Buyer" not in audit_payload
+    assert "6590001111" not in audit_payload
 
 
 def test_public_enquiry_rate_limit_blocks_repeated_spam():

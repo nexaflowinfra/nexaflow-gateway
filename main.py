@@ -3435,6 +3435,76 @@ def send_due_followup_digest(business_slug=None, dry_run=False):
     }
 
 
+def cleanup_expired_enquiries(business_slug=None, dry_run=True, limit_per_business=500):
+    profiles = [get_business_profile(business_slug)] if business_slug else list_business_profiles()
+    results = []
+    total_expired = 0
+    total_deleted = 0
+    current = datetime.now(timezone.utc)
+
+    for profile in profiles:
+        retention_days = int(profile.get("data_retention_days") or 365)
+        cutoff = current - timedelta(days=retention_days)
+        cutoff_iso = cutoff.isoformat()
+
+        with db_connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, status, created_at
+                FROM enquiries
+                WHERE business_slug = ? AND created_at < ?
+                ORDER BY created_at ASC
+                LIMIT ?
+                """,
+                (profile["slug"], cutoff_iso, limit_per_business),
+            ).fetchall()
+            ids = [row["id"] for row in rows]
+            expired_count = len(ids)
+            deleted_count = 0
+
+            if ids and not dry_run:
+                placeholders = ",".join("?" for _ in ids)
+                connection.execute(
+                    f"DELETE FROM enquiries WHERE business_slug = ? AND id IN ({placeholders})",
+                    [profile["slug"], *ids],
+                )
+                deleted_count = expired_count
+                write_data_audit_event(
+                    "enquiry.retention_deleted",
+                    "automation",
+                    "enquiry",
+                    business_slug=profile["slug"],
+                    metadata={
+                        "count": deleted_count,
+                        "retention_days": retention_days,
+                        "cutoff": cutoff.date().isoformat(),
+                    },
+                    connection=connection,
+                )
+
+        total_expired += expired_count
+        total_deleted += deleted_count
+        results.append(
+            {
+                "business_slug": profile["slug"],
+                "retention_days": retention_days,
+                "cutoff": cutoff.date().isoformat(),
+                "expired_count": expired_count,
+                "deleted_count": deleted_count,
+                "dry_run": dry_run,
+            }
+        )
+
+    return {
+        "dry_run": dry_run,
+        "processed": len(results),
+        "expired": total_expired,
+        "deleted": total_deleted,
+        "limit_per_business": limit_per_business,
+        "results": results,
+    }
+
+
 def trial_automation_report(limit=100):
     requests = list_trial_requests(limit=limit)
     urgent = [
@@ -3475,6 +3545,7 @@ def run_backend_automation_once(dry_run=True, include_backup=False):
     tasks["deployment_checks"] = deployment_automation_report()
     tasks["trial_requests"] = trial_automation_report(limit=200)
     tasks["followup_digest"] = send_due_followup_digest(dry_run=dry_run)
+    tasks["data_retention"] = cleanup_expired_enquiries(dry_run=dry_run)
 
     if include_backup:
         if dry_run:
@@ -4389,6 +4460,22 @@ def run_admin_backend_automation(
 ):
     admin_guard(admin_key, x_admin_key)
     return run_backend_automation_once(dry_run=dry_run, include_backup=include_backup)
+
+
+@app.post("/admin/data-retention/cleanup")
+def run_admin_data_retention_cleanup(
+    business_slug: str | None = None,
+    dry_run: bool = True,
+    limit_per_business: int = Query(default=500, ge=1, le=5000),
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return cleanup_expired_enquiries(
+        business_slug=business_slug,
+        dry_run=dry_run,
+        limit_per_business=limit_per_business,
+    )
 
 
 @app.get("/admin/data-audit-events")
@@ -7945,6 +8032,7 @@ def admin_dashboard():
                 const deploy = tasks.deployment_checks || {};
                 const trials = tasks.trial_requests || {};
                 const followups = tasks.followup_digest || {};
+                const retention = tasks.data_retention || {};
                 const backup = tasks.backup || {};
                 document.getElementById("automationStatus").textContent = [
                     `Ran at: ${result.ran_at || "unknown"}`,
@@ -7952,6 +8040,7 @@ def admin_dashboard():
                     `Deployment checks ok: ${deploy.ok} (${deploy.failed_count || 0} failed)`,
                     `Trial urgent items: ${trials.urgent_count || 0}`,
                     `Follow-up digest: processed ${followups.processed || 0}, sent ${followups.sent || 0}, skipped ${followups.skipped || 0}`,
+                    `Data retention: expired ${retention.expired || 0}, deleted ${retention.deleted || 0}`,
                     `Backup: ${backup.status || "unknown"} - ${backup.reason || backup.backup?.name || ""}`,
                     `Next: ${result.next_step || ""}`
                 ].join("\\n");
