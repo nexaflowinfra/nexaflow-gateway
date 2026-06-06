@@ -7932,6 +7932,22 @@ def admin_dashboard():
             <button class="btn secondary" onclick="runAutomation(true, true)">Dry Run + Backup Check</button>
             <button class="btn secondary" onclick="runAutomation(false, true)">Run + Create Backup</button>
         </div>
+        <h2>Data Protection</h2>
+        <div class="status" id="retentionStatus">Run a retention dry-run before deleting old enquiry data.</div>
+        <div class="toolbar">
+            <label>Business slug
+                <input id="retentionBusinessSlug" placeholder="optional">
+            </label>
+            <button class="btn secondary" onclick="runRetentionCleanup(true)">Retention Dry Run</button>
+            <button class="btn secondary" onclick="runRetentionCleanup(false)">Delete Expired Data</button>
+            <button class="btn secondary" onclick="loadAuditEvents()">Refresh Audit Log</button>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Time</th><th>Event</th><th>Actor</th><th>Business</th><th>Entity</th><th>Metadata</th></tr>
+            </thead>
+            <tbody id="auditEvents"></tbody>
+        </table>
         <h2>Backups</h2>
         <div class="status" id="backupScheduler">Backup scheduler status will appear here.</div>
         <div class="toolbar">
@@ -8067,12 +8083,66 @@ def admin_dashboard():
                     status.textContent = error.message;
                 }
             }
+            function renderAuditEvents(events) {
+                document.getElementById("auditEvents").innerHTML = events.map(event => `
+                    <tr>
+                        <td>${escapeHtml(event.created_at || "")}</td>
+                        <td>${escapeHtml(event.event_type || "")}</td>
+                        <td>${escapeHtml(event.actor_type || "")}</td>
+                        <td>${escapeHtml(event.business_slug || "")}</td>
+                        <td>${escapeHtml(event.entity_type || "")}${event.entity_id ? `<br>${escapeHtml(event.entity_id)}` : ""}</td>
+                        <td><small>${escapeHtml(JSON.stringify(event.metadata || {}))}</small></td>
+                    </tr>
+                `).join("");
+            }
+            async function loadAuditEvents() {
+                const adminKey = document.getElementById("adminKey").value;
+                const status = document.getElementById("retentionStatus");
+                status.textContent = "Loading audit events...";
+                try {
+                    const businessSlug = document.getElementById("retentionBusinessSlug").value.trim();
+                    const params = new URLSearchParams({ limit: "50" });
+                    if (businessSlug) params.set("business_slug", businessSlug);
+                    const data = await api(`/admin/data-audit-events?${params.toString()}`, adminKey);
+                    renderAuditEvents(data.events || []);
+                    status.textContent = `Loaded ${(data.events || []).length} audit event(s).`;
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
+            async function runRetentionCleanup(dryRun = true) {
+                const adminKey = document.getElementById("adminKey").value;
+                const status = document.getElementById("retentionStatus");
+                status.textContent = dryRun ? "Previewing retention cleanup..." : "Deleting expired enquiry data...";
+                try {
+                    const businessSlug = document.getElementById("retentionBusinessSlug").value.trim();
+                    const params = new URLSearchParams({ dry_run: String(dryRun), limit_per_business: "500" });
+                    if (businessSlug) params.set("business_slug", businessSlug);
+                    const response = await fetch(`/admin/data-retention/cleanup?${params.toString()}`, {
+                        method: "POST",
+                        headers: { "X-Admin-Key": adminKey }
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+                    const result = await response.json();
+                    status.textContent = [
+                        `Dry run: ${result.dry_run}`,
+                        `Businesses processed: ${result.processed}`,
+                        `Expired enquiries: ${result.expired}`,
+                        `Deleted enquiries: ${result.deleted}`
+                    ].join("\\n");
+                    await loadAuditEvents();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
             async function loadAdmin() {
                 const adminKey = document.getElementById("adminKey").value;
                 const status = document.getElementById("status");
                 status.textContent = "Loading...";
                 try {
-                    const [clients, stats, report, actions, events, notifications, checks, backups] = await Promise.all([
+                    const [clients, stats, report, actions, events, notifications, checks, backups, audit] = await Promise.all([
                         api("/admin/clients", adminKey),
                         api("/admin/usage-stats", adminKey),
                         api("/admin/revenue-report", adminKey),
@@ -8080,7 +8150,8 @@ def admin_dashboard():
                         api("/admin/payment-events?limit=12", adminKey),
                         api("/admin/notifications?limit=12", adminKey),
                         api("/admin/deploy-check", adminKey),
-                        api("/admin/backups", adminKey)
+                        api("/admin/backups", adminKey),
+                        api("/admin/data-audit-events?limit=50", adminKey)
                     ]);
                     let totalRequests = stats.total_requests || 0;
                     let revenue = 0;
@@ -8156,6 +8227,7 @@ def admin_dashboard():
                             <td>${escapeHtml(notification.delivery_provider || "")}</td>
                         </tr>
                     `).join("");
+                    renderAuditEvents(audit.events || []);
                     const marginCheck = checks.checks.find(check => check.name === "MARGIN_GUARD");
                     const failed = checks.checks.filter(check => !check.ok).map(check => check.name);
                     document.getElementById("readiness").textContent = [

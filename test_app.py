@@ -95,6 +95,12 @@ def test_admin_dashboard_includes_backend_automation_panel():
     assert "runAutomation(false, true)" in response.text
     assert "/admin/automation/run" in response.text
     assert "renderAutomationResult" in response.text
+    assert "Data Protection" in response.text
+    assert "runRetentionCleanup(true)" in response.text
+    assert "runRetentionCleanup(false)" in response.text
+    assert "/admin/data-retention/cleanup" in response.text
+    assert "/admin/data-audit-events" in response.text
+    assert "auditEvents" in response.text
 
 
 def test_pricing_page_loads():
