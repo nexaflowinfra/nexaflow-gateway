@@ -2744,9 +2744,84 @@ def trial_request_followup_metadata(row):
     return age_days, days_until_trial_end, "low", "No follow-up required."
 
 
+def trial_conversion_stage(status, days_until_trial_end):
+    if status == "won":
+        return "converted"
+    if status in {"lost", "spam"}:
+        return "closed"
+    if status in {"new", "contacted"}:
+        return "pre_trial"
+    if status == "trial_setup":
+        if days_until_trial_end is None:
+            return "trial_started"
+        if days_until_trial_end <= 0:
+            return "trial_ended"
+        if days_until_trial_end <= 7:
+            return "trial_ending_soon"
+        return "active_trial"
+    return "unknown"
+
+
+def trial_conversion_plan_links():
+    links = {}
+    for plan_key in ("starter", "pro", "business"):
+        payment_link = payment_link_for_plan(plan_key)
+        links[plan_key] = payment_link or site_absolute_url(f"/billing/checkout?plan={plan_key}")
+    return links
+
+
+def trial_conversion_next_action(stage):
+    actions = {
+        "pre_trial": "First confirm fit, then create the merchant inbox before discussing paid plans.",
+        "active_trial": "Help them receive real enquiries and schedule a mid-trial check-in.",
+        "trial_ending_soon": "Ask for feedback, show the value delivered, and offer Starter or Pro before the trial ends.",
+        "trial_ended": "Follow up today with the paid plan link or close the trial if they are not a fit.",
+        "converted": "Confirm billing, support channel, and next workflow to add.",
+        "closed": "Keep the reason for learning and do not follow up unless they ask to restart.",
+    }
+    return actions.get(stage, "Review the trial manually.")
+
+
+def trial_conversion_whatsapp_message(request):
+    links = trial_conversion_plan_links()
+    business_name = request["business_name"]
+    contact_name = request["contact_name"]
+    days_left = request.get("days_until_trial_end")
+    if days_left is None:
+        timing = "Your NexaFlow trial is active."
+    elif days_left > 0:
+        timing = f"Your NexaFlow trial has about {days_left} day(s) left."
+    else:
+        timing = "Your NexaFlow trial has ended."
+
+    return f"""Hi {contact_name}, quick check-in from NexaFlow.
+
+{timing}
+
+For {business_name}, NexaFlow helps keep enquiries, WhatsApp follow-ups, customer details, and lead status in one private inbox.
+
+If you want to continue after the trial:
+Starter: {links['starter']}
+Pro: {links['pro']}
+
+You can start with Starter and upgrade later when enquiry volume grows."""
+
+
+def trial_conversion_whatsapp_url(request):
+    if request["status"] not in {"trial_setup", "won"}:
+        return None
+    if request["status"] == "won":
+        return None
+    return whatsapp_url_for_phone(
+        request["whatsapp_phone"],
+        trial_conversion_whatsapp_message(request),
+    )
+
+
 def row_to_trial_request(row):
     age_days, days_until_trial_end, follow_up_priority, next_action = trial_request_followup_metadata(row)
-    return {
+    stage = trial_conversion_stage(row["status"], days_until_trial_end)
+    request = {
         "id": row["id"],
         "business_name": row["business_name"],
         "contact_name": row["contact_name"],
@@ -2773,10 +2848,15 @@ def row_to_trial_request(row):
         "days_until_trial_end": days_until_trial_end,
         "follow_up_priority": follow_up_priority,
         "next_action": next_action,
+        "conversion_stage": stage,
+        "conversion_next_action": trial_conversion_next_action(stage),
+        "conversion_plan_links": trial_conversion_plan_links(),
         "whatsapp_url": sales_whatsapp_url(
             f"Hi {row['contact_name']}, this is NexaFlow. Thanks for requesting the 30-day trial for {row['business_name']}. I can help set up your enquiry inbox."
         ),
     }
+    request["conversion_whatsapp_url"] = trial_conversion_whatsapp_url(request)
+    return request
 
 
 def trial_request_notification_email(request):
@@ -2914,6 +2994,13 @@ def trial_request_stats(requests):
         "won": sum(1 for item in requests if item["status"] == "won"),
         "lost": sum(1 for item in requests if item["status"] == "lost"),
         "urgent": sum(1 for item in requests if item["follow_up_priority"] == "high"),
+        "active_trial": sum(1 for item in requests if item["conversion_stage"] == "active_trial"),
+        "trial_ended": sum(1 for item in requests if item["conversion_stage"] == "trial_ended"),
+        "conversion_due": sum(
+            1
+            for item in requests
+            if item["conversion_stage"] in {"trial_ending_soon", "trial_ended"}
+        ),
         "ending_soon": sum(
             1
             for item in requests
@@ -3001,6 +3088,8 @@ def trial_request_to_business_profile(request_id):
         "profile": profile,
         "onboarding_message": onboarding_message,
         "onboarding_whatsapp_url": whatsapp_url_for_phone(row["whatsapp_phone"], onboarding_message),
+        "conversion_message": trial_conversion_whatsapp_message(updated_request),
+        "conversion_whatsapp_url": trial_conversion_whatsapp_url(updated_request),
         "message": "Business profile and merchant inbox created from trial request.",
     }
 
@@ -7463,6 +7552,7 @@ def enquiry_admin_page():
                         Inbox: <a target="_blank" href="${escapeHtml(profile.inbox_url)}">${escapeHtml(profile.inbox_url)}</a>.
                         Access key: <strong>${escapeHtml(profile.business_access_key || "not rotated")}</strong>
                         ${result.onboarding_whatsapp_url ? `<br><a class="btn secondary" target="_blank" href="${escapeHtml(result.onboarding_whatsapp_url)}">Send Setup WhatsApp</a>` : ""}
+                        ${result.conversion_whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(result.conversion_whatsapp_url)}">Prepare Upgrade WhatsApp</a>` : ""}
                         <pre>${escapeHtml(result.onboarding_message || "")}</pre>
                     `;
                     await loadTrialRequests();
@@ -7481,6 +7571,7 @@ def enquiry_admin_page():
                         <section class="card"><h3>Total Trial Requests</h3><div class="price">${stats.total || 0}</div></section>
                         <section class="card"><h3>Urgent Follow-up</h3><div class="price">${stats.urgent || 0}</div></section>
                         <section class="card"><h3>Ending Soon</h3><div class="price">${stats.ending_soon || 0}</div></section>
+                        <section class="card"><h3>Conversion Due</h3><div class="price">${stats.conversion_due || 0}</div></section>
                         <section class="card"><h3>Won</h3><div class="price">${stats.won || 0}</div></section>
                     `;
                     document.getElementById("trialRequestRows").innerHTML = data.trial_requests.map(item => `
@@ -7496,9 +7587,10 @@ def enquiry_admin_page():
                             <td>${escapeHtml(item.age_days)} day(s)</td>
                             <td>${item.trial_ends_at ? `${escapeHtml(item.days_until_trial_end)} day(s)<br>${escapeHtml(item.trial_ends_at.slice(0, 10))}` : "not started"}</td>
                             <td><span class="lead-badge ${item.follow_up_priority === "high" ? "hot" : ""}">${escapeHtml(item.follow_up_priority)}</span></td>
-                            <td>${escapeHtml(item.next_action || "")}</td>
+                            <td>${escapeHtml(item.next_action || "")}<br><small>${escapeHtml(item.conversion_stage || "")}: ${escapeHtml(item.conversion_next_action || "")}</small></td>
                             <td>
                                 ${item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.whatsapp_url)}">WhatsApp</a>` : ""}
+                                ${item.conversion_whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.conversion_whatsapp_url)}">Upgrade WhatsApp</a>` : ""}
                                 <button class="btn secondary" onclick="createInboxFromTrial(${item.id})">Create Inbox</button>
                                 <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'contacted')">Contacted</button>
                                 <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'trial_setup')">Trial Setup</button>

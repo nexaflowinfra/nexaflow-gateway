@@ -163,6 +163,9 @@ def test_enquiry_app_pages_load():
     assert "trialRequestStats" in admin_page.text
     assert "Urgent Follow-up" in admin_page.text
     assert "Ending Soon" in admin_page.text
+    assert "Conversion Due" in admin_page.text
+    assert "Upgrade WhatsApp" in admin_page.text
+    assert "Prepare Upgrade WhatsApp" in admin_page.text
     assert "Trial End" in admin_page.text
     assert "Next action" in admin_page.text
     assert "/admin/dashboard" not in admin_page.text
@@ -260,6 +263,10 @@ def test_trial_request_flow():
     assert payload["trial_request"]["trial_started_at"]
     assert payload["trial_request"]["trial_ends_at"]
     assert 29 <= payload["trial_request"]["days_until_trial_end"] <= 30
+    assert payload["trial_request"]["conversion_stage"] == "active_trial"
+    assert payload["trial_request"]["conversion_next_action"]
+    assert payload["trial_request"]["conversion_plan_links"]["starter"].startswith("https://")
+    assert payload["trial_request"]["conversion_whatsapp_url"].startswith("https://wa.me/")
     assert payload["profile"]["business_name"] == f"Trial Biz {suffix}"
     assert payload["profile"]["business_access_key"].startswith("biz_")
     assert payload["profile"]["form_url"].startswith("/enquiry/")
@@ -268,6 +275,8 @@ def test_trial_request_flow():
     assert payload["profile"]["business_access_key"] in payload["onboarding_message"]
     assert payload["onboarding_whatsapp_url"].startswith("https://wa.me/")
     assert "Business%20access%20key" in payload["onboarding_whatsapp_url"]
+    assert "Starter:" in payload["conversion_message"]
+    assert payload["conversion_whatsapp_url"].startswith("https://wa.me/")
 
     listed_after_setup = client.get(
         "/apps/enquiry/api/trial-requests",
@@ -277,7 +286,30 @@ def test_trial_request_flow():
         item for item in listed_after_setup.json()["trial_requests"] if item["id"] == created["id"]
     ]
     assert matching_after_setup[0]["trial_ends_at"]
+    assert matching_after_setup[0]["conversion_stage"] == "active_trial"
+    assert matching_after_setup[0]["conversion_whatsapp_url"].startswith("https://wa.me/")
     assert "ending_soon" in listed_after_setup.json()["stats"]
+    assert "conversion_due" in listed_after_setup.json()["stats"]
+
+    expired_at = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    with main.db_connection() as connection:
+        connection.execute(
+            "UPDATE trial_requests SET trial_ends_at = ?, updated_at = ? WHERE id = ?",
+            (expired_at, datetime.now(timezone.utc).isoformat(), created["id"]),
+        )
+
+    listed_expired = client.get(
+        "/apps/enquiry/api/trial-requests",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    expired_match = [
+        item for item in listed_expired.json()["trial_requests"] if item["id"] == created["id"]
+    ][0]
+    assert expired_match["conversion_stage"] == "trial_ended"
+    assert expired_match["follow_up_priority"] == "high"
+    assert expired_match["conversion_whatsapp_url"].startswith("https://wa.me/")
+    assert listed_expired.json()["stats"]["trial_ended"] >= 1
+    assert listed_expired.json()["stats"]["conversion_due"] >= 1
 
 
 def test_business_profile_create_and_public_form_loads():
