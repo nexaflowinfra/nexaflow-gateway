@@ -447,6 +447,7 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     assert saved["whatsapp_url"].startswith("https://wa.me/6591234567")
     assert saved["pdpa_consent"] is True
     assert saved["consent_at"]
+    assert saved["follow_up_at"] == datetime.now(timezone.utc).date().isoformat()
     assert "Jamie sent" in saved["auto_summary"]
     assert "quotation" in saved["auto_summary"]
     assert "urgent" in saved["auto_summary"]
@@ -456,6 +457,7 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     email = main.merchant_enquiry_notification_email(main.default_enquiry_profile(), saved)
     assert "Auto-organized summary" in email
     assert "Recommended next action" in email
+    assert "Auto follow-up date" in email
     assert saved["auto_summary"] in email
 
 
@@ -872,6 +874,8 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert "markChecklistStep" in response.text
     assert "nexaflow_trial_checklist_" in response.text
     assert "localStorage.setItem(`nexaflow_business_key_" in response.text
+    assert "settingsAutoFollowup" in response.text
+    assert "settingsDataRetentionDays" in response.text
 
 
 def test_merchant_can_update_own_business_settings_only():
@@ -912,12 +916,20 @@ def test_merchant_can_update_own_business_settings_only():
             "offer_summary": "Emergency repair and maintenance.",
             "reply_tone": "fast and reassuring",
             "opening_hours": "Mon-Sat, 9am-7pm",
+            "auto_followup_enabled": False,
+            "hot_followup_hours": 2,
+            "standard_followup_days": 3,
+            "data_retention_days": 180,
         },
         headers={"X-Business-Key": business_key},
     )
     assert updated.status_code == 200
     assert updated.json()["business_name"] == "Apex Repair"
     assert updated.json()["contact_email"] == "owner@example.com"
+    assert updated.json()["auto_followup_enabled"] is False
+    assert updated.json()["hot_followup_hours"] == 2
+    assert updated.json()["standard_followup_days"] == 3
+    assert updated.json()["data_retention_days"] == 180
     assert updated.json()["access_key_prefix"] == profile_one.json()["access_key_prefix"]
 
     loaded_profile = client.get(
@@ -963,6 +975,7 @@ def test_merchant_can_update_own_business_settings_only():
     assert listing.status_code == 200
     saved = next(item for item in listing.json()["enquiries"] if item["id"] == lead.json()["id"])
     assert "6588889999" in saved["whatsapp_url"]
+    assert saved["follow_up_at"] == ""
 
 
 def test_merchant_share_links_are_tracked_and_business_scoped():
@@ -1236,8 +1249,14 @@ def test_merchant_can_filter_due_followups():
         json={"follow_up_at": "2999-01-01", "deal_value": 900},
         headers={"X-Business-Key": business_key},
     )
+    no_follow_update = client.patch(
+        f"/apps/enquiry/api/merchant/enquiries/{no_follow.json()['id']}?business_slug={slug}",
+        json={"follow_up_at": ""},
+        headers={"X-Business-Key": business_key},
+    )
     assert overdue_update.status_code == 200
     assert future_update.status_code == 200
+    assert no_follow_update.status_code == 200
 
     due = client.get(
         f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&follow_up=due",

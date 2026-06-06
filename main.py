@@ -227,6 +227,10 @@ class BusinessProfileRequest(BaseModel):
     opening_hours: str = Field(default="", max_length=200)
     status: str = Field(default="active", pattern="^(active|paused)$")
     rotate_access_key: bool = False
+    auto_followup_enabled: bool = True
+    hot_followup_hours: int = Field(default=0, ge=0, le=72)
+    standard_followup_days: int = Field(default=1, ge=1, le=30)
+    data_retention_days: int = Field(default=365, ge=30, le=2555)
 
 
 class BusinessProfileSettingsUpdate(BaseModel):
@@ -237,6 +241,10 @@ class BusinessProfileSettingsUpdate(BaseModel):
     offer_summary: str = Field(default="", max_length=600)
     reply_tone: str = Field(default="friendly and professional", max_length=120)
     opening_hours: str = Field(default="", max_length=200)
+    auto_followup_enabled: bool = True
+    hot_followup_hours: int = Field(default=0, ge=0, le=72)
+    standard_followup_days: int = Field(default=1, ge=1, le=30)
+    data_retention_days: int = Field(default=365, ge=30, le=2555)
 
 
 class EnquiryStatusUpdate(BaseModel):
@@ -772,6 +780,10 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'active',
                 access_key_hash TEXT,
                 access_key_prefix TEXT,
+                auto_followup_enabled INTEGER NOT NULL DEFAULT 1,
+                hot_followup_hours INTEGER NOT NULL DEFAULT 0,
+                standard_followup_days INTEGER NOT NULL DEFAULT 1,
+                data_retention_days INTEGER NOT NULL DEFAULT 365,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -780,6 +792,10 @@ def init_db():
         ensure_column(connection, "business_profiles", "client_id", "TEXT")
         ensure_column(connection, "business_profiles", "access_key_hash", "TEXT")
         ensure_column(connection, "business_profiles", "access_key_prefix", "TEXT")
+        ensure_column(connection, "business_profiles", "auto_followup_enabled", "INTEGER NOT NULL DEFAULT 1")
+        ensure_column(connection, "business_profiles", "hot_followup_hours", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(connection, "business_profiles", "standard_followup_days", "INTEGER NOT NULL DEFAULT 1")
+        ensure_column(connection, "business_profiles", "data_retention_days", "INTEGER NOT NULL DEFAULT 365")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS trial_requests (
@@ -2255,6 +2271,10 @@ def row_to_business_profile(row):
         "opening_hours": row["opening_hours"] or "",
         "status": row["status"],
         "access_key_prefix": row["access_key_prefix"],
+        "auto_followup_enabled": bool(row["auto_followup_enabled"]) if "auto_followup_enabled" in row.keys() else True,
+        "hot_followup_hours": row["hot_followup_hours"] if "hot_followup_hours" in row.keys() else 0,
+        "standard_followup_days": row["standard_followup_days"] if "standard_followup_days" in row.keys() else 1,
+        "data_retention_days": row["data_retention_days"] if "data_retention_days" in row.keys() else 365,
         "form_url": f"/enquiry/{row['slug']}",
         "inbox_url": f"/inbox/{row['slug']}",
         "embed_url": f"/embed/enquiry/{row['slug']}.js",
@@ -2276,6 +2296,10 @@ def default_enquiry_profile():
         "opening_hours": "",
         "status": "active",
         "access_key_prefix": None,
+        "auto_followup_enabled": True,
+        "hot_followup_hours": 0,
+        "standard_followup_days": 1,
+        "data_retention_days": 365,
         "form_url": "/enquiry/demo",
         "inbox_url": "/inbox/demo",
         "embed_url": "/embed/enquiry/demo.js",
@@ -2490,8 +2514,9 @@ def upsert_business_profile(req, owner_client_id=None):
             INSERT OR REPLACE INTO business_profiles (
                 slug, client_id, business_name, business_type, whatsapp_phone, contact_email,
                 offer_summary, reply_tone, opening_hours, status, access_key_hash,
-                access_key_prefix, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                access_key_prefix, auto_followup_enabled, hot_followup_hours,
+                standard_followup_days, data_retention_days, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 slug,
@@ -2506,6 +2531,10 @@ def upsert_business_profile(req, owner_client_id=None):
                 req.status,
                 access_key_hash,
                 access_key_prefix,
+                1 if req.auto_followup_enabled else 0,
+                req.hot_followup_hours,
+                req.standard_followup_days,
+                req.data_retention_days,
                 created_at,
                 timestamp,
             ),
@@ -2567,7 +2596,8 @@ def update_business_profile_settings(slug, req):
             """
             UPDATE business_profiles
             SET business_name = ?, business_type = ?, whatsapp_phone = ?, contact_email = ?,
-                offer_summary = ?, reply_tone = ?, opening_hours = ?, updated_at = ?
+                offer_summary = ?, reply_tone = ?, opening_hours = ?, auto_followup_enabled = ?,
+                hot_followup_hours = ?, standard_followup_days = ?, data_retention_days = ?, updated_at = ?
             WHERE slug = ?
             """,
             (
@@ -2578,6 +2608,10 @@ def update_business_profile_settings(slug, req):
                 req.offer_summary.strip(),
                 req.reply_tone.strip() or "friendly and professional",
                 req.opening_hours.strip(),
+                1 if req.auto_followup_enabled else 0,
+                req.hot_followup_hours,
+                req.standard_followup_days,
+                req.data_retention_days,
                 timestamp,
                 normalized_slug,
             ),
@@ -3115,6 +3149,21 @@ def enquiry_workflow_summary(name, message, classification, profile=None):
     }
 
 
+def enquiry_auto_follow_up_date(classification, profile=None):
+    profile = profile or default_enquiry_profile()
+    if not profile.get("auto_followup_enabled", True):
+        return ""
+
+    current = datetime.now(timezone.utc)
+    if classification["priority"] == "hot":
+        hours = int(profile.get("hot_followup_hours") or 0)
+        follow_up_at = current + timedelta(hours=hours)
+    else:
+        days = int(profile.get("standard_followup_days") or 1)
+        follow_up_at = current + timedelta(days=days)
+    return follow_up_at.date().isoformat()
+
+
 def whatsapp_reply_url(phone, reply_draft):
     digits = normalize_phone_for_whatsapp(phone)
     if not digits:
@@ -3249,6 +3298,9 @@ Recommended next action:
 
 Follow-up suggestion:
 {enquiry.get('follow_up_recommendation') or 'Set a follow-up date after replying.'}
+
+Auto follow-up date:
+{enquiry.get('follow_up_at') or 'Not scheduled'}
 
 Message:
 {enquiry['message']}
@@ -3482,6 +3534,7 @@ def create_enquiry_record(req):
     classification = classify_enquiry(req.message)
     business_type = profile.get("business_type") or req.business_type
     workflow = enquiry_workflow_summary(req.name, req.message, classification, profile)
+    follow_up_at = enquiry_auto_follow_up_date(classification, profile)
     reply_draft = enquiry_reply_draft(req.name, business_type, req.message, classification, profile)
     reply_phone = profile.get("whatsapp_phone") or req.phone
     whatsapp_url = whatsapp_reply_url(reply_phone, reply_draft)
@@ -3500,8 +3553,9 @@ def create_enquiry_record(req):
                 referrer, page_url, intent,
                 priority, estimated_value, auto_summary, next_action, follow_up_recommendation,
                 reply_draft, whatsapp_url, merchant_notification_status,
-                merchant_notification_error, pdpa_consent, consent_at, consent_notice, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                merchant_notification_error, follow_up_at, pdpa_consent, consent_at, consent_notice,
+                status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile["slug"],
@@ -3524,6 +3578,7 @@ def create_enquiry_record(req):
                 whatsapp_url,
                 "pending",
                 None,
+                follow_up_at,
                 1,
                 timestamp,
                 consent_notice,
@@ -3550,6 +3605,7 @@ def create_enquiry_record(req):
             "source": enquiry.get("source") or "web",
             "campaign": enquiry.get("campaign") or "",
             "pdpa_consent": enquiry["pdpa_consent"],
+            "auto_followup_set": bool(enquiry.get("follow_up_at")),
         },
     )
     delivery = notify_merchant_new_enquiry(profile, enquiry)
@@ -6538,6 +6594,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 <label>Reply Tone<input id="settingsTone" placeholder="friendly and professional"></label>
                 <label>Opening Hours<input id="settingsHours" placeholder="Mon-Sat, 9am-6pm"></label>
             </div>
+            <div class="toolbar">
+                <label><input id="settingsAutoFollowup" type="checkbox"> Auto-schedule follow-up</label>
+                <label>Hot Lead Follow-up Hours<input id="settingsHotFollowupHours" type="number" min="0" max="72" step="1"></label>
+                <label>Standard Follow-up Days<input id="settingsStandardFollowupDays" type="number" min="1" max="30" step="1"></label>
+                <label>Data Retention Days<input id="settingsDataRetentionDays" type="number" min="30" max="2555" step="1"></label>
+            </div>
             <button class="btn" onclick="saveMerchantSettings()">Save Settings</button>
             <div class="status" id="settingsStatus">Load leads first, then update your business settings here.</div>
         </details>
@@ -6676,6 +6738,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 document.getElementById("settingsOffer").value = profile.offer_summary || "";
                 document.getElementById("settingsTone").value = profile.reply_tone || "friendly and professional";
                 document.getElementById("settingsHours").value = profile.opening_hours || "";
+                document.getElementById("settingsAutoFollowup").checked = profile.auto_followup_enabled !== false;
+                document.getElementById("settingsHotFollowupHours").value = profile.hot_followup_hours ?? 0;
+                document.getElementById("settingsStandardFollowupDays").value = profile.standard_followup_days ?? 1;
+                document.getElementById("settingsDataRetentionDays").value = profile.data_retention_days ?? 365;
             }}
             function absoluteUrl(path) {{
                 return new URL(path, window.location.origin).toString();
@@ -6753,7 +6819,11 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             contact_email: document.getElementById("settingsEmail").value,
                             offer_summary: document.getElementById("settingsOffer").value,
                             reply_tone: document.getElementById("settingsTone").value,
-                            opening_hours: document.getElementById("settingsHours").value
+                            opening_hours: document.getElementById("settingsHours").value,
+                            auto_followup_enabled: document.getElementById("settingsAutoFollowup").checked,
+                            hot_followup_hours: Number(document.getElementById("settingsHotFollowupHours").value || 0),
+                            standard_followup_days: Number(document.getElementById("settingsStandardFollowupDays").value || 1),
+                            data_retention_days: Number(document.getElementById("settingsDataRetentionDays").value || 365)
                         }})
                     }});
                     fillMerchantSettings(profile);
