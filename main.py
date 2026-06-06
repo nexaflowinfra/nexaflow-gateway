@@ -723,6 +723,9 @@ def init_db():
                 intent TEXT,
                 priority TEXT,
                 estimated_value TEXT,
+                auto_summary TEXT,
+                next_action TEXT,
+                follow_up_recommendation TEXT,
                 reply_draft TEXT,
                 whatsapp_url TEXT,
                 merchant_notification_status TEXT,
@@ -743,6 +746,9 @@ def init_db():
         ensure_column(connection, "enquiries", "campaign", "TEXT")
         ensure_column(connection, "enquiries", "referrer", "TEXT")
         ensure_column(connection, "enquiries", "page_url", "TEXT")
+        ensure_column(connection, "enquiries", "auto_summary", "TEXT")
+        ensure_column(connection, "enquiries", "next_action", "TEXT")
+        ensure_column(connection, "enquiries", "follow_up_recommendation", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_status", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_error", "TEXT")
         ensure_column(connection, "enquiries", "internal_note", "TEXT")
@@ -813,6 +819,27 @@ def init_db():
         ensure_column(connection, "trial_requests", "notification_error", "TEXT")
         ensure_column(connection, "trial_requests", "trial_started_at", "TEXT")
         ensure_column(connection, "trial_requests", "trial_ends_at", "TEXT")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS data_audit_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                actor_type TEXT NOT NULL,
+                business_slug TEXT,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT,
+                metadata_json TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_created ON enquiries (business_slug, created_at)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_status ON enquiries (business_slug, status)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_followup ON enquiries (business_slug, follow_up_at)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_priority ON enquiries (business_slug, priority)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_business_profiles_client ON business_profiles (client_id)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_trial_requests_status_created ON trial_requests (status, created_at)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_data_audit_business_created ON data_audit_events (business_slug, created_at)")
 
 
 def migration_applied(connection, name):
@@ -3042,6 +3069,52 @@ def enquiry_reply_draft(name, business_type, message, classification, profile=No
     )
 
 
+def enquiry_workflow_summary(name, message, classification, profile=None):
+    profile = profile or default_enquiry_profile()
+    business_name = profile.get("business_name") or "the business"
+    clean_message = " ".join(message.strip().split())
+    if len(clean_message) > 140:
+        clean_message = f"{clean_message[:137]}..."
+
+    intent_label = {
+        "quotation": "quotation request",
+        "booking": "booking request",
+        "inventory": "stock or availability question",
+        "general": "general enquiry",
+    }.get(classification["intent"], "general enquiry")
+    priority_label = {
+        "hot": "urgent / high priority",
+        "warm": "medium priority",
+        "normal": "normal priority",
+    }.get(classification["priority"], classification["priority"])
+
+    auto_summary = (
+        f"{name} sent a {priority_label} {intent_label} for {business_name}. "
+        f"Message: {clean_message}"
+    )
+    if classification["priority"] == "hot":
+        next_action = "Reply as soon as possible, then mark the lead as Contacted."
+        follow_up = "Follow up today if the customer has not replied."
+    elif classification["intent"] == "quotation":
+        next_action = "Ask for missing quote details and prepare a price estimate."
+        follow_up = "Follow up within 1 business day."
+    elif classification["intent"] == "booking":
+        next_action = "Confirm preferred date, time, and availability."
+        follow_up = "Follow up within 1 business day."
+    elif classification["intent"] == "inventory":
+        next_action = "Check stock or availability, then reply with options."
+        follow_up = "Follow up within 1 business day."
+    else:
+        next_action = "Reply with the most relevant service information and ask one clear next question."
+        follow_up = "Follow up within 2 business days."
+
+    return {
+        "auto_summary": auto_summary,
+        "next_action": next_action,
+        "follow_up_recommendation": follow_up,
+    }
+
+
 def whatsapp_reply_url(phone, reply_draft):
     digits = normalize_phone_for_whatsapp(phone)
     if not digits:
@@ -3064,6 +3137,60 @@ def enforce_enquiry_rate_limit(business_slug, phone, limit=10, window_seconds=36
     enquiry_windows[key] = timestamps
 
 
+def write_data_audit_event(event_type, actor_type, entity_type, entity_id=None, business_slug=None, metadata=None, connection=None):
+    safe_metadata = metadata or {}
+    params = (
+        event_type,
+        actor_type,
+        normalize_slug(business_slug) if business_slug else None,
+        entity_type,
+        str(entity_id) if entity_id is not None else None,
+        json.dumps(safe_metadata, separators=(",", ":"), sort_keys=True),
+        now_iso(),
+    )
+    statement = """
+        INSERT INTO data_audit_events (
+            event_type, actor_type, business_slug, entity_type, entity_id, metadata_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    """
+    if connection is not None:
+        connection.execute(statement, params)
+        return
+    with db_connection() as audit_connection:
+        audit_connection.execute(statement, params)
+
+
+def list_data_audit_events(business_slug=None, event_type=None, limit=100):
+    query = "SELECT * FROM data_audit_events"
+    filters = []
+    params = []
+    if business_slug:
+        filters.append("business_slug = ?")
+        params.append(normalize_slug(business_slug))
+    if event_type:
+        filters.append("event_type = ?")
+        params.append(event_type)
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
+    query += " ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+    with db_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+    return [
+        {
+            "id": row["id"],
+            "event_type": row["event_type"],
+            "actor_type": row["actor_type"],
+            "business_slug": row["business_slug"],
+            "entity_type": row["entity_type"],
+            "entity_id": row["entity_id"],
+            "metadata": json.loads(row["metadata_json"] or "{}"),
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
 def row_to_enquiry(row):
     return {
         "id": row["id"],
@@ -3080,6 +3207,9 @@ def row_to_enquiry(row):
         "intent": row["intent"],
         "priority": row["priority"],
         "estimated_value": row["estimated_value"],
+        "auto_summary": row["auto_summary"] if "auto_summary" in row.keys() else "",
+        "next_action": row["next_action"] if "next_action" in row.keys() else "",
+        "follow_up_recommendation": row["follow_up_recommendation"] if "follow_up_recommendation" in row.keys() else "",
         "reply_draft": row["reply_draft"],
         "whatsapp_url": row["whatsapp_url"],
         "merchant_notification_status": row["merchant_notification_status"],
@@ -3110,6 +3240,15 @@ Lead:
 Intent: {enquiry['intent']}
 Priority: {enquiry['priority']}
 Estimated value: {enquiry['estimated_value']}
+
+Auto-organized summary:
+{enquiry.get('auto_summary') or 'Not available'}
+
+Recommended next action:
+{enquiry.get('next_action') or 'Review this enquiry in your inbox.'}
+
+Follow-up suggestion:
+{enquiry.get('follow_up_recommendation') or 'Set a follow-up date after replying.'}
 
 Message:
 {enquiry['message']}
@@ -3342,6 +3481,7 @@ def create_enquiry_record(req):
 
     classification = classify_enquiry(req.message)
     business_type = profile.get("business_type") or req.business_type
+    workflow = enquiry_workflow_summary(req.name, req.message, classification, profile)
     reply_draft = enquiry_reply_draft(req.name, business_type, req.message, classification, profile)
     reply_phone = profile.get("whatsapp_phone") or req.phone
     whatsapp_url = whatsapp_reply_url(reply_phone, reply_draft)
@@ -3358,9 +3498,10 @@ def create_enquiry_record(req):
             INSERT INTO enquiries (
                 business_slug, name, phone, email, business_type, message, source, campaign,
                 referrer, page_url, intent,
-                priority, estimated_value, reply_draft, whatsapp_url, merchant_notification_status,
+                priority, estimated_value, auto_summary, next_action, follow_up_recommendation,
+                reply_draft, whatsapp_url, merchant_notification_status,
                 merchant_notification_error, pdpa_consent, consent_at, consent_notice, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile["slug"],
@@ -3376,6 +3517,9 @@ def create_enquiry_record(req):
                 classification["intent"],
                 classification["priority"],
                 classification["estimated_value"],
+                workflow["auto_summary"],
+                workflow["next_action"],
+                workflow["follow_up_recommendation"],
                 reply_draft,
                 whatsapp_url,
                 "pending",
@@ -3394,6 +3538,20 @@ def create_enquiry_record(req):
         ).fetchone()
 
     enquiry = row_to_enquiry(row)
+    write_data_audit_event(
+        "enquiry.created",
+        "public_form",
+        "enquiry",
+        enquiry["id"],
+        business_slug=profile["slug"],
+        metadata={
+            "intent": enquiry["intent"],
+            "priority": enquiry["priority"],
+            "source": enquiry.get("source") or "web",
+            "campaign": enquiry.get("campaign") or "",
+            "pdpa_consent": enquiry["pdpa_consent"],
+        },
+    )
     delivery = notify_merchant_new_enquiry(profile, enquiry)
     status = delivery.get("status", "unknown")
     error = delivery.get("reason") or delivery.get("provider_error")
@@ -3475,6 +3633,9 @@ def enquiries_to_csv(enquiries):
         "intent",
         "priority",
         "estimated_value",
+        "auto_summary",
+        "next_action",
+        "follow_up_recommendation",
         "status",
         "message",
         "reply_draft",
@@ -4172,6 +4333,24 @@ def run_admin_backend_automation(
 ):
     admin_guard(admin_key, x_admin_key)
     return run_backend_automation_once(dry_run=dry_run, include_backup=include_backup)
+
+
+@app.get("/admin/data-audit-events")
+def get_admin_data_audit_events(
+    business_slug: str | None = None,
+    event_type: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    admin_key: str | None = None,
+    x_admin_key: str | None = Header(default=None),
+):
+    admin_guard(admin_key, x_admin_key)
+    return {
+        "events": list_data_audit_events(
+            business_slug=business_slug,
+            event_type=event_type,
+            limit=limit,
+        )
+    }
 
 
 def money(amount):
@@ -6639,6 +6818,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 }}[value] || value || "Unknown";
             }}
             function chooseNextAction(item) {{
+                if (item.next_action) return item.next_action;
                 if (item.status === "new" && item.priority === "hot") return "Reply now and mark Contacted";
                 if (item.status === "new") return "Send first WhatsApp reply";
                 if (item.status === "contacted") return "Set follow-up date or mark Quoted";
@@ -6775,13 +6955,14 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <td>${{escapeHtml(item.source || "unknown")}}${{item.campaign ? `<br>${{escapeHtml(item.campaign)}}` : ""}}${{item.referrer ? `<br><small>${{escapeHtml(item.referrer.slice(0, 80))}}</small>` : ""}}</td>
                             <td>${{escapeHtml(item.intent)}}</td>
                             <td>${{escapeHtml(item.priority)}}</td>
-                            <td>${{escapeHtml(item.message)}}</td>
+                            <td>${{escapeHtml(item.message)}}${{item.auto_summary ? `<br><small>${{escapeHtml(item.auto_summary)}}</small>` : ""}}</td>
                             <td>${{escapeHtml(item.reply_draft)}}</td>
                             <td><input id="follow-up-${{item.id}}" type="date" value="${{escapeHtml(item.follow_up_at || "")}}"></td>
                             <td><input id="deal-value-${{item.id}}" type="number" min="0" step="0.01" value="${{item.deal_value ?? ""}}" placeholder="0"></td>
                             <td>
                                 <textarea id="note-${{item.id}}" placeholder="Internal follow-up note">${{escapeHtml(item.internal_note || "")}}</textarea>
                                 <span class="next-action">${{escapeHtml(chooseNextAction(item))}}</span>
+                                ${{item.follow_up_recommendation ? `<span class="next-action">${{escapeHtml(item.follow_up_recommendation)}}</span>` : ""}}
                                 <button class="btn secondary" onclick="saveMerchantNote(${{item.id}})">Save Details</button>
                             </td>
                             <td><span class="lead-badge ${{item.priority === "hot" ? "hot" : ""}}">${{escapeHtml(statusLabel(item.status))}}</span></td>
@@ -8434,6 +8615,20 @@ def export_merchant_enquiries_csv(
         search=search,
         limit=limit,
     )
+    write_data_audit_event(
+        "enquiry.exported",
+        "merchant",
+        "enquiry",
+        business_slug=profile["slug"],
+        metadata={
+            "count": len(enquiries),
+            "status": status or "",
+            "priority": priority or "",
+            "intent": intent or "",
+            "follow_up": follow_up or "",
+            "search_used": bool(search),
+        },
+    )
     filename = f"{profile['slug']}-enquiries.csv"
     return Response(
         enquiries_to_csv(enquiries),
@@ -8518,11 +8713,20 @@ def delete_merchant_enquiry(
     )
     with db_connection() as connection:
         row = connection.execute(
-            "SELECT id, business_slug FROM enquiries WHERE id = ?",
+            "SELECT id, business_slug, status FROM enquiries WHERE id = ?",
             (enquiry_id,),
         ).fetchone()
         if not row or row["business_slug"] != profile["slug"]:
             raise HTTPException(status_code=404, detail="Enquiry not found")
+        write_data_audit_event(
+            "enquiry.deleted",
+            "merchant",
+            "enquiry",
+            enquiry_id,
+            business_slug=profile["slug"],
+            metadata={"previous_status": row["status"] if "status" in row.keys() else ""},
+            connection=connection,
+        )
         connection.execute("DELETE FROM enquiries WHERE id = ?", (enquiry_id,))
 
     return {
@@ -8551,6 +8755,15 @@ def update_enquiry_status(
         connection.execute(
             "UPDATE enquiries SET status = ?, updated_at = ? WHERE id = ?",
             (req.status, now_iso(), enquiry_id),
+        )
+        write_data_audit_event(
+            "enquiry.status_updated",
+            "admin",
+            "enquiry",
+            enquiry_id,
+            business_slug=row["business_slug"],
+            metadata={"from": row["status"], "to": req.status},
+            connection=connection,
         )
         updated = connection.execute(
             "SELECT * FROM enquiries WHERE id = ?",
@@ -8598,6 +8811,20 @@ def update_merchant_enquiry_status(
         connection.execute(
             "UPDATE enquiries SET status = ?, internal_note = ?, follow_up_at = ?, deal_value = ?, updated_at = ? WHERE id = ?",
             (next_status, next_note, next_follow_up, next_deal_value, now_iso(), enquiry_id),
+        )
+        write_data_audit_event(
+            "enquiry.updated",
+            "merchant",
+            "enquiry",
+            enquiry_id,
+            business_slug=profile["slug"],
+            metadata={
+                "status_changed": next_status != row["status"],
+                "note_changed": next_note != (row["internal_note"] or ""),
+                "follow_up_changed": next_follow_up != (row["follow_up_at"] or ""),
+                "deal_value_changed": next_deal_value != row["deal_value"],
+            },
+            connection=connection,
         )
         updated = connection.execute(
             "SELECT * FROM enquiries WHERE id = ?",

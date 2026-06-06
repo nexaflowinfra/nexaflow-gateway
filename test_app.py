@@ -434,6 +434,9 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     assert body["priority"] == "hot"
     assert "reply_draft" not in body
     assert "whatsapp_url" not in body
+    assert "auto_summary" not in body
+    assert "next_action" not in body
+    assert "follow_up_recommendation" not in body
 
     listing = client.get(
         "/apps/enquiry/api/enquiries",
@@ -444,6 +447,16 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     assert saved["whatsapp_url"].startswith("https://wa.me/6591234567")
     assert saved["pdpa_consent"] is True
     assert saved["consent_at"]
+    assert "Jamie sent" in saved["auto_summary"]
+    assert "quotation" in saved["auto_summary"]
+    assert "urgent" in saved["auto_summary"]
+    assert "Reply as soon as possible" in saved["next_action"]
+    assert "Follow up" in saved["follow_up_recommendation"]
+
+    email = main.merchant_enquiry_notification_email(main.default_enquiry_profile(), saved)
+    assert "Auto-organized summary" in email
+    assert "Recommended next action" in email
+    assert saved["auto_summary"] in email
 
 
 def test_enquiry_tracks_marketing_attribution_and_source_stats():
@@ -816,6 +829,21 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
     assert after_delete.status_code == 200
     assert all(item["id"] != lead_one.json()["id"] for item in after_delete.json()["enquiries"])
 
+    unauthorized_audit = client.get("/admin/data-audit-events")
+    assert unauthorized_audit.status_code == 401
+
+    audit = client.get(
+        f"/admin/data-audit-events?business_slug={slug_one}",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert audit.status_code == 200
+    events = audit.json()["events"]
+    event_types = {item["event_type"] for item in events}
+    assert {"enquiry.created", "enquiry.updated", "enquiry.deleted"}.issubset(event_types)
+    audit_payload = json.dumps(events)
+    assert "Own Lead" not in audit_payload
+    assert "6591112222" not in audit_payload
+
 
 def test_merchant_inbox_includes_action_center_and_pipeline_board():
     suffix = uuid.uuid4().hex[:8]
@@ -1067,6 +1095,9 @@ def test_merchant_can_export_own_enquiries_csv_only():
     assert "CSV Buyer" in exported.text
     assert "csv@example.com" in exported.text
     assert "Need urgent quotation for repair" in exported.text
+    assert "auto_summary" in exported.text
+    assert "next_action" in exported.text
+    assert "follow_up_recommendation" in exported.text
     assert "Export this note for the sales team." in exported.text
     assert "Tomorrow morning" in exported.text
     assert "1200.5" in exported.text
