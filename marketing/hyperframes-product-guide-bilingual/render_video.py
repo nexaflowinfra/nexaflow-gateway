@@ -123,6 +123,13 @@ def draw_multiline(draw, xy, text, fnt, fill, max_width, line_gap=10):
     return y
 
 
+def draw_text_fit(draw, xy, text, fnt, fill, max_width):
+    if draw.textbbox((0, 0), text, font=fnt)[2] <= max_width:
+        draw.text(xy, text, font=fnt, fill=fill)
+        return
+    draw_multiline(draw, xy, text, fnt, fill, max_width, 5)
+
+
 def typed_value(value, progress):
     progress = clamp(progress)
     count = int(round(len(value) * progress))
@@ -260,12 +267,12 @@ def draw_cursor(img, x, y, click=0.0, alpha=1.0):
     d = ImageDraw.Draw(layer, "RGBA")
     a = int(255 * alpha)
     if click > 0:
-        r = 20 + int(34 * click)
-        d.ellipse((x - r, y - r, x + r, y + r), outline=(*GOLD, int(190 * click * alpha)), width=5)
-        d.ellipse((x - 12, y - 12, x + 12, y + 12), fill=(*GOLD, int(110 * click * alpha)))
-    shadow = [(x + 3, y + 5), (x + 40, y + 37), (x + 19, y + 42), (x + 10, y + 66)]
-    pointer = [(x, y), (x + 36, y + 34), (x + 15, y + 39), (x + 6, y + 62)]
-    d.polygon(shadow, fill=(0, 0, 0, int(180 * alpha)))
+        r = 15 + int(20 * click)
+        d.ellipse((x - r, y - r, x + r, y + r), outline=(*GOLD, int(200 * click * alpha)), width=4)
+        d.ellipse((x - 7, y - 7, x + 7, y + 7), fill=(*GOLD, int(125 * click * alpha)))
+    shadow = [(x + 2, y + 4), (x + 28, y + 29), (x + 13, y + 33), (x + 6, y + 49)]
+    pointer = [(x, y), (x + 26, y + 26), (x + 10, y + 31), (x + 4, y + 47)]
+    d.polygon(shadow, fill=(0, 0, 0, int(170 * alpha)))
     d.polygon(pointer, fill=(*TEXT, a), outline=(*GOLD, int(180 * alpha)))
     img.alpha_composite(layer)
 
@@ -341,7 +348,7 @@ def scene_trial_form(img, t, alpha):
         d.rounded_rectangle(btn, radius=19, outline=(*TEXT, int(210 * alpha)), width=4)
     if local > 7.6:
         rounded(d, (x1 + 385, yy + 128, x2, yy + 190), 18, (34, 197, 94, int(36 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
-        d.text((x1 + 408, yy + 145), "Request saved securely", font=F_SMALL, fill=(*TEXT, a))
+        d.text((x1 + 408, yy + 145), "Saved securely", font=F_SMALL, fill=(*TEXT, a))
     img.alpha_composite(layer)
 
 
@@ -371,10 +378,10 @@ def scene_load_inbox(img, t, alpha):
     card(d, (x1, y1 + 540, x2, y1 + 760), alpha, GOLD)
     d.text((x1 + 28, y1 + 575), "Access is protected", font=F_H3, fill=(*TEXT, a))
     if local > 3.6:
-        d.text((x1 + 28, y1 + 625), "Inbox loaded: 3 new enquiries", font=F_BODY_B, fill=(*GOLD, a))
-        draw_multiline(d, (x1 + 28, y1 + 674), "Only the merchant with the private access key can view the leads.", F_BODY, (*MUTED, a), 760)
+        d.text((x1 + 28, y1 + 625), "Inbox loaded: 3 enquiries", font=F_BODY_B, fill=(*GOLD, a))
+        draw_multiline(d, (x1 + 28, y1 + 674), "Only the merchant with the private key can view them.", F_BODY, (*MUTED, a), 700)
     else:
-        draw_multiline(d, (x1 + 28, y1 + 625), "The public enquiry form is open, but the merchant inbox requires the business key.", F_BODY, (*MUTED, a), 760)
+        draw_multiline(d, (x1 + 28, y1 + 625), "The form is public. The inbox needs the business key.", F_BODY, (*MUTED, a), 700)
     img.alpha_composite(layer)
 
 
@@ -448,7 +455,7 @@ def scene_security(img, t, alpha):
         draw_multiline(d, (bx + 26, by + 82), body, F_BODY, (*MUTED, a), 320)
     rounded(d, (x1, y1 + 710, x2, y1 + 830), 26, (34, 197, 94, int(28 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
     d.text((x1 + 26, y1 + 745), "Merchant confidence point", font=F_BODY_B, fill=(*TEXT, a))
-    d.text((x1 + 26, y1 + 786), "Use customer data only for enquiries, quotations, appointments, and service follow-up.", font=F_SMALL, fill=(*SOFT, a))
+    draw_multiline(d, (x1 + 26, y1 + 786), "Use customer data only for replies, quotations, appointments, and service follow-up.", F_SMALL, (*SOFT, a), 790, 4)
     img.alpha_composite(layer)
 
 
@@ -466,7 +473,7 @@ def scene_final(img, t, alpha):
     d.text((64, y), "Inventory later.", font=F_H1, fill=(*GOLD, a))
     y += 122
     draw_multiline(d, (64, y), "One simple workflow first. One AI business ecosystem as your business grows.", F_BODY, (*SOFT, a), 850)
-    button(d, (64, y + 155), "api.nexaflowinfra.com/ai-enquiry", alpha, True, 560)
+    button(d, (64, y + 155), "Start at api.nexaflowinfra.com", alpha, True, 560)
     img.alpha_composite(layer)
 
 
@@ -476,61 +483,38 @@ SCENES = [
     (17.5, 26.5, scene_trial_form, "填写商家资料和 WhatsApp，确认同意隐私与 PDPA 说明。", "Submit business details, WhatsApp, and consent to the privacy notice."),
     (26.5, 35.5, scene_load_inbox, "开通后，商家用 private access key 打开自己的 inbox。", "After setup, the merchant opens the private inbox with a business access key."),
     (35.5, 45.0, scene_daily_workspace, "每天只看三个重点：今天该回谁、setup 状态、复制客户链接。", "Each day, check today's focus, setup status, and copy the customer link."),
-    (45.0, 54.5, scene_pipeline, "客户进来后，用 WhatsApp 草稿回复，再标记 contacted、quoted、won 或 lost。", "When a lead comes in, use the WhatsApp draft and update contacted, quoted, won, or lost."),
+    (45.0, 54.5, scene_pipeline, "客户进来后，用 WhatsApp 草稿回复，再标记已联系、已报价、成交或未成交。", "When a lead comes in, use the WhatsApp draft and update contacted, quoted, won, or lost."),
     (54.5, 64.0, scene_security, "安全方面，我们有 consent、private inbox、retention 和 audit log。", "For trust, NexaFlow uses consent, private inbox access, retention, and audit logs."),
     (64.0, 72.0, scene_final, "先从 Enquiry 开始，之后再加 CRM、Billing、Inventory 和 Automation。", "Start with Enquiry first, then add CRM, Billing, Inventory, and Automation later."),
 ]
 
 
+CURSOR_ACTIONS = [
+    (10.2, 754, 840, "Malaysia"),
+    (15.2, 384, 1024, "Start with Enquiry"),
+    (18.4, 864, 636, "Business name"),
+    (19.8, 864, 756, "WhatsApp number"),
+    (21.1, 864, 876, "Service type"),
+    (22.5, 864, 996, "Monthly enquiries"),
+    (24.4, 132, 1094, "PDPA consent"),
+    (25.7, 432, 1210, "Submit trial request"),
+    (28.2, 865, 748, "Private key"),
+    (31.0, 310, 868, "Load Leads"),
+    (40.2, 366, 928, "Copy Main Link"),
+    (50.0, 666, 1068, "Won"),
+    (60.0, 754, 890, "Audit log"),
+    (69.0, 592, 998, "Final link"),
+]
+
+
 def cursor_at(t):
-    points = [
-        (0.0, (850, 1500, 0)),
-        (8.7, (723, 837, 0)),     # Malaysia region card
-        (10.2, (723, 837, 1)),
-        (10.7, (723, 837, 0)),
-        (13.5, (365, 1020, 0)),    # Start with Enquiry
-        (15.2, (365, 1020, 1)),
-        (15.8, (365, 1020, 0)),
-        (18.4, (820, 636, 1)),     # Business name field
-        (19.2, (820, 636, 0)),
-        (19.8, (820, 756, 1)),     # WhatsApp field
-        (20.6, (820, 756, 0)),
-        (21.1, (820, 876, 1)),     # Service type field
-        (21.9, (820, 876, 0)),
-        (22.5, (820, 996, 1)),     # Monthly enquiries field
-        (23.2, (820, 996, 0)),
-        (24.4, (135, 1094, 1)),    # PDPA consent checkbox
-        (24.9, (135, 1094, 0)),
-        (25.7, (420, 1210, 1)),    # Submit trial request
-        (26.3, (420, 1210, 0)),
-        (28.2, (830, 748, 1)),     # Private access key field
-        (29.5, (830, 748, 0)),
-        (31.0, (300, 867, 1)),     # Load Leads
-        (31.6, (300, 867, 0)),
-        (36.0, (270, 650, 0)),     # Today's focus
-        (38.2, (360, 926, 0)),     # Copy Main Link button
-        (40.2, (360, 926, 1)),
-        (40.8, (360, 926, 0)),
-        (46.2, (728, 612, 0)),     # WhatsApp action column
-        (50.0, (650, 1068, 1)),    # Won button
-        (50.6, (650, 1068, 0)),
-        (56.0, (285, 740, 0)),     # Consent card
-        (60.0, (724, 890, 1)),     # Audit log card
-        (60.6, (724, 890, 0)),
-        (65.5, (350, 930, 0)),
-        (69.0, (590, 998, 1)),     # Final URL button
-    ]
-    current = points[0]
-    for nxt in points[1:]:
-        if t < nxt[0]:
-            span = max(0.001, nxt[0] - current[0])
-            p = ease((t - current[0]) / span)
-            x = lerp(current[1][0], nxt[1][0], p)
-            y = lerp(current[1][1], nxt[1][1], p)
-            click = nxt[1][2] * max(0, 1 - abs(p - 1) * 8)
-            return x, y, click
-        current = nxt
-    return current[1]
+    for action_t, x, y, _label in CURSOR_ACTIONS:
+        distance = abs(t - action_t)
+        if distance <= 0.85:
+            alpha = ease(1 - distance / 0.85)
+            click = max(0.0, 1.0 - distance / 0.24)
+            return x, y, click, alpha
+    return 0, 0, 0.0, 0.0
 
 
 def render_frame(t):
@@ -541,8 +525,8 @@ def render_frame(t):
         if a > 0:
             fn(img, t, a)
             draw_subtitle(img, zh, en, a)
-    x, y, click = cursor_at(t)
-    draw_cursor(img, int(x), int(y), click, alpha=1.0 if t < 70 else max(0, (72 - t) / 2))
+    x, y, click, cursor_alpha = cursor_at(t)
+    draw_cursor(img, int(x), int(y), click, alpha=cursor_alpha)
     return img.convert("RGB")
 
 
@@ -550,10 +534,10 @@ def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     render_frame(39.5).save(PREVIEW, quality=95)
     samples = [10.2, 15.2, 22.0, 25.7, 31.0, 40.2, 50.0, 60.0, 69.0]
-    thumbs = [render_frame(t).resize((135, 240), Image.Resampling.LANCZOS) for t in samples]
-    sheet = Image.new("RGB", (135 * len(thumbs), 240), (0, 0, 0))
+    thumbs = [render_frame(t).resize((270, 480), Image.Resampling.LANCZOS) for t in samples]
+    sheet = Image.new("RGB", (270 * 3, 480 * 3), (0, 0, 0))
     for index, thumb in enumerate(thumbs):
-        sheet.paste(thumb, (135 * index, 0))
+        sheet.paste(thumb, ((index % 3) * 270, (index // 3) * 480))
     sheet.save(CONTACT_SHEET, quality=95)
     if "--preview-only" in sys.argv:
         print(PREVIEW)
