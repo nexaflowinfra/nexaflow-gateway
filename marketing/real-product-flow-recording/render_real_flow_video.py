@@ -18,8 +18,8 @@ SHEET = BASE / "nexaflow-real-product-flow-contact-sheet.png"
 
 W, H = 1080, 1920
 FPS = 24
-PHONE_W, PHONE_H = 680, 1471
-PHONE_X, PHONE_Y = 200, 130
+PHONE_W, PHONE_H = 614, 1328
+PHONE_X, PHONE_Y = 233, 126
 
 BG = (5, 7, 7)
 TEXT = (248, 248, 244)
@@ -257,7 +257,7 @@ def frame_for(scene, local_t: float) -> Image.Image:
     d.text((78, 1720), scene["zh"], font=F_CAP_ZH, fill=TEXT)
     draw_wrapped(d, (78, 1776), scene["en"], F_CAP_EN, MUTED, 910)
 
-    pos = cursor_xy(scene.get("cursor", []), p)
+    pos = cursor_xy(scene.get("cursor", []), p) if scene.get("click") else None
     if pos:
         click_phase = 0
         is_click = False
