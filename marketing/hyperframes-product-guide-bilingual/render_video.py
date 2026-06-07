@@ -304,10 +304,10 @@ def scene_product_page(img, t, alpha):
     d.text((x1, y1 + 74), "One link to your", font=F_H2, fill=(*TEXT, a))
     d.text((x1, y1 + 136), "business tools.", font=F_H2, fill=(*TEXT, a))
     draw_multiline(d, (x1, y1 + 225), "Choose your country, language, and start with the Enquiry product first.", F_BODY, (*MUTED, a), 760)
-    card(d, (x1, y1 + 350, x1 + 398, y1 + 500), alpha, TEAL)
+    card(d, (x1, y1 + 350, x1 + 398, y1 + 500), alpha, GOLD)
     d.text((x1 + 28, y1 + 384), "Singapore", font=F_H3, fill=(*TEXT, a))
     d.text((x1 + 28, y1 + 432), "SGD pricing", font=F_BODY, fill=(*MUTED, a))
-    card(d, (x1 + 424, y1 + 350, x1 + 822, y1 + 500), alpha, GOLD)
+    card(d, (x1 + 424, y1 + 350, x1 + 822, y1 + 500), alpha, TEAL)
     d.text((x1 + 452, y1 + 384), "Malaysia", font=F_H3, fill=(*TEXT, a))
     d.text((x1 + 452, y1 + 432), "MYR pricing", font=F_BODY, fill=(*MUTED, a))
     button(d, (x1, y1 + 575), "Start with Enquiry", alpha, True, 330)
@@ -360,7 +360,7 @@ def scene_load_inbox(img, t, alpha):
     d.text((x1, y1), "STEP 2", font=F_EYE, fill=(*GOLD, a))
     d.text((x1, y1 + 70), "Load your private inbox", font=F_H2, fill=(*TEXT, a))
     local = t - 26.5
-    card(d, (x1, y1 + 185, x2, y1 + 350), alpha, TEAL)
+    card(d, (x1, y1 + 185, x2, y1 + 390), alpha, TEAL)
     d.text((x1 + 28, y1 + 220), "Business access key", font=F_H3, fill=(*TEXT, a))
     draw_field(
         d,
@@ -371,17 +371,17 @@ def scene_load_inbox(img, t, alpha):
         clamp((local - 1.3) / 1.2),
         1.3 <= local <= 2.7,
     )
-    load_btn = button(d, (x1, y1 + 420), "Load Leads", alpha, True, 230)
-    button(d, (x1 + 258, y1 + 420), "Export CSV", alpha, False, 230)
+    load_btn = button(d, (x1, y1 + 455), "Load Leads", alpha, True, 230)
+    button(d, (x1 + 258, y1 + 455), "Export CSV", alpha, False, 230)
     if 3.0 <= local <= 3.5:
         d.rounded_rectangle(load_btn, radius=19, outline=(*TEXT, int(210 * alpha)), width=4)
-    card(d, (x1, y1 + 540, x2, y1 + 760), alpha, GOLD)
-    d.text((x1 + 28, y1 + 575), "Access is protected", font=F_H3, fill=(*TEXT, a))
+    card(d, (x1, y1 + 575, x2, y1 + 795), alpha, GOLD)
+    d.text((x1 + 28, y1 + 610), "Access is protected", font=F_H3, fill=(*TEXT, a))
     if local > 3.6:
-        d.text((x1 + 28, y1 + 625), "Inbox loaded: 3 enquiries", font=F_BODY_B, fill=(*GOLD, a))
-        draw_multiline(d, (x1 + 28, y1 + 674), "Only the merchant with the private key can view them.", F_BODY, (*MUTED, a), 700)
+        d.text((x1 + 28, y1 + 660), "Inbox loaded: 3 enquiries", font=F_BODY_B, fill=(*GOLD, a))
+        draw_multiline(d, (x1 + 28, y1 + 709), "Only the merchant with the private key can view them.", F_BODY, (*MUTED, a), 700)
     else:
-        draw_multiline(d, (x1 + 28, y1 + 625), "The form is public. The inbox needs the business key.", F_BODY, (*MUTED, a), 700)
+        draw_multiline(d, (x1 + 28, y1 + 660), "The form is public. The inbox needs the business key.", F_BODY, (*MUTED, a), 700)
     img.alpha_composite(layer)
 
 
@@ -403,7 +403,15 @@ def scene_daily_workspace(img, t, alpha):
     card(d, (x1, y1 + 392, x2, y1 + 630), alpha, GOLD)
     d.text((x1 + 28, y1 + 426), "Main customer link", font=F_H3, fill=(*TEXT, a))
     d.text((x1 + 28, y1 + 478), "Copy one link. Share it anywhere.", font=F_BODY, fill=(*MUTED, a))
-    button(d, (x1 + 28, y1 + 535), "Copy Main Link", alpha, True, 285)
+    local = t - 35.5
+    if local >= 4.4:
+        copy_btn = button(d, (x1 + 28, y1 + 535), "Copied", alpha, True, 185)
+        rounded(d, (x1 + 230, y1 + 537, x1 + 470, y1 + 600), 18, (34, 197, 94, int(46 * alpha)), (34, 197, 94, int(170 * alpha)), 2)
+        d.text((x1 + 252, y1 + 554), "Ready to share", font=F_SMALL, fill=(*TEXT, a))
+    else:
+        copy_btn = button(d, (x1 + 28, y1 + 535), "Copy Main Link", alpha, True, 285)
+    if 4.4 <= local <= 5.0:
+        d.rounded_rectangle(copy_btn, radius=19, outline=(*TEXT, int(220 * alpha)), width=4)
     img.alpha_composite(layer)
 
 
@@ -417,7 +425,7 @@ def scene_pipeline(img, t, alpha):
     rows = [
         ("New lead", "Hot", "WhatsApp"),
         ("Customer asks for quote", "Reply draft", "Follow-up today"),
-        ("Quoted customer", "Set value", "Won / Lost"),
+        ("Quoted customer", "Set value", "Closed / Follow-up"),
     ]
     yy = y1 + 182
     for name, status, action in rows:
@@ -428,7 +436,7 @@ def scene_pipeline(img, t, alpha):
         yy += 142
     button(d, (x1, yy + 25), "Contacted", alpha, False, 210)
     button(d, (x1 + 230, yy + 25), "Quoted", alpha, False, 185)
-    button(d, (x1 + 435, yy + 25), "Won", alpha, True, 150)
+    button(d, (x1 + 435, yy + 25), "Closed", alpha, True, 170)
     img.alpha_composite(layer)
 
 
@@ -455,7 +463,7 @@ def scene_security(img, t, alpha):
         draw_multiline(d, (bx + 26, by + 82), body, F_BODY, (*MUTED, a), 320)
     rounded(d, (x1, y1 + 710, x2, y1 + 830), 26, (34, 197, 94, int(28 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
     d.text((x1 + 26, y1 + 745), "Merchant confidence point", font=F_BODY_B, fill=(*TEXT, a))
-    draw_multiline(d, (x1 + 26, y1 + 786), "Use customer data only for replies, quotations, appointments, and service follow-up.", F_SMALL, (*SOFT, a), 790, 4)
+    d.text((x1 + 26, y1 + 786), "Data is used only for replies and follow-up.", font=F_SMALL, fill=(*SOFT, a))
     img.alpha_composite(layer)
 
 
@@ -483,14 +491,15 @@ SCENES = [
     (17.5, 26.5, scene_trial_form, "填写商家资料和 WhatsApp，确认同意隐私与 PDPA 说明。", "Submit business details, WhatsApp, and consent to the privacy notice."),
     (26.5, 35.5, scene_load_inbox, "开通后，商家用 private access key 打开自己的 inbox。", "After setup, the merchant opens the private inbox with a business access key."),
     (35.5, 45.0, scene_daily_workspace, "每天只看三个重点：今天该回谁、setup 状态、复制客户链接。", "Each day, check today's focus, setup status, and copy the customer link."),
-    (45.0, 54.5, scene_pipeline, "客户进来后，用 WhatsApp 草稿回复，再标记已联系、已报价、成交或未成交。", "When a lead comes in, use the WhatsApp draft and update contacted, quoted, won, or lost."),
+    (45.0, 54.5, scene_pipeline, "客户进来后，用 WhatsApp 草稿回复，再标记已联系、已报价或已完成。", "When a lead comes in, use the WhatsApp draft and update contacted, quoted, or closed."),
     (54.5, 64.0, scene_security, "安全方面，我们有 consent、private inbox、retention 和 audit log。", "For trust, NexaFlow uses consent, private inbox access, retention, and audit logs."),
     (64.0, 72.0, scene_final, "先从 Enquiry 开始，之后再加 CRM、Billing、Inventory 和 Automation。", "Start with Enquiry first, then add CRM, Billing, Inventory, and Automation later."),
 ]
 
 
 CURSOR_ACTIONS = [
-    (10.2, 754, 840, "Malaysia"),
+    (5.2, 180, 900, "Intro Start with Enquiry"),
+    (10.2, 190, 840, "Singapore"),
     (15.2, 384, 1024, "Start with Enquiry"),
     (18.4, 770, 636, "Business name"),
     (19.8, 770, 756, "WhatsApp number"),
@@ -499,15 +508,17 @@ CURSOR_ACTIONS = [
     (24.4, 132, 1094, "PDPA consent"),
     (25.7, 432, 1210, "Submit trial request"),
     (28.2, 865, 748, "Private key"),
-    (31.0, 310, 868, "Load Leads"),
+    (31.0, 310, 903, "Load Leads"),
     (40.2, 366, 928, "Copy Main Link"),
-    (50.0, 666, 1068, "Won"),
-    (60.0, 754, 890, "Audit log"),
+    (50.0, 684, 1068, "Closed"),
     (69.0, 592, 998, "Final link"),
 ]
 
 
 def cursor_at(t):
+    if 54.5 <= t <= 64.0:
+        return 0, 0, 0.0, 0.0
+
     first_t = CURSOR_ACTIONS[0][0]
     last_t = CURSOR_ACTIONS[-1][0]
     if t < first_t - 1.0 or t > last_t + 1.0:
@@ -564,7 +575,7 @@ def render_frame(t):
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     render_frame(39.5).save(PREVIEW, quality=95)
-    samples = [9.85, 10.2, 13.8, 15.2, 18.4, 22.5, 25.7, 29.4, 31.0, 40.2, 50.0, 60.0]
+    samples = [5.2, 10.2, 15.2, 18.4, 22.5, 25.7, 28.2, 31.0, 40.2, 50.0, 60.0, 69.0]
     thumbs = [render_frame(t).resize((270, 480), Image.Resampling.LANCZOS) for t in samples]
     sheet = Image.new("RGB", (270 * 3, 480 * 4), (0, 0, 0))
     for index, thumb in enumerate(thumbs):
