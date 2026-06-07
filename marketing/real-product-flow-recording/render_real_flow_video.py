@@ -56,109 +56,115 @@ SCENES = [
         "title": "真实产品页",
         "zh": "商家先打开 NexaFlow 产品页。",
         "en": "Open the real NexaFlow product page.",
-        "cursor": [(0.15, 112, 420), (0.65, 112, 420)],
-        "click": (0.55, 112, 420),
-        "duration": 3.5,
+        "cursor": [(0.22, 86, 410), (0.62, 116, 424), (0.82, 116, 424)],
+        "duration": 3.8,
     },
     {
         "file": "02-product-singapore.png",
         "title": "选择市场",
         "zh": "选择新加坡或马来西亚，对应本地价格。",
         "en": "Choose Singapore or Malaysia for local pricing.",
-        "cursor": [(0.15, 250, 354), (0.65, 228, 354)],
-        "click": (0.6, 228, 354),
-        "duration": 3.8,
+        "cursor": [(0.18, 282, 354), (0.58, 226, 354), (0.82, 226, 354)],
+        "click": (0.67, 226, 354),
+        "duration": 4.2,
     },
     {
         "file": "03-product-chinese.png",
         "title": "中英切换",
         "zh": "页面支持英文和中文，比较适合本地商家。",
         "en": "English and Chinese are both supported.",
-        "cursor": [(0.15, 150, 354), (0.65, 154, 354)],
-        "click": (0.6, 154, 354),
-        "duration": 3.8,
+        "cursor": [(0.18, 112, 354), (0.58, 154, 354), (0.82, 154, 354)],
+        "click": (0.66, 154, 354),
+        "duration": 4.2,
     },
     {
         "file": "04-demo-form.png",
         "title": "客户提交询盘",
         "zh": "客户填写名字、电话、需求，并同意资料用途。",
         "en": "Customers submit contact details, message, and consent.",
-        "cursor": [(0.1, 85, 445), (0.55, 330, 680)],
-        "duration": 4.0,
+        "cursor": [(0.16, 112, 430), (0.45, 128, 585), (0.76, 326, 710)],
+        "duration": 4.4,
     },
     {
         "file": "06-demo-result.png",
         "title": "AI 自动整理",
         "zh": "系统会判断意向、优先级，并准备回复方向。",
         "en": "AI classifies intent, priority, and reply direction.",
-        "cursor": [(0.2, 320, 610), (0.75, 320, 610)],
-        "click": (0.72, 320, 610),
-        "duration": 4.2,
+        "cursor": [(0.18, 312, 646), (0.62, 318, 646), (0.86, 318, 646)],
+        "click": (0.7, 318, 646),
+        "duration": 4.5,
     },
     {
         "file": "07-merchant-login.png",
         "title": "商家后台入口",
         "zh": "后台需要 business slug 和私密 access key。",
         "en": "The inbox is protected by slug and private access key.",
-        "cursor": [(0.15, 100, 420), (0.75, 210, 530)],
-        "duration": 4.0,
+        "cursor": [(0.18, 110, 430), (0.5, 178, 500), (0.78, 212, 532)],
+        "duration": 4.3,
     },
     {
         "file": "08-merchant-login-filled.png",
         "title": "安全登录",
         "zh": "真实 key 不放进公开链接，也不要发给客户。",
         "en": "The real key is not placed in public links.",
-        "cursor": [(0.15, 210, 555), (0.65, 120, 620)],
-        "click": (0.62, 120, 620),
-        "duration": 4.0,
+        "cursor": [(0.18, 214, 555), (0.56, 112, 624), (0.84, 112, 624)],
+        "click": (0.68, 112, 624),
+        "duration": 4.4,
     },
     {
         "file": "09-merchant-inbox.png",
         "title": "Private inbox",
         "zh": "商家进入私人 inbox，看今天该跟进谁。",
         "en": "The merchant sees today's follow-up priorities.",
-        "cursor": [(0.15, 320, 465), (0.75, 320, 465)],
-        "duration": 4.2,
+        "cursor": [(0.2, 316, 520), (0.58, 318, 548), (0.82, 318, 548)],
+        "duration": 4.4,
     },
     {
         "file": "11-copy-main-link.png",
         "title": "复制客户链接",
         "zh": "一个 enquiry link 可以放在 WhatsApp、FB、IG 或网站。",
         "en": "One enquiry link can be shared anywhere.",
-        "cursor": [(0.15, 130, 540), (0.7, 178, 548)],
-        "click": (0.68, 178, 548),
-        "duration": 4.2,
+        "cursor": [(0.18, 148, 530), (0.58, 184, 552), (0.84, 184, 552)],
+        "click": (0.7, 184, 552),
+        "duration": 4.6,
     },
     {
         "file": "12-lead-pipeline.png",
         "title": "Lead pipeline",
         "zh": "所有客户询盘都会进入同一个跟进流程。",
         "en": "Every lead stays visible in one workflow.",
-        "cursor": [(0.15, 300, 520), (0.75, 315, 610)],
-        "duration": 4.0,
+        "cursor": [(0.2, 300, 502), (0.54, 315, 585), (0.8, 318, 632)],
+        "duration": 4.3,
     },
     {
         "file": "13-lead-contacted.png",
         "title": "更新状态",
         "zh": "跟进后可把 lead 标记为 contacted 或 quoted。",
         "en": "After replying, update the lead status.",
-        "cursor": [(0.15, 310, 612), (0.7, 322, 612)],
-        "click": (0.66, 322, 612),
-        "duration": 4.0,
+        "cursor": [(0.18, 296, 610), (0.56, 330, 612), (0.84, 330, 612)],
+        "click": (0.7, 330, 612),
+        "duration": 4.4,
     },
     {
         "file": "14-customer-enquiry-form.png",
         "title": "客户看到的页面",
         "zh": "没有网站的商家，也可以直接分享这个询盘页。",
         "en": "Merchants without a website can still use this link.",
-        "cursor": [(0.15, 160, 530), (0.75, 160, 530)],
+        "cursor": [(0.2, 152, 522), (0.58, 160, 548), (0.82, 160, 548)],
         "duration": 4.2,
     },
 ]
 
 
 def ease(x: float) -> float:
-    return 1 - (1 - x) * (1 - x)
+    x = max(0, min(1, x))
+    return x * x * (3 - 2 * x)
+
+
+def cursor_opacity(p: float) -> int:
+    fade_in = ease(min(1, max(0, (p - 0.06) / 0.18)))
+    fade_out = ease(min(1, max(0, (0.98 - p) / 0.18)))
+    return int(230 * min(fade_in, fade_out))
 
 
 def draw_wrapped(draw: ImageDraw.ImageDraw, xy, text: str, fnt, fill, max_width: int, line_gap=8):
@@ -206,14 +212,25 @@ def cursor_xy(points, p: float):
     return before[1] + (after[1] - before[1]) * local, before[2] + (after[2] - before[2]) * local
 
 
-def draw_cursor(draw: ImageDraw.ImageDraw, x: float, y: float, click=False, phase=0.0):
+def draw_cursor(base: Image.Image, x: float, y: float, click=False, phase=0.0, opacity=230):
     sx = PHONE_X + int(x * PHONE_W / 390)
     sy = PHONE_Y + int(y * PHONE_H / 844)
+    overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    opacity = max(0, min(255, opacity))
     if click:
-        r = 42 + int(18 * phase)
-        draw.ellipse((sx - r, sy - r, sx + r, sy + r), outline=GOLD, width=5)
+        pulse = 1 - max(0, min(1, phase))
+        r1 = 26 + int(34 * (1 - pulse))
+        r2 = 18 + int(18 * (1 - pulse))
+        ring_alpha = int(opacity * 0.55 * pulse)
+        if ring_alpha > 0:
+            draw.ellipse((sx - r1, sy - r1, sx + r1, sy + r1), outline=(*GOLD, ring_alpha), width=4)
+            draw.ellipse((sx - r2, sy - r2, sx + r2, sy + r2), outline=(*TEAL, int(ring_alpha * 0.55)), width=2)
+    shadow_pts = [(sx + 4, sy + 5), (sx + 8, sy + 57), (sx + 22, sy + 43), (sx + 36, sy + 77), (sx + 52, sy + 69), (sx + 37, sy + 36), (sx + 60, sy + 36)]
+    draw.polygon(shadow_pts, fill=(0, 0, 0, int(opacity * 0.42)))
     pts = [(sx, sy), (sx + 4, sy + 52), (sx + 18, sy + 38), (sx + 32, sy + 72), (sx + 48, sy + 64), (sx + 33, sy + 31), (sx + 56, sy + 31)]
-    draw.polygon(pts, fill=(255, 255, 250), outline=(18, 18, 18))
+    draw.polygon(pts, fill=(255, 255, 250, opacity), outline=(18, 18, 18, opacity))
+    base.alpha_composite(overlay)
 
 
 def frame_for(scene, local_t: float) -> Image.Image:
@@ -252,10 +269,12 @@ def frame_for(scene, local_t: float) -> Image.Image:
         is_click = False
         if scene.get("click"):
             ct, cx, cy = scene["click"]
-            if abs(p - ct) < 0.12:
+            if abs(p - ct) < 0.16:
                 is_click = True
-                click_phase = min(1, abs(p - ct) / 0.12)
-        draw_cursor(d, pos[0], pos[1], click=is_click, phase=click_phase)
+                click_phase = min(1, abs(p - ct) / 0.16)
+        canvas_rgba = canvas.convert("RGBA")
+        draw_cursor(canvas_rgba, pos[0], pos[1], click=is_click, phase=click_phase, opacity=cursor_opacity(p))
+        canvas = canvas_rgba.convert("RGB")
     return canvas
 
 
