@@ -18,8 +18,8 @@ SHEET = BASE / "nexaflow-real-product-flow-contact-sheet.png"
 
 W, H = 1080, 1920
 FPS = 24
-PHONE_W, PHONE_H = 780, 1688
-PHONE_X, PHONE_Y = 150, 116
+PHONE_W, PHONE_H = 680, 1471
+PHONE_X, PHONE_Y = 200, 130
 
 BG = (5, 7, 7)
 TEXT = (248, 248, 244)
@@ -56,7 +56,8 @@ SCENES = [
         "title": "真实产品页",
         "zh": "商家先打开 NexaFlow 产品页。",
         "en": "Open the real NexaFlow product page.",
-        "cursor": [(0.22, 86, 410), (0.62, 116, 424), (0.82, 116, 424)],
+        "cursor": [(0.18, 258, 180), (0.54, 178, 180), (0.84, 178, 180)],
+        "click": (0.62, 178, 180),
         "duration": 3.8,
     },
     {
@@ -64,8 +65,8 @@ SCENES = [
         "title": "选择市场",
         "zh": "选择新加坡或马来西亚，对应本地价格。",
         "en": "Choose Singapore or Malaysia for local pricing.",
-        "cursor": [(0.18, 282, 354), (0.58, 226, 354), (0.82, 226, 354)],
-        "click": (0.67, 226, 354),
+        "cursor": [(0.18, 54, 180), (0.56, 94, 180), (0.84, 94, 180)],
+        "click": (0.64, 94, 180),
         "duration": 4.2,
     },
     {
@@ -73,8 +74,6 @@ SCENES = [
         "title": "中英切换",
         "zh": "页面支持英文和中文，比较适合本地商家。",
         "en": "English and Chinese are both supported.",
-        "cursor": [(0.18, 112, 354), (0.58, 154, 354), (0.82, 154, 354)],
-        "click": (0.66, 154, 354),
         "duration": 4.2,
     },
     {
@@ -82,7 +81,8 @@ SCENES = [
         "title": "客户提交询盘",
         "zh": "客户填写名字、电话、需求，并同意资料用途。",
         "en": "Customers submit contact details, message, and consent.",
-        "cursor": [(0.16, 112, 430), (0.45, 128, 585), (0.76, 326, 710)],
+        "cursor": [(0.18, 280, 650), (0.58, 78, 745), (0.84, 78, 745)],
+        "click": (0.66, 78, 745),
         "duration": 4.4,
     },
     {
@@ -90,8 +90,6 @@ SCENES = [
         "title": "AI 自动整理",
         "zh": "系统会判断意向、优先级，并准备回复方向。",
         "en": "AI classifies intent, priority, and reply direction.",
-        "cursor": [(0.18, 312, 646), (0.62, 318, 646), (0.86, 318, 646)],
-        "click": (0.7, 318, 646),
         "duration": 4.5,
     },
     {
@@ -99,7 +97,6 @@ SCENES = [
         "title": "商家后台入口",
         "zh": "后台需要 business slug 和私密 access key。",
         "en": "The inbox is protected by slug and private access key.",
-        "cursor": [(0.18, 110, 430), (0.5, 178, 500), (0.78, 212, 532)],
         "duration": 4.3,
     },
     {
@@ -107,8 +104,8 @@ SCENES = [
         "title": "安全登录",
         "zh": "真实 key 不放进公开链接，也不要发给客户。",
         "en": "The real key is not placed in public links.",
-        "cursor": [(0.18, 214, 555), (0.56, 112, 624), (0.84, 112, 624)],
-        "click": (0.68, 112, 624),
+        "cursor": [(0.18, 230, 424), (0.56, 88, 496), (0.84, 88, 496)],
+        "click": (0.68, 88, 496),
         "duration": 4.4,
     },
     {
@@ -116,7 +113,6 @@ SCENES = [
         "title": "Private inbox",
         "zh": "商家进入私人 inbox，看今天该跟进谁。",
         "en": "The merchant sees today's follow-up priorities.",
-        "cursor": [(0.2, 316, 520), (0.58, 318, 548), (0.82, 318, 548)],
         "duration": 4.4,
     },
     {
@@ -124,8 +120,8 @@ SCENES = [
         "title": "复制客户链接",
         "zh": "一个 enquiry link 可以放在 WhatsApp、FB、IG 或网站。",
         "en": "One enquiry link can be shared anywhere.",
-        "cursor": [(0.18, 148, 530), (0.58, 184, 552), (0.84, 184, 552)],
-        "click": (0.7, 184, 552),
+        "cursor": [(0.18, 112, 356), (0.58, 212, 424), (0.84, 212, 424)],
+        "click": (0.7, 212, 424),
         "duration": 4.6,
     },
     {
@@ -133,7 +129,6 @@ SCENES = [
         "title": "Lead pipeline",
         "zh": "所有客户询盘都会进入同一个跟进流程。",
         "en": "Every lead stays visible in one workflow.",
-        "cursor": [(0.2, 300, 502), (0.54, 315, 585), (0.8, 318, 632)],
         "duration": 4.3,
     },
     {
@@ -141,8 +136,8 @@ SCENES = [
         "title": "更新状态",
         "zh": "跟进后可把 lead 标记为 contacted 或 quoted。",
         "en": "After replying, update the lead status.",
-        "cursor": [(0.18, 296, 610), (0.56, 330, 612), (0.84, 330, 612)],
-        "click": (0.7, 330, 612),
+        "cursor": [(0.18, 306, 546), (0.58, 310, 422), (0.84, 310, 422)],
+        "click": (0.7, 310, 422),
         "duration": 4.4,
     },
     {
@@ -150,7 +145,6 @@ SCENES = [
         "title": "客户看到的页面",
         "zh": "没有网站的商家，也可以直接分享这个询盘页。",
         "en": "Merchants without a website can still use this link.",
-        "cursor": [(0.2, 152, 522), (0.58, 160, 548), (0.82, 160, 548)],
         "duration": 4.2,
     },
 ]
