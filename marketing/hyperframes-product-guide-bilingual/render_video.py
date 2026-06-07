@@ -284,9 +284,9 @@ def scene_title(img, t, alpha):
     y = 420 - int(24 * (1 - alpha))
     d.text((64, y), "2-MINUTE MERCHANT GUIDE", font=F_EYE, fill=(*GOLD, a))
     y += 86
-    d.text((64, y), "一个 enquiry link.", font=F_H1, fill=(*TEXT, a))
+    d.text((64, y), "One enquiry link.", font=F_H1, fill=(*TEXT, a))
     y += 86
-    d.text((64, y), "一个 private inbox.", font=F_H1, fill=(*GOLD, a))
+    d.text((64, y), "One private inbox.", font=F_H1, fill=(*GOLD, a))
     y += 116
     draw_multiline(d, (64, y), "For local service merchants who receive enquiries from WhatsApp, Facebook, Instagram, calls, and referrals.", F_BODY, (*SOFT, a), 880)
     start_btn = button(d, (64, y + 160), "Start with Enquiry", alpha, True, 310)
