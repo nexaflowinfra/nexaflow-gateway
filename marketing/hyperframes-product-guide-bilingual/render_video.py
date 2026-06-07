@@ -334,9 +334,9 @@ def scene_trial_form(img, t, alpha):
         start = 1.0 + index * 1.25
         progress = clamp((local - start) / 0.8)
         active = start <= local <= start + 0.9
-        draw_field(d, (x1, yy, x2, yy + 94), label, value, alpha, progress, active)
+        draw_field(d, (x1, yy, x2 - 36, yy + 94), label, value, alpha, progress, active)
         yy += 120
-    rounded(d, (x1, yy + 8, x2, yy + 78), 18, (34, 197, 94, int(34 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
+    rounded(d, (x1, yy + 8, x2 - 36, yy + 78), 18, (34, 197, 94, int(34 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
     consent_text = "PDPA consent: customer data used for enquiry follow-up only"
     check_on = local > 6.0
     d.rounded_rectangle((x1 + 22, yy + 29, x1 + 48, yy + 55), radius=7, outline=(*GREEN, a), width=2, fill=(*GREEN, int(120 * alpha)) if check_on else (0, 0, 0, 0))
@@ -492,10 +492,10 @@ SCENES = [
 CURSOR_ACTIONS = [
     (10.2, 754, 840, "Malaysia"),
     (15.2, 384, 1024, "Start with Enquiry"),
-    (18.4, 864, 636, "Business name"),
-    (19.8, 864, 756, "WhatsApp number"),
-    (21.1, 864, 876, "Service type"),
-    (22.5, 864, 996, "Monthly enquiries"),
+    (18.4, 770, 636, "Business name"),
+    (19.8, 770, 756, "WhatsApp number"),
+    (21.1, 770, 876, "Service type"),
+    (22.5, 770, 996, "Monthly enquiries"),
     (24.4, 132, 1094, "PDPA consent"),
     (25.7, 432, 1210, "Submit trial request"),
     (28.2, 865, 748, "Private key"),
@@ -564,7 +564,7 @@ def render_frame(t):
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     render_frame(39.5).save(PREVIEW, quality=95)
-    samples = [9.6, 10.2, 13.8, 15.2, 18.4, 22.5, 25.7, 29.4, 31.0, 40.2, 50.0, 60.0]
+    samples = [9.85, 10.2, 13.8, 15.2, 18.4, 22.5, 25.7, 29.4, 31.0, 40.2, 50.0, 60.0]
     thumbs = [render_frame(t).resize((270, 480), Image.Resampling.LANCZOS) for t in samples]
     sheet = Image.new("RGB", (270 * 3, 480 * 4), (0, 0, 0))
     for index, thumb in enumerate(thumbs):
