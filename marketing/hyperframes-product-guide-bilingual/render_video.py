@@ -59,6 +59,7 @@ F_ZH = font(34, True)
 F_EN = font(25, True)
 F_URL = font(25, True)
 BASE_BG_CACHE = None
+LOGO_CACHE = None
 
 
 def clamp(x, lo=0.0, hi=1.0):
@@ -122,6 +123,29 @@ def draw_multiline(draw, xy, text, fnt, fill, max_width, line_gap=10):
     return y
 
 
+def typed_value(value, progress):
+    progress = clamp(progress)
+    count = int(round(len(value) * progress))
+    return value[:count]
+
+
+def draw_field(draw, box, label, value, alpha, progress=1.0, active=False):
+    x1, y1, x2, y2 = box
+    a = int(255 * alpha)
+    draw.text((x1, y1), label, font=F_SMALL, fill=(*MUTED, a))
+    outline = GOLD if active else LINE
+    rounded(draw, (x1, y1 + 34, x2, y1 + 94), 16, (255, 255, 255, int(12 * alpha)), (*outline, a), 2 if active else 1)
+    visible = typed_value(value, progress)
+    draw.text((x1 + 20, y1 + 50), visible, font=F_BODY_B, fill=(*TEXT, a))
+    if active and int(progress * 10) % 2 == 0:
+        cx = x1 + 24 + draw.textbbox((0, 0), visible, font=F_BODY_B)[2]
+        draw.line((cx, y1 + 49, cx, y1 + 78), fill=(*GOLD, a), width=2)
+
+
+def click_state(t, click_times, window=0.22):
+    return max((max(0.0, 1.0 - abs(t - item) / window) for item in click_times), default=0.0)
+
+
 def add_glow(img, x, y, color, radius, alpha):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer, "RGBA")
@@ -133,25 +157,16 @@ def base_background():
     global BASE_BG_CACHE
     if BASE_BG_CACHE is not None:
         return BASE_BG_CACHE.copy()
-    source = MARKETING / "nexaflow-brand-final.png"
-    if source.exists():
-        bg = Image.open(source).convert("RGB")
-        scale = max(W / bg.width, H / bg.height) * 1.5
-        resized = bg.resize((int(bg.width * scale), int(bg.height * scale)), Image.Resampling.LANCZOS)
-        left = (resized.width - W) // 2
-        top = (resized.height - H) // 2
-        img = resized.crop((left, top, left + W, top + H)).convert("RGBA").filter(ImageFilter.GaussianBlur(12))
-        img.alpha_composite(Image.new("RGBA", (W, H), (0, 0, 0, 196)))
-    else:
-        img = Image.new("RGBA", (W, H), (*BG, 255))
-    add_glow(img, 150, 230, TEAL, 340, 44)
-    add_glow(img, 930, 300, GOLD, 330, 42)
-    add_glow(img, 520, 1590, TEAL, 420, 20)
-    d = ImageDraw.Draw(img, "RGBA")
-    for i in range(8):
-        y = 1330 + i * 42
-        d.arc((-120, y - 360, 1220, y + 420), 190, 345, fill=(*TEAL, 20), width=2)
-        d.arc((-80, y - 300, 1260, y + 480), 195, 350, fill=(*GOLD, 18), width=2)
+    img = Image.new("RGBA", (W, H), (*BG, 255))
+    # Clean premium background: glows only, no decorative arcs or wave lines.
+    add_glow(img, 135, 250, TEAL, 360, 42)
+    add_glow(img, 930, 285, GOLD, 360, 40)
+    add_glow(img, 540, 1490, TEAL, 430, 18)
+    shade = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shade, "RGBA")
+    sd.rectangle((0, 0, W, H), fill=(0, 0, 0, 42))
+    sd.rectangle((0, 1540, W, H), fill=(0, 0, 0, 68))
+    img.alpha_composite(shade)
     BASE_BG_CACHE = img
     return img.copy()
 
@@ -161,13 +176,34 @@ def draw_background(t):
     return img
 
 
+def load_logo(size=58):
+    global LOGO_CACHE
+    if LOGO_CACHE is not None:
+        return LOGO_CACHE.copy()
+    source = MARKETING / "nexaflow-social-avatar-icon.png"
+    if not source.exists():
+        source = MARKETING / "nexaflow-logo-mono.png"
+    logo = Image.open(source).convert("RGBA")
+    side = min(logo.width, logo.height)
+    left = (logo.width - side) // 2
+    top = (logo.height - side) // 2
+    logo = logo.crop((left, top, left + side, top + side)).resize((size, size), Image.Resampling.LANCZOS)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size, size), radius=14, fill=255)
+    logo.putalpha(mask)
+    LOGO_CACHE = logo
+    return logo.copy()
+
+
 def draw_brand(img, alpha=1.0):
     d = ImageDraw.Draw(img, "RGBA")
     a = int(255 * alpha)
-    d.rounded_rectangle((64, 58, 112, 106), radius=13, fill=(*TEAL, a))
-    d.rounded_rectangle((70, 61, 116, 107), radius=13, fill=(*GOLD, a))
-    d.text((132, 61), "Nexa", font=F_BRAND, fill=(*TEXT, a))
-    nx = d.textbbox((132, 61), "Nexa", font=F_BRAND)[2]
+    logo = load_logo()
+    if alpha < 1:
+        logo.putalpha(logo.getchannel("A").point(lambda p: int(p * alpha)))
+    img.alpha_composite(logo, (64, 55))
+    d.text((136, 61), "Nexa", font=F_BRAND, fill=(*TEXT, a))
+    nx = d.textbbox((136, 61), "Nexa", font=F_BRAND)[2]
     d.text((nx, 61), "Flow", font=F_BRAND, fill=(*GOLD, a))
 
 
@@ -211,9 +247,9 @@ def draw_subtitle(img, zh, en, alpha):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer, "RGBA")
     a = int(255 * alpha)
-    rounded(d, (64, 1674, 1016, 1852), 26, (3, 5, 5, int(222 * alpha)), (255, 255, 255, int(36 * alpha)), 2)
-    draw_multiline(d, (94, 1702), zh, F_ZH, (*TEXT, a), 890, 8)
-    draw_multiline(d, (94, 1762), en, F_EN, (*SOFT, a), 890, 8)
+    rounded(d, (64, 1660, 1016, 1868), 26, (3, 5, 5, int(228 * alpha)), (255, 255, 255, int(42 * alpha)), 2)
+    next_y = draw_multiline(d, (94, 1686), zh, F_ZH, (*TEXT, a), 890, 7)
+    draw_multiline(d, (94, next_y + 10), en, F_EN, (*SOFT, a), 890, 7)
     img.alpha_composite(layer)
 
 
@@ -223,9 +259,14 @@ def draw_cursor(img, x, y, click=0.0, alpha=1.0):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer, "RGBA")
     a = int(255 * alpha)
-    r = 23 + int(18 * click)
-    d.ellipse((x - r, y - r, x + r, y + r), outline=(*GOLD, int(170 * alpha)), width=4)
-    d.polygon([(x - 12, y - 16), (x + 26, y + 18), (x + 4, y + 24), (x - 4, y + 48)], fill=(*TEXT, a), outline=(0, 0, 0, a))
+    if click > 0:
+        r = 20 + int(34 * click)
+        d.ellipse((x - r, y - r, x + r, y + r), outline=(*GOLD, int(190 * click * alpha)), width=5)
+        d.ellipse((x - 12, y - 12, x + 12, y + 12), fill=(*GOLD, int(110 * click * alpha)))
+    shadow = [(x - 8, y - 10), (x + 26, y + 20), (x + 7, y + 25), (x - 2, y + 50)]
+    pointer = [(x - 12, y - 16), (x + 24, y + 18), (x + 4, y + 24), (x - 4, y + 48)]
+    d.polygon(shadow, fill=(0, 0, 0, int(180 * alpha)))
+    d.polygon(pointer, fill=(*TEXT, a), outline=(*GOLD, int(180 * alpha)))
     img.alpha_composite(layer)
 
 
@@ -281,14 +322,26 @@ def scene_trial_form(img, t, alpha):
         ("Monthly enquiries", "10-30"),
     ]
     yy = y1 + 175
-    for label, value in fields:
-        d.text((x1, yy), label, font=F_SMALL, fill=(*MUTED, a))
-        rounded(d, (x1, yy + 34, x2, yy + 94), 16, (255, 255, 255, int(12 * alpha)), (*LINE, a), 1)
-        d.text((x1 + 20, yy + 50), value, font=F_BODY_B, fill=(*TEXT, a))
+    local = t - 17.5
+    for index, (label, value) in enumerate(fields):
+        start = 1.0 + index * 1.25
+        progress = clamp((local - start) / 0.8)
+        active = start <= local <= start + 0.9
+        draw_field(d, (x1, yy, x2, yy + 94), label, value, alpha, progress, active)
         yy += 120
     rounded(d, (x1, yy + 8, x2, yy + 78), 18, (34, 197, 94, int(34 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
-    d.text((x1 + 22, yy + 25), "PDPA consent: customer data used for enquiry follow-up only", font=F_SMALL, fill=(*TEXT, a))
-    button(d, (x1, yy + 125), "Submit trial request", alpha, True, 360)
+    consent_text = "PDPA consent: customer data used for enquiry follow-up only"
+    check_on = local > 6.0
+    d.rounded_rectangle((x1 + 22, yy + 29, x1 + 48, yy + 55), radius=7, outline=(*GREEN, a), width=2, fill=(*GREEN, int(120 * alpha)) if check_on else (0, 0, 0, 0))
+    if check_on:
+        d.line((x1 + 28, yy + 42, x1 + 35, yy + 50, x1 + 45, yy + 35), fill=(*TEXT, a), width=3)
+    d.text((x1 + 62, yy + 25), consent_text, font=F_SMALL, fill=(*TEXT, a))
+    btn = button(d, (x1, yy + 125), "Submit trial request", alpha, True, 360)
+    if 7.0 <= local <= 7.6:
+        d.rounded_rectangle(btn, radius=19, outline=(*TEXT, int(210 * alpha)), width=4)
+    if local > 7.6:
+        rounded(d, (x1 + 385, yy + 128, x2, yy + 190), 18, (34, 197, 94, int(36 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
+        d.text((x1 + 408, yy + 145), "Request saved securely", font=F_SMALL, fill=(*TEXT, a))
     img.alpha_composite(layer)
 
 
@@ -299,14 +352,29 @@ def scene_load_inbox(img, t, alpha):
     a = int(255 * alpha)
     d.text((x1, y1), "STEP 2", font=F_EYE, fill=(*GOLD, a))
     d.text((x1, y1 + 70), "Load your private inbox", font=F_H2, fill=(*TEXT, a))
+    local = t - 26.5
     card(d, (x1, y1 + 185, x2, y1 + 350), alpha, TEAL)
     d.text((x1 + 28, y1 + 220), "Business access key", font=F_H3, fill=(*TEXT, a))
-    d.text((x1 + 28, y1 + 276), "Paste your private key once to unlock leads.", font=F_BODY, fill=(*MUTED, a))
-    button(d, (x1, y1 + 420), "Load Leads", alpha, True, 230)
+    draw_field(
+        d,
+        (x1 + 28, y1 + 270, x2 - 28, y1 + 364),
+        "Paste your private key once to unlock leads.",
+        "nf_live_merchant_key",
+        alpha,
+        clamp((local - 1.3) / 1.2),
+        1.3 <= local <= 2.7,
+    )
+    load_btn = button(d, (x1, y1 + 420), "Load Leads", alpha, True, 230)
     button(d, (x1 + 258, y1 + 420), "Export CSV", alpha, False, 230)
-    card(d, (x1, y1 + 540, x2, y1 + 740), alpha, GOLD)
+    if 3.0 <= local <= 3.5:
+        d.rounded_rectangle(load_btn, radius=19, outline=(*TEXT, int(210 * alpha)), width=4)
+    card(d, (x1, y1 + 540, x2, y1 + 760), alpha, GOLD)
     d.text((x1 + 28, y1 + 575), "Access is protected", font=F_H3, fill=(*TEXT, a))
-    draw_multiline(d, (x1 + 28, y1 + 625), "The public enquiry form is open, but the merchant inbox requires the business key.", F_BODY, (*MUTED, a), 760)
+    if local > 3.6:
+        d.text((x1 + 28, y1 + 625), "Inbox loaded: 3 new enquiries", font=F_BODY_B, fill=(*GOLD, a))
+        draw_multiline(d, (x1 + 28, y1 + 674), "Only the merchant with the private access key can view the leads.", F_BODY, (*MUTED, a), 760)
+    else:
+        draw_multiline(d, (x1 + 28, y1 + 625), "The public enquiry form is open, but the merchant inbox requires the business key.", F_BODY, (*MUTED, a), 760)
     img.alpha_composite(layer)
 
 
@@ -416,19 +484,39 @@ SCENES = [
 
 def cursor_at(t):
     points = [
-        (0, (850, 1500, 0)),
-        (9.4, (760, 1085, 0)),
-        (12.5, (300, 1085, 1)),
-        (18.6, (720, 1210, 0)),
-        (22.5, (300, 1245, 1)),
-        (27.5, (500, 920, 0)),
+        (0.0, (850, 1500, 0)),
+        (8.8, (330, 1188, 0)),
+        (10.0, (310, 1194, 1)),
+        (10.5, (310, 1194, 0)),
+        (12.0, (735, 1194, 1)),
+        (12.5, (735, 1194, 0)),
+        (15.2, (235, 1342, 1)),
+        (15.7, (235, 1342, 0)),
+        (18.7, (205, 615, 1)),
+        (19.4, (205, 615, 0)),
+        (20.1, (230, 735, 1)),
+        (20.8, (230, 735, 0)),
+        (21.5, (230, 855, 1)),
+        (22.2, (230, 855, 0)),
+        (23.1, (230, 975, 1)),
+        (23.8, (230, 975, 0)),
+        (24.5, (108, 1232, 1)),
+        (25.0, (108, 1232, 0)),
+        (25.8, (235, 1330, 1)),
+        (26.3, (235, 1330, 0)),
+        (28.4, (250, 850, 1)),
+        (29.6, (250, 850, 0)),
         (31.0, (225, 1095, 1)),
+        (31.7, (225, 1095, 0)),
         (36.8, (350, 1046, 0)),
         (40.5, (230, 1110, 1)),
+        (41.0, (230, 1110, 0)),
         (46.3, (782, 960, 0)),
         (50.0, (715, 1200, 1)),
+        (50.5, (715, 1200, 0)),
         (56.0, (280, 740, 0)),
         (60.0, (715, 965, 1)),
+        (60.5, (715, 965, 0)),
         (65.5, (365, 1190, 0)),
         (69.0, (350, 1328, 1)),
     ]
