@@ -289,7 +289,9 @@ def scene_title(img, t, alpha):
     d.text((64, y), "一个 private inbox.", font=F_H1, fill=(*GOLD, a))
     y += 116
     draw_multiline(d, (64, y), "For local service merchants who receive enquiries from WhatsApp, Facebook, Instagram, calls, and referrals.", F_BODY, (*SOFT, a), 880)
-    button(d, (64, y + 160), "Start with Enquiry", alpha, True, 310)
+    start_btn = button(d, (64, y + 160), "Start with Enquiry", alpha, True, 310)
+    if 4.95 <= t <= 5.45:
+        d.rounded_rectangle(start_btn, radius=19, outline=(*TEXT, int(225 * alpha)), width=4)
     button(d, (396, y + 160), "Merchant Login", alpha, False, 280)
     img.alpha_composite(layer)
 
@@ -344,9 +346,9 @@ def scene_trial_form(img, t, alpha):
         d.line((x1 + 28, yy + 42, x1 + 35, yy + 50, x1 + 45, yy + 35), fill=(*TEXT, a), width=3)
     d.text((x1 + 62, yy + 25), consent_text, font=F_SMALL, fill=(*TEXT, a))
     btn = button(d, (x1, yy + 125), "Submit trial request", alpha, True, 360)
-    if 7.0 <= local <= 7.6:
+    if 7.95 <= local <= 8.45:
         d.rounded_rectangle(btn, radius=19, outline=(*TEXT, int(210 * alpha)), width=4)
-    if local > 7.6:
+    if local > 8.45:
         rounded(d, (x1 + 385, yy + 128, x2, yy + 190), 18, (34, 197, 94, int(36 * alpha)), (34, 197, 94, int(150 * alpha)), 2)
         d.text((x1 + 408, yy + 145), "Saved securely", font=F_SMALL, fill=(*TEXT, a))
     img.alpha_composite(layer)
@@ -498,7 +500,7 @@ SCENES = [
 
 
 CURSOR_ACTIONS = [
-    (5.2, 180, 900, "Intro Start with Enquiry"),
+    (5.2, 220, 900, "Intro Start with Enquiry"),
     (10.2, 190, 840, "Singapore"),
     (15.2, 384, 1024, "Start with Enquiry"),
     (18.4, 770, 636, "Business name"),
@@ -506,7 +508,7 @@ CURSOR_ACTIONS = [
     (21.1, 770, 876, "Service type"),
     (22.5, 770, 996, "Monthly enquiries"),
     (24.4, 132, 1094, "PDPA consent"),
-    (25.7, 432, 1210, "Submit trial request"),
+    (25.7, 280, 1210, "Submit trial request"),
     (28.2, 865, 748, "Private key"),
     (31.0, 310, 903, "Load Leads"),
     (40.2, 366, 928, "Copy Main Link"),
