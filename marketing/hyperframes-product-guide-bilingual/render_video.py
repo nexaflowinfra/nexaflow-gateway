@@ -508,13 +508,44 @@ CURSOR_ACTIONS = [
 
 
 def cursor_at(t):
+    first_t = CURSOR_ACTIONS[0][0]
+    last_t = CURSOR_ACTIONS[-1][0]
+    if t < first_t - 1.0 or t > last_t + 1.0:
+        return 0, 0, 0.0, 0.0
+
+    fade_in = clamp((t - (first_t - 1.0)) / 0.45)
+    fade_out = clamp(((last_t + 1.0) - t) / 0.45)
+    alpha = min(1.0, ease(fade_in), ease(fade_out))
+
     for action_t, x, y, _label in CURSOR_ACTIONS:
         distance = abs(t - action_t)
-        if distance <= 0.85:
-            alpha = ease(1 - distance / 0.85)
-            click = max(0.0, 1.0 - distance / 0.24)
+        if distance <= 0.26:
+            click = max(0.0, 1.0 - distance / 0.26)
             return x, y, click, alpha
-    return 0, 0, 0.0, 0.0
+
+    if t <= first_t:
+        start_x, start_y = 905, 1360
+        p = ease((t - (first_t - 1.0)) / 1.0)
+        return lerp(start_x, CURSOR_ACTIONS[0][1], p), lerp(start_y, CURSOR_ACTIONS[0][2], p), 0.0, alpha
+
+    for index, current in enumerate(CURSOR_ACTIONS[:-1]):
+        nxt = CURSOR_ACTIONS[index + 1]
+        cur_t, cur_x, cur_y, _ = current
+        next_t, next_x, next_y, _ = nxt
+        if cur_t <= t <= next_t:
+            # Hold briefly after each click, move clearly, then wait on the next target before clicking.
+            move_start = cur_t + 0.38
+            move_end = min(next_t - 0.55, move_start + 0.9)
+            if move_end <= move_start:
+                move_end = move_start + max(0.25, (next_t - move_start) * 0.55)
+            if t <= move_start:
+                return cur_x, cur_y, 0.0, alpha
+            if t >= move_end:
+                return next_x, next_y, 0.0, alpha
+            p = ease((t - move_start) / (move_end - move_start))
+            return lerp(cur_x, next_x, p), lerp(cur_y, next_y, p), 0.0, alpha
+
+    return CURSOR_ACTIONS[-1][1], CURSOR_ACTIONS[-1][2], 0.0, alpha
 
 
 def render_frame(t):
@@ -533,9 +564,9 @@ def render_frame(t):
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     render_frame(39.5).save(PREVIEW, quality=95)
-    samples = [10.2, 15.2, 22.0, 25.7, 31.0, 40.2, 50.0, 60.0, 69.0]
+    samples = [9.6, 10.2, 13.8, 15.2, 18.4, 22.5, 25.7, 29.4, 31.0, 40.2, 50.0, 60.0]
     thumbs = [render_frame(t).resize((270, 480), Image.Resampling.LANCZOS) for t in samples]
-    sheet = Image.new("RGB", (270 * 3, 480 * 3), (0, 0, 0))
+    sheet = Image.new("RGB", (270 * 3, 480 * 4), (0, 0, 0))
     for index, thumb in enumerate(thumbs):
         sheet.paste(thumb, ((index % 3) * 270, (index // 3) * 480))
     sheet.save(CONTACT_SHEET, quality=95)
