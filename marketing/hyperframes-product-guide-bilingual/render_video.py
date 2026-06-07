@@ -263,8 +263,8 @@ def draw_cursor(img, x, y, click=0.0, alpha=1.0):
         r = 20 + int(34 * click)
         d.ellipse((x - r, y - r, x + r, y + r), outline=(*GOLD, int(190 * click * alpha)), width=5)
         d.ellipse((x - 12, y - 12, x + 12, y + 12), fill=(*GOLD, int(110 * click * alpha)))
-    shadow = [(x - 8, y - 10), (x + 26, y + 20), (x + 7, y + 25), (x - 2, y + 50)]
-    pointer = [(x - 12, y - 16), (x + 24, y + 18), (x + 4, y + 24), (x - 4, y + 48)]
+    shadow = [(x + 3, y + 5), (x + 40, y + 37), (x + 19, y + 42), (x + 10, y + 66)]
+    pointer = [(x, y), (x + 36, y + 34), (x + 15, y + 39), (x + 6, y + 62)]
     d.polygon(shadow, fill=(0, 0, 0, int(180 * alpha)))
     d.polygon(pointer, fill=(*TEXT, a), outline=(*GOLD, int(180 * alpha)))
     img.alpha_composite(layer)
@@ -393,10 +393,10 @@ def scene_daily_workspace(img, t, alpha):
     d.text((x1 + 462, y1 + 198), "Setup status", font=F_H3, fill=(*TEXT, a))
     d.text((x1 + 462, y1 + 250), "83% ready", font=F_BODY_B, fill=(*GOLD, a))
     draw_multiline(d, (x1 + 462, y1 + 288), "Submit one test enquiry before sharing.", F_SMALL, (*MUTED, a), 380)
-    card(d, (x1, y1 + 392, x2, y1 + 590), alpha, GOLD)
+    card(d, (x1, y1 + 392, x2, y1 + 630), alpha, GOLD)
     d.text((x1 + 28, y1 + 426), "Main customer link", font=F_H3, fill=(*TEXT, a))
     d.text((x1 + 28, y1 + 478), "Copy one link. Share it anywhere.", font=F_BODY, fill=(*MUTED, a))
-    button(d, (x1 + 28, y1 + 526), "Copy Main Link", alpha, True, 285)
+    button(d, (x1 + 28, y1 + 535), "Copy Main Link", alpha, True, 285)
     img.alpha_composite(layer)
 
 
@@ -485,40 +485,40 @@ SCENES = [
 def cursor_at(t):
     points = [
         (0.0, (850, 1500, 0)),
-        (8.8, (330, 1188, 0)),
-        (10.0, (310, 1194, 1)),
-        (10.5, (310, 1194, 0)),
-        (12.0, (735, 1194, 1)),
-        (12.5, (735, 1194, 0)),
-        (15.2, (235, 1342, 1)),
-        (15.7, (235, 1342, 0)),
-        (18.7, (205, 615, 1)),
-        (19.4, (205, 615, 0)),
-        (20.1, (230, 735, 1)),
-        (20.8, (230, 735, 0)),
-        (21.5, (230, 855, 1)),
-        (22.2, (230, 855, 0)),
-        (23.1, (230, 975, 1)),
-        (23.8, (230, 975, 0)),
-        (24.5, (108, 1232, 1)),
-        (25.0, (108, 1232, 0)),
-        (25.8, (235, 1330, 1)),
-        (26.3, (235, 1330, 0)),
-        (28.4, (250, 850, 1)),
-        (29.6, (250, 850, 0)),
-        (31.0, (225, 1095, 1)),
-        (31.7, (225, 1095, 0)),
-        (36.8, (350, 1046, 0)),
-        (40.5, (230, 1110, 1)),
-        (41.0, (230, 1110, 0)),
-        (46.3, (782, 960, 0)),
-        (50.0, (715, 1200, 1)),
-        (50.5, (715, 1200, 0)),
-        (56.0, (280, 740, 0)),
-        (60.0, (715, 965, 1)),
-        (60.5, (715, 965, 0)),
-        (65.5, (365, 1190, 0)),
-        (69.0, (350, 1328, 1)),
+        (8.7, (723, 837, 0)),     # Malaysia region card
+        (10.2, (723, 837, 1)),
+        (10.7, (723, 837, 0)),
+        (13.5, (365, 1020, 0)),    # Start with Enquiry
+        (15.2, (365, 1020, 1)),
+        (15.8, (365, 1020, 0)),
+        (18.4, (820, 636, 1)),     # Business name field
+        (19.2, (820, 636, 0)),
+        (19.8, (820, 756, 1)),     # WhatsApp field
+        (20.6, (820, 756, 0)),
+        (21.1, (820, 876, 1)),     # Service type field
+        (21.9, (820, 876, 0)),
+        (22.5, (820, 996, 1)),     # Monthly enquiries field
+        (23.2, (820, 996, 0)),
+        (24.4, (135, 1094, 1)),    # PDPA consent checkbox
+        (24.9, (135, 1094, 0)),
+        (25.7, (420, 1210, 1)),    # Submit trial request
+        (26.3, (420, 1210, 0)),
+        (28.2, (830, 748, 1)),     # Private access key field
+        (29.5, (830, 748, 0)),
+        (31.0, (300, 867, 1)),     # Load Leads
+        (31.6, (300, 867, 0)),
+        (36.0, (270, 650, 0)),     # Today's focus
+        (38.2, (360, 926, 0)),     # Copy Main Link button
+        (40.2, (360, 926, 1)),
+        (40.8, (360, 926, 0)),
+        (46.2, (728, 612, 0)),     # WhatsApp action column
+        (50.0, (650, 1068, 1)),    # Won button
+        (50.6, (650, 1068, 0)),
+        (56.0, (285, 740, 0)),     # Consent card
+        (60.0, (724, 890, 1)),     # Audit log card
+        (60.6, (724, 890, 0)),
+        (65.5, (350, 930, 0)),
+        (69.0, (590, 998, 1)),     # Final URL button
     ]
     current = points[0]
     for nxt in points[1:]:
@@ -549,7 +549,7 @@ def render_frame(t):
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     render_frame(39.5).save(PREVIEW, quality=95)
-    samples = [3, 12, 22, 31, 40, 49, 59, 68]
+    samples = [10.2, 15.2, 22.0, 25.7, 31.0, 40.2, 50.0, 60.0, 69.0]
     thumbs = [render_frame(t).resize((135, 240), Image.Resampling.LANCZOS) for t in samples]
     sheet = Image.new("RGB", (135 * len(thumbs), 240), (0, 0, 0))
     for index, thumb in enumerate(thumbs):
