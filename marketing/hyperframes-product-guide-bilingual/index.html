@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NexaFlow Bilingual Product Guide</title>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    :root {
+      --bg: #030504;
+      --panel: rgba(12, 15, 14, .9);
+      --panel-strong: rgba(6, 8, 8, .96);
+      --line: rgba(255, 255, 255, .14);
+      --text: #f8faf7;
+      --muted: #b9b3a5;
+      --teal: #2dd4bf;
+      --gold: #f3c76a;
+      --green: #22c55e;
+      --red: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", Arial, "Microsoft YaHei", sans-serif;
+    }
+    [data-composition-id="nexaflow-product-guide-bilingual"] {
+      width: 1080px;
+      height: 1920px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 14%, rgba(45, 212, 191, .23), transparent 34%),
+        radial-gradient(circle at 86% 16%, rgba(243, 199, 106, .19), transparent 32%),
+        linear-gradient(145deg, #020303 0%, #061313 48%, #151006 100%);
+    }
+    .brand {
+      position: absolute;
+      top: 56px;
+      left: 64px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 10;
+      font-size: 34px;
+      font-weight: 950;
+    }
+    .mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, var(--teal), #f7f5ec 48%, var(--gold));
+    }
+    .scene {
+      position: absolute;
+      inset: 0;
+      padding: 136px 64px 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 34px;
+    }
+    .browser {
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      background: var(--panel-strong);
+      box-shadow: 0 32px 120px rgba(0,0,0,.48);
+      overflow: hidden;
+    }
+    .bar {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 22px;
+    }
+    .dot { width: 14px; height: 14px; border-radius: 99px; background: rgba(255,255,255,.28); }
+    .url { margin-left: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 10px 18px; flex: 1; }
+    .panel { padding: 44px; }
+    h1 { font-size: 78px; line-height: 1.02; margin: 0; letter-spacing: 0; }
+    h2 { font-size: 56px; line-height: 1.08; margin: 0; }
+    h3 { font-size: 31px; margin: 0; }
+    p { margin: 0; color: var(--muted); font-size: 27px; line-height: 1.42; }
+    .eyebrow { color: var(--gold); font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+    .cta { display: inline-flex; padding: 20px 28px; border-radius: 18px; background: var(--gold); color: #050505; font-weight: 950; font-size: 26px; }
+    .btn-secondary { display: inline-flex; padding: 18px 26px; border-radius: 18px; border: 1px solid var(--line); font-weight: 900; font-size: 24px; }
+    .row { display: flex; gap: 22px; align-items: stretch; }
+    .card { border: 1px solid var(--line); background: rgba(255,255,255,.045); border-radius: 24px; padding: 26px; flex: 1; }
+    .badge { display: inline-flex; border: 1px solid rgba(243,199,106,.45); border-radius: 999px; padding: 10px 16px; color: var(--gold); font-weight: 900; font-size: 20px; }
+    .lead-row { display: grid; grid-template-columns: 1.2fr .8fr .8fr; gap: 16px; padding: 22px 0; border-bottom: 1px solid var(--line); font-size: 22px; }
+    .lead-row strong { color: var(--text); }
+    .cursor {
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      border: 3px solid var(--gold);
+      background: rgba(243,199,106,.18);
+      box-shadow: 0 0 30px rgba(243,199,106,.42);
+      position: absolute;
+      z-index: 20;
+    }
+    .subtitle {
+      position: absolute;
+      left: 64px;
+      right: 64px;
+      bottom: 54px;
+      min-height: 154px;
+      padding: 26px 32px;
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: rgba(3,5,5,.9);
+      z-index: 30;
+    }
+    .subtitle .zh { font-size: 34px; font-weight: 950; margin-bottom: 10px; }
+    .subtitle .en { font-size: 25px; color: #dad0bd; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div data-composition-id="nexaflow-product-guide-bilingual" data-width="1080" data-height="1920">
+    <div class="brand"><div class="mark"></div><div>Nexa<span style="color: var(--gold)">Flow</span></div></div>
+    <div class="scene" id="scene1">
+      <div class="eyebrow">2-minute merchant guide</div>
+      <h1>One enquiry link.<br>One private inbox.</h1>
+      <p>For local service merchants who receive customer enquiries through WhatsApp, Facebook, Instagram, calls, and referrals.</p>
+      <div class="row"><div class="cta">Start with Enquiry</div><div class="btn-secondary">Merchant Login</div></div>
+    </div>
+    <div class="scene" id="scene2">
+      <div class="browser">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><div class="url">api.nexaflowinfra.com/ai-enquiry</div></div>
+        <div class="panel">
+          <div class="eyebrow">Product page</div>
+          <h2>Choose your market and start trial</h2>
+          <div class="row" style="margin-top:28px"><div class="card"><h3>Singapore</h3><p>SGD pricing, local service workflow.</p></div><div class="card"><h3>Malaysia</h3><p>MYR pricing, WhatsApp-first workflow.</p></div></div>
+          <div class="row" style="margin-top:28px"><div class="cta">Start with Enquiry</div><div class="btn-secondary">View Pricing</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="scene" id="scene3">
+      <div class="browser">
+        <div class="bar"><div class="url">/start-trial</div></div>
+        <div class="panel">
+          <div class="eyebrow">Step 1</div>
+          <h2>Submit business details</h2>
+          <div class="card" style="margin-top:26px"><p>Business name, WhatsApp number, service type, monthly enquiries, and PDPA consent.</p></div>
+          <div class="cta" style="margin-top:28px">Submit trial request</div>
+        </div>
+      </div>
+    </div>
+    <div class="scene" id="scene4">
+      <div class="browser">
+        <div class="bar"><div class="url">/inbox/your-business</div></div>
+        <div class="panel">
+          <div class="eyebrow">Step 2</div>
+          <h2>Load the merchant inbox</h2>
+          <div class="card" style="margin-top:26px"><h3>Business access key</h3><p>Paste your private key once to unlock leads.</p></div>
+          <div class="row" style="margin-top:28px"><div class="cta">Load Leads</div><div class="btn-secondary">Export CSV</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="scene" id="scene5">
+      <div class="browser">
+        <div class="bar"><div class="url">Merchant daily workspace</div></div>
+        <div class="panel">
+          <div class="row">
+            <div class="card"><span class="badge">Today&apos;s focus</span><h3 style="margin-top:18px">Reply to hot leads</h3><p>Use WhatsApp draft and mark status.</p></div>
+            <div class="card"><span class="badge">Setup status</span><h3 style="margin-top:18px">83% ready</h3><p>Submit one test enquiry.</p></div>
+          </div>
+          <div class="card" style="margin-top:24px"><h3>Main customer link</h3><p>Copy one link and share it anywhere.</p><div class="cta" style="margin-top:20px">Copy Main Link</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="scene" id="scene6">
+      <div class="browser">
+        <div class="bar"><div class="url">Lead pipeline</div></div>
+        <div class="panel">
+          <div class="lead-row"><strong>New lead</strong><span>Hot</span><span>WhatsApp</span></div>
+          <div class="lead-row"><strong>Customer asks for quote</strong><span>Reply draft</span><span>Follow-up today</span></div>
+          <div class="lead-row"><strong>Quoted customer</strong><span>Set value</span><span>Won / Lost</span></div>
+          <div class="row" style="margin-top:30px"><div class="btn-secondary">Contacted</div><div class="btn-secondary">Quoted</div><div class="btn-secondary">Won</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="scene" id="scene7">
+      <div class="browser">
+        <div class="bar"><div class="url">Data protection</div></div>
+        <div class="panel">
+          <div class="eyebrow">Built for trust</div>
+          <h2>Customer data stays protected</h2>
+          <div class="row" style="margin-top:28px"><div class="card"><h3>Consent</h3><p>Customers accept privacy notice before submitting.</p></div><div class="card"><h3>Private inbox</h3><p>Business access key protects merchant leads.</p></div></div>
+          <div class="row" style="margin-top:22px"><div class="card"><h3>Retention</h3><p>Old enquiries can be cleaned by policy.</p></div><div class="card"><h3>Audit</h3><p>Data actions are logged for review.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="scene" id="scene8">
+      <div class="eyebrow">Ready to try</div>
+      <h1>Start with Enquiry.<br>Add CRM, Billing, Inventory later.</h1>
+      <p>NexaFlow keeps the first workflow simple, then grows into one AI business ecosystem.</p>
+      <div class="cta">api.nexaflowinfra.com/ai-enquiry</div>
+    </div>
+    <div class="cursor" id="cursor"></div>
+    <div class="subtitle"><div class="zh" id="subZh"></div><div class="en" id="subEn"></div></div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const scenes = ["scene1","scene2","scene3","scene4","scene5","scene6","scene7","scene8"];
+      scenes.forEach((id, index) => {
+        tl.set("#" + id, { opacity: index === 0 ? 1 : 0 }, 0);
+        if (index > 0) {
+          tl.to("#" + scenes[index - 1], { opacity: 0, duration: .55, ease: "power2.inOut" }, index * 9 - .55);
+          tl.to("#" + id, { opacity: 1, duration: .55, ease: "power2.inOut" }, index * 9 - .25);
+        }
+        tl.from("#" + id + " .browser, #" + id + " h1, #" + id + " h2, #" + id + " p, #" + id + " .card, #" + id + " .cta, #" + id + " .btn-secondary", { y: 34, opacity: 0, duration: .62, stagger: .06, ease: "power3.out" }, index * 9 + .35);
+      });
+      tl.to("#cursor", { x: 680, y: 980, duration: 2.6, ease: "power2.inOut" }, 9.8);
+      tl.to("#cursor", { scale: .72, duration: .18, yoyo: true, repeat: 1 }, 12.3);
+      tl.to("#cursor", { x: 650, y: 1110, duration: 2.2, ease: "power2.inOut" }, 19.2);
+      tl.to("#cursor", { scale: .72, duration: .18, yoyo: true, repeat: 1 }, 21.2);
+      tl.to("#cursor", { x: 520, y: 1100, duration: 2.2, ease: "power2.inOut" }, 28.4);
+      tl.to("#cursor", { scale: .72, duration: .18, yoyo: true, repeat: 1 }, 30.4);
+      tl.to("#cursor", { x: 350, y: 1110, duration: 2.2, ease: "power2.inOut" }, 37.8);
+      tl.to("#cursor", { scale: .72, duration: .18, yoyo: true, repeat: 1 }, 39.8);
+      tl.to("#cursor", { x: 788, y: 1270, duration: 2.2, ease: "power2.inOut" }, 47.0);
+      tl.to("#cursor", { scale: .72, duration: .18, yoyo: true, repeat: 1 }, 49.0);
+      tl.to("#cursor", { x: 690, y: 1370, duration: 2.4, ease: "power2.inOut" }, 55.8);
+      tl.to("#cursor", { scale: .72, duration: .18, yoyo: true, repeat: 1 }, 58.0);
+      tl.to("#cursor", { opacity: 0, duration: .55 }, 70);
+      window.__timelines["nexaflow-product-guide-bilingual"] = tl;
+    </script>
+  </div>
+</body>
+</html>
