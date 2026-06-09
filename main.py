@@ -5563,7 +5563,11 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     margin: 28px 0 12px;
                 }}
                 .section-head h2 {{ margin: 0; }}
-                .form-card {{ padding: 18px; overflow: visible; }}
+                .form-card {{
+                    padding: 18px;
+                    overflow: hidden;
+                    min-width: 0;
+                }}
                 .setup-panel {{
                     display: grid;
                     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5624,6 +5628,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
                     gap: 14px;
                     margin: 18px 0;
+                    min-width: 0;
                 }}
                 .action-card {{
                     border: 1px solid rgba(243,199,106,.42);
@@ -5632,8 +5637,16 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     background:
                         linear-gradient(135deg, rgba(243,199,106,.11), rgba(45,212,191,.055)),
                         var(--surface);
+                    min-width: 0;
                 }}
                 .action-card h3 {{ margin-bottom: 6px; }}
+                .action-card code {{
+                    display: block;
+                    max-width: 100%;
+                    white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
+                }}
                 .action-list {{
                     display: grid;
                     gap: 10px;
@@ -5733,9 +5746,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .share-link-box code {{
                     display: block;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
+                    white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
                     color: var(--muted);
                     margin: 8px 0 10px;
                 }}
@@ -5789,6 +5802,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
+                    .form-card, .action-card, .share-link-box {{ width: 100%; }}
                     .floating-whatsapp {{ right: 14px; bottom: 14px; min-height: 44px; padding: 10px 14px; }}
                 }}
             </style>

@@ -120,8 +120,8 @@ SCENES = [
         "title": "复制客户链接",
         "zh": "一个 enquiry link 可以放在 WhatsApp、FB、IG 或网站。",
         "en": "One enquiry link can be shared anywhere.",
-        "cursor": [(0.18, 112, 356), (0.58, 212, 424), (0.84, 212, 424)],
-        "click": (0.7, 212, 424),
+        "cursor": [(0.18, 112, 252), (0.58, 204, 320), (0.84, 204, 320)],
+        "click": (0.7, 204, 320),
         "duration": 4.6,
     },
     {
