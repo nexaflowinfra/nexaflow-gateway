@@ -39,25 +39,22 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
-    assert "AI Business Ecosystem" in response.text
-    assert "One link to your business tools." in response.text
-    assert "一个入口" in response.text
-    assert "Enquiries" in response.text
-    assert "Follow-ups" in response.text
-    assert "CRM" in response.text
-    assert "Billing" in response.text
-    assert "Inventory" in response.text
-    assert "Automation" in response.text
-    assert "Starter pricing" in response.text
+    assert "One enquiry link. One private inbox." in response.text
+    assert "一个询盘链接" in response.text
+    assert "What NexaFlow does now" in response.text
+    assert "Collect enquiries" in response.text
+    assert "Know who to reply first" in response.text
+    assert "Follow up on WhatsApp" in response.text
+    assert "Simple pricing after trial" in response.text
     assert "30-day trial" in response.text
-    assert "SGD 19" in response.text
     assert "SGD 49" in response.text
-    assert "SGD 99+" in response.text
+    assert "SGD 89" in response.text
+    assert "SGD 149+" in response.text
     assert "Singapore" in response.text
     assert "Malaysia" in response.text
-    assert "MYR 59" in response.text
-    assert "MYR 149" in response.text
-    assert "MYR 299+" in response.text
+    assert "MYR 169" in response.text
+    assert "MYR 299" in response.text
+    assert "MYR 499+" in response.text
     assert "nexaflow_home_market" in response.text
     assert "/ai-enquiry" in response.text
     assert "/merchant-login" in response.text
@@ -79,8 +76,8 @@ def test_merchant_login_page_loads():
     response = client.get("/merchant-login")
     assert response.status_code == 200
     assert "Merchant Login" in response.text
-    assert "Business slug" in response.text
-    assert "Business access key" in response.text
+    assert "Business link name" in response.text
+    assert "Owner inbox password" in response.text
     assert "nexaflow_business_key_" in response.text
     assert "/admin/dashboard" not in response.text
 
@@ -123,20 +120,21 @@ def test_enquiry_app_pages_load():
     assert "AI Enquiry Inbox" in public_page.text
     assert "submitEnquiry" in public_page.text
     assert "setProductLang" in public_page.text
-    assert "AI WhatsApp enquiry assistant for local service businesses" in public_page.text
+    assert "One enquiry link. One private inbox. Faster WhatsApp follow-up." in public_page.text
     assert "Data safety built in" in public_page.text
     assert "Consent before submit" in public_page.text
     assert "Private merchant inbox" in public_page.text
     assert "Delete customer enquiries" in public_page.text
-    assert "View Pricing" in public_page.text
+    assert "Create My Enquiry Link" in public_page.text
     assert "Merchant Login" in public_page.text
     assert "Start with a 30-day trial" in public_page.text
-    assert "SGD 19" in public_page.text
+    assert "SGD 49" in public_page.text
+    assert "SGD 89" in public_page.text
     assert "Singapore" in public_page.text
     assert "Malaysia" in public_page.text
-    assert "MYR 59" in public_page.text
-    assert "MYR 149" in public_page.text
-    assert "MYR 299+" in public_page.text
+    assert "MYR 169" in public_page.text
+    assert "MYR 299" in public_page.text
+    assert "MYR 499+" in public_page.text
     assert "nexaflow_enquiry_market" in public_page.text
     assert "/start-trial" in public_page.text
     assert "WhatsApp Us" in public_page.text
@@ -144,9 +142,9 @@ def test_enquiry_app_pages_load():
     assert "/assets/brand/nexaflow-final.png" in public_page.text
     assert "/assets/brand/nexaflow-icon.png" in public_page.text
     assert 'alt="NexaFlow logo"' in public_page.text
-    assert "Built as a business ecosystem" in public_page.text
-    assert "Enquiry" in public_page.text
-    assert "Automation" in public_page.text
+    assert "Simple sales flow for service merchants" in public_page.text
+    assert "Customer asks" in public_page.text
+    assert "Merchant follows up" in public_page.text
     assert "#2dd4bf" in public_page.text
     assert "#f3c76a" in public_page.text
     assert "radial-gradient(circle at 12% 10%" in public_page.text
@@ -183,7 +181,7 @@ def test_enquiry_app_pages_load():
 
     trial_page = client.get("/start-trial")
     assert trial_page.status_code == 200
-    assert "Start your AI WhatsApp enquiry inbox" in trial_page.text
+    assert "Create your enquiry link." in trial_page.text
     assert "submitTrialRequest" in trial_page.text
     assert "trialLeadSource" in trial_page.text
 
@@ -278,7 +276,7 @@ def test_trial_request_flow():
     assert "Customer enquiry link" in payload["onboarding_message"]
     assert payload["profile"]["business_access_key"] in payload["onboarding_message"]
     assert payload["onboarding_whatsapp_url"].startswith("https://wa.me/")
-    assert "Business%20access%20key" in payload["onboarding_whatsapp_url"]
+    assert "Owner%20inbox%20password" in payload["onboarding_whatsapp_url"]
     assert "Starter:" in payload["conversion_message"]
     assert payload["conversion_whatsapp_url"].startswith("https://wa.me/")
 
@@ -557,7 +555,7 @@ def test_enquiry_tracks_marketing_attribution_and_source_stats():
     assert exported.status_code == 200
     assert "instagram" in exported.text
     assert "june-reels-2" in exported.text
-    assert "https://merchant.example.com/contact" in exported.text
+    assert "https://merchant.example.com/contact" not in exported.text
 
 
 def test_enquiry_requires_pdpa_consent():
@@ -1267,9 +1265,9 @@ def test_merchant_can_export_own_enquiries_csv_only():
     assert "CSV Buyer" in exported.text
     assert "csv@example.com" in exported.text
     assert "Need urgent quotation for repair" in exported.text
-    assert "auto_summary" in exported.text
-    assert "next_action" in exported.text
-    assert "follow_up_recommendation" in exported.text
+    assert "auto_summary" not in exported.text
+    assert "next_action" not in exported.text
+    assert "follow_up_recommendation" not in exported.text
     assert "Export this note for the sales team." in exported.text
     assert "Tomorrow morning" in exported.text
     assert "1200.5" in exported.text

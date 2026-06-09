@@ -2657,7 +2657,7 @@ Customer enquiry form:
 Private merchant inbox:
 {inbox_url}
 
-Business access key:
+Owner inbox password:
 {access_key}
 
 Website widget code:
@@ -2665,15 +2665,15 @@ Website widget code:
 
 5-minute setup:
 1. Open the private merchant inbox.
-2. Paste the business access key above and click Load Leads.
+2. Paste the owner inbox password above and click Open Inbox.
 3. Open Business settings and confirm your WhatsApp phone, email, service summary, and opening hours.
 4. Copy the customer enquiry form link and share it on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.
-5. When leads arrive, open the inbox, click WhatsApp, save notes, set follow-up dates, and mark each lead as contacted, quoted, won, or lost.
+5. When leads arrive, open the inbox, click WhatsApp, save notes, set follow-up dates, and mark each lead as contacted, quoted, booked, or not proceeding.
 
 Data and privacy:
-Customer forms include a privacy consent notice. Your private inbox is protected by this business access key. Keep it private.
+Customer forms include a privacy notice. Your private inbox is protected by this owner inbox password. Keep it private.
 
-Keep this access key private. If it is exposed or lost, ask the NexaFlow operator to rotate it.
+Keep this owner inbox password private. If it is exposed or lost, ask the NexaFlow operator to rotate it.
 """
 
 
@@ -2689,16 +2689,16 @@ Customer enquiry link:
 Private merchant inbox:
 {inbox_url}
 
-Business access key:
+Owner inbox password:
 {access_key}
 
 Simple setup:
 1. Open the private inbox.
-2. Paste the access key and load leads.
+2. Paste the owner inbox password and open the inbox.
 3. Share the enquiry link on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.
 4. When a lead arrives, follow up from the inbox and update the status.
 
-Please keep the access key private because it protects your customer enquiry data."""
+Please keep the owner inbox password private because it protects your customer enquiry data."""
 
 
 def send_business_onboarding(slug, owner_client_id=None):
@@ -3855,37 +3855,33 @@ def list_enquiry_records(
 def enquiries_to_csv(enquiries):
     output = StringIO()
     fieldnames = [
-        "id",
         "created_at",
-        "business_slug",
         "name",
         "phone",
         "email",
         "intent",
         "priority",
-        "estimated_value",
-        "auto_summary",
-        "next_action",
-        "follow_up_recommendation",
         "status",
         "message",
         "reply_draft",
-        "whatsapp_url",
         "internal_note",
         "follow_up_at",
         "deal_value",
-        "pdpa_consent",
-        "consent_at",
         "source",
         "campaign",
-        "referrer",
-        "page_url",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
     for enquiry in enquiries:
-        writer.writerow({key: enquiry.get(key, "") for key in fieldnames})
+        writer.writerow({key: csv_safe_cell(enquiry.get(key, "")) for key in fieldnames})
     return output.getvalue()
+
+
+def csv_safe_cell(value):
+    text = "" if value is None else str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + text
+    return text
 
 
 def enquiry_stats(business_slug=None):
@@ -5098,9 +5094,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <meta name="description" content="NexaFlow helps local service merchants manage enquiries, follow-ups, CRM, billing, inventory, and automation from one AI business ecosystem.">
+            <meta name="description" content="NexaFlow Enquiry helps local service merchants collect customer enquiries, organize leads in a private inbox, and follow up faster on WhatsApp.">
             <meta property="og:title" content="{safe_title}">
-            <meta property="og:description" content="AI business ecosystem for local service merchants. Start with NexaFlow Enquiry and organize customer follow-ups faster.">
+            <meta property="og:description" content="One enquiry link, one private inbox, and WhatsApp-ready follow-up for local service merchants.">
             <meta property="og:image" content="https://api.nexaflowinfra.com/assets/brand/nexaflow-final.png">
             <meta property="og:type" content="website">
             <link rel="icon" type="image/png" href="/assets/brand/nexaflow-icon.png">
@@ -5535,6 +5531,12 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     min-height: 46px;
                     color: var(--muted);
                     font-size: 13px;
+                }}
+                .mini-note {{
+                    margin: -2px 0 12px;
+                    color: var(--muted);
+                    font-size: 12px;
+                    line-height: 1.45;
                 }}
                 pre {{
                     white-space: pre-wrap;
@@ -6141,10 +6143,10 @@ def acceptable_use_page():
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
-    contact_url = sales_whatsapp_url("Hi NexaFlow, I want to know which NexaFlow service fits my business")
+    contact_url = sales_whatsapp_url("Hi NexaFlow, I want to create an enquiry link for my business")
     request_link = escape_html(contact_url or "/contact-trial")
     return merchant_html(
-        "NexaFlow AI Business Ecosystem",
+        "NexaFlow Enquiry",
         "NexaFlow",
         f"""
         <section class="hero product-hero">
@@ -6157,24 +6159,24 @@ def landing_page():
                     <button type="button" class="active" onclick="setProductMarket('sg')" id="marketSg">Singapore</button>
                     <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
                 </div>
-                <div class="eyebrow">NexaFlow AI Business Ecosystem</div>
-                <h1><span data-lang="en">One link to your business tools.</span><span data-lang="zh" class="lang-hidden">一个入口，管理你的生意工具。</span></h1>
-                <p class="lead"><span data-lang="en">Choose the service you need first. Start with enquiries today, then add CRM, billing, inventory, or automation when your business is ready.</span><span data-lang="zh" class="lang-hidden">先选择你现在最需要的服务。可以从询盘管理开始，之后再加入 CRM、账单、库存或自动化。</span></p>
-                <p class="lead"><span data-market="sg">Built for Singapore service merchants that need PDPA-aware enquiry capture and WhatsApp follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia service merchants that need simple enquiry capture, WhatsApp follow-up, and local pricing.</span></p>
+                <div class="eyebrow">NexaFlow Enquiry</div>
+                <h1><span data-lang="en">One enquiry link. One private inbox.</span><span data-lang="zh" class="lang-hidden">一个询盘链接，一个私密 inbox。</span></h1>
+                <p class="lead"><span data-lang="en">Stop losing customer enquiries inside WhatsApp, Facebook, Instagram, calls, or referrals. NexaFlow collects each enquiry, organizes it, and helps you follow up faster on WhatsApp.</span><span data-lang="zh" class="lang-hidden">不要再让客户询问散落在 WhatsApp、Facebook、Instagram、电话或介绍里。NexaFlow 帮你集中收询盘、整理客户，并更快用 WhatsApp 跟进。</span></p>
+                <p class="lead"><span data-market="sg">Built for Singapore service merchants that need PDPA-aware enquiry capture and faster WhatsApp follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia service merchants that need simple enquiry capture, private inbox, WhatsApp follow-up, and local MYR pricing.</span></p>
                 <div class="actions">
-                    <a class="btn" href="/ai-enquiry"><span data-lang="en">Start with Enquiry</span><span data-lang="zh" class="lang-hidden">先使用询盘助手</span></a>
-                    <a class="btn secondary" href="#services"><span data-lang="en">View Services</span><span data-lang="zh" class="lang-hidden">查看服务</span></a>
+                    <a class="btn" href="/start-trial"><span data-lang="en">Start 30-day Trial</span><span data-lang="zh" class="lang-hidden">申请 30 天试用</span></a>
+                    <a class="btn secondary" href="/ai-enquiry#enquiry-form"><span data-lang="en">See Demo</span><span data-lang="zh" class="lang-hidden">看 Demo</span></a>
                     <a class="btn secondary" href="/merchant-login"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家登录</span></a>
                 </div>
             </div>
             <div class="hero-side">
                 <div class="brand-visual"><img src="/assets/brand/nexaflow-final.png" alt="NexaFlow business ecosystem"></div>
                 <div class="product-panel">
-                    <div class="panel-top"><span data-lang="en">Business modules</span><span data-lang="zh" class="lang-hidden">商业模块</span><span class="pill good">One core</span></div>
+                    <div class="panel-top"><span data-lang="en">How it helps today</span><span data-lang="zh" class="lang-hidden">今天可以怎么帮你</span><span class="pill good">Live</span></div>
                     <div class="signal-list">
-                        <div class="signal-row"><span class="pill hot">Live</span><div><strong><span data-lang="en">Enquiries + Follow-ups</span><span data-lang="zh" class="lang-hidden">询盘 + 跟进</span></strong><span data-lang="en">Capture leads and reply faster on WhatsApp.</span><span data-lang="zh" class="lang-hidden">收集客户询问，并更快用 WhatsApp 跟进。</span></div><a href="/ai-enquiry"><span data-lang="en">Open</span><span data-lang="zh" class="lang-hidden">打开</span></a></div>
-                        <div class="signal-row"><span class="pill">Soon</span><div><strong>CRM</strong><span data-lang="en">Customer records and lead stages.</span><span data-lang="zh" class="lang-hidden">客户资料和销售阶段管理。</span></div><a href="{request_link}"><span data-lang="en">Request</span><span data-lang="zh" class="lang-hidden">申请</span></a></div>
-                        <div class="signal-row"><span class="pill">Soon</span><div><strong><span data-lang="en">Billing + Inventory</span><span data-lang="zh" class="lang-hidden">账单 + 库存</span></strong><span data-lang="en">Quotations, invoices, stock, and service items.</span><span data-lang="zh" class="lang-hidden">报价、发票、库存和服务项目。</span></div><a href="{request_link}"><span data-lang="en">Request</span><span data-lang="zh" class="lang-hidden">申请</span></a></div>
+                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">Share one customer link</span><span data-lang="zh" class="lang-hidden">分享一个客户链接</span></strong><span data-lang="en">Use it on WhatsApp, Facebook, Instagram, Google Business Profile, or a website.</span><span data-lang="zh" class="lang-hidden">可以放在 WhatsApp、Facebook、Instagram、Google 商家资料或网站。</span></div><a href="/start-trial"><span data-lang="en">Create</span><span data-lang="zh" class="lang-hidden">开通</span></a></div>
+                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">AI organizes the enquiry</span><span data-lang="zh" class="lang-hidden">AI 自动整理询盘</span></strong><span data-lang="en">Intent, urgency, missing details, and reply direction are prepared for you.</span><span data-lang="zh" class="lang-hidden">系统整理客户意向、紧急程度、缺少资料和回复方向。</span></div><a href="/ai-enquiry#enquiry-form">Demo</a></div>
+                        <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Follow up on WhatsApp</span><span data-lang="zh" class="lang-hidden">用 WhatsApp 跟进</span></strong><span data-lang="en">Open the private inbox, use the suggested reply, and update the lead status.</span><span data-lang="zh" class="lang-hidden">打开私密 inbox，用建议回复跟进并更新状态。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
                     </div>
                 </div>
             </div>
@@ -6182,47 +6184,32 @@ def landing_page():
 
         <div class="section-head" id="services">
             <div>
-                <h2><span data-lang="en">Pick a service</span><span data-lang="zh" class="lang-hidden">选择服务</span></h2>
-                <p><span data-lang="en">Start small. Add more workflows later when they become useful.</span><span data-lang="zh" class="lang-hidden">先从一个服务开始。之后有需要时，再加入更多工作流程。</span></p>
+                <h2><span data-lang="en">What NexaFlow does now</span><span data-lang="zh" class="lang-hidden">NexaFlow 现在帮你做什么</span></h2>
+                <p><span data-lang="en">A focused enquiry assistant for local service merchants. No website or technical setup required to start.</span><span data-lang="zh" class="lang-hidden">专门给本地服务型商家的询盘助手。开始时不需要网站，也不需要技术设置。</span></p>
             </div>
         </div>
         <section class="grid">
             <div class="card">
-                <h3><span data-lang="en">Enquiries</span><span data-lang="zh" class="lang-hidden">询盘管理</span></h3>
-                <p><span data-lang="en">One link for customers to submit enquiries with consent.</span><span data-lang="zh" class="lang-hidden">让客户通过一个链接提交询问和同意资料用途。</span></p>
-                <a class="btn" href="/ai-enquiry"><span data-lang="en">Use Enquiry</span><span data-lang="zh" class="lang-hidden">使用询盘助手</span></a>
+                <h3><span data-lang="en">Collect enquiries</span><span data-lang="zh" class="lang-hidden">集中收询盘</span></h3>
+                <p><span data-lang="en">Customers submit name, contact details, message, and privacy acknowledgement through one simple link.</span><span data-lang="zh" class="lang-hidden">客户通过一个简单链接提交姓名、联系方式、留言和隐私确认。</span></p>
+                <a class="btn" href="/start-trial"><span data-lang="en">Create My Link</span><span data-lang="zh" class="lang-hidden">创建我的链接</span></a>
             </div>
             <div class="card">
-                <h3><span data-lang="en">Follow-ups</span><span data-lang="zh" class="lang-hidden">客户跟进</span></h3>
-                <p><span data-lang="en">Track status, notes, follow-up dates, and WhatsApp reply drafts.</span><span data-lang="zh" class="lang-hidden">记录状态、备注、跟进日期和 WhatsApp 回复草稿。</span></p>
-                <a class="btn" href="/ai-enquiry"><span data-lang="en">Included in Enquiry</span><span data-lang="zh" class="lang-hidden">已包含在询盘助手</span></a>
+                <h3><span data-lang="en">Know who to reply first</span><span data-lang="zh" class="lang-hidden">知道先回谁</span></h3>
+                <p><span data-lang="en">NexaFlow labels urgency, customer intent, and the next reply direction so hot enquiries do not get buried.</span><span data-lang="zh" class="lang-hidden">NexaFlow 判断紧急程度、客户意向和回复方向，让高意向客户不被聊天记录埋掉。</span></p>
+                <a class="btn secondary" href="/ai-enquiry#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
             </div>
             <div class="card">
-                <h3>CRM</h3>
-                <p><span data-lang="en">Customer profiles, lead stages, and service history.</span><span data-lang="zh" class="lang-hidden">客户资料、销售阶段和服务记录。</span></p>
-                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request CRM</span><span data-lang="zh" class="lang-hidden">申请 CRM</span></a>
-            </div>
-            <div class="card">
-                <h3><span data-lang="en">Billing</span><span data-lang="zh" class="lang-hidden">账单</span></h3>
-                <p><span data-lang="en">Quotations, invoices, payments, and billing records.</span><span data-lang="zh" class="lang-hidden">报价、发票、收款和账单记录。</span></p>
-                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Billing</span><span data-lang="zh" class="lang-hidden">申请账单功能</span></a>
-            </div>
-            <div class="card">
-                <h3><span data-lang="en">Inventory</span><span data-lang="zh" class="lang-hidden">库存</span></h3>
-                <p><span data-lang="en">Stock, packages, parts, products, and service items.</span><span data-lang="zh" class="lang-hidden">库存、配套、零件、产品和服务项目。</span></p>
-                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Inventory</span><span data-lang="zh" class="lang-hidden">申请库存功能</span></a>
-            </div>
-            <div class="card">
-                <h3><span data-lang="en">Automation</span><span data-lang="zh" class="lang-hidden">自动化</span></h3>
-                <p><span data-lang="en">Reminders, repeat tasks, and simple workflow automation.</span><span data-lang="zh" class="lang-hidden">提醒、重复任务和简单工作流程自动化。</span></p>
-                <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Automation</span><span data-lang="zh" class="lang-hidden">申请自动化</span></a>
+                <h3><span data-lang="en">Follow up on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 快速跟进</span></h3>
+                <p><span data-lang="en">The private inbox keeps message, status, notes, suggested reply, and follow-up date in one place.</span><span data-lang="zh" class="lang-hidden">私密 inbox 集中保存客户留言、状态、备注、建议回复和跟进日期。</span></p>
+                <a class="btn secondary" href="/merchant-login"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></a>
             </div>
         </section>
 
         <div class="section-head">
             <div>
-                <h2><span data-lang="en">Starter pricing</span><span data-lang="zh" class="lang-hidden">入门价格</span></h2>
-                <p><span data-lang="en">Start with NexaFlow Enquiry first. Other modules can be added later as they become available.</span><span data-lang="zh" class="lang-hidden">建议先从 NexaFlow 询盘助手开始。其他模块开发好后可以再加入。</span></p>
+                <h2><span data-lang="en">Simple pricing after trial</span><span data-lang="zh" class="lang-hidden">试用后的简单价格</span></h2>
+                <p><span data-lang="en">Start with a 30-day trial. Pay only when the enquiry workflow is useful for your business.</span><span data-lang="zh" class="lang-hidden">先试用 30 天。确认询盘流程对你的生意有帮助后再付费。</span></p>
             </div>
         </div>
         <section class="pricing-grid">
@@ -6230,23 +6217,23 @@ def landing_page():
                 <h3><span data-lang="en">30-day trial</span><span data-lang="zh" class="lang-hidden">30 天试用</span></h3>
                 <div class="plan-price">Free <span>for trial</span></div>
                 <p><span data-lang="en">Test enquiry capture, private inbox, AI sorting, and WhatsApp follow-up drafts.</span><span data-lang="zh" class="lang-hidden">试用询盘收集、私密 inbox、AI 分类和 WhatsApp 回复草稿。</span></p>
-                <a class="btn" href="/ai-enquiry"><span data-lang="en">View Enquiry Plan</span><span data-lang="zh" class="lang-hidden">查看询盘方案</span></a>
+                <a class="btn" href="/start-trial"><span data-lang="en">Start Trial</span><span data-lang="zh" class="lang-hidden">开始试用</span></a>
             </div>
             <div class="price-card">
                 <h3><span data-lang="en">Enquiry Starter</span><span data-lang="zh" class="lang-hidden">询盘入门版</span></h3>
-                <div class="plan-price"><span data-market="sg">SGD 19</span><span data-market="my" class="market-hidden">MYR 59</span> <span>/ month</span></div>
-                <p><span data-lang="en">For small service teams that want organized leads and faster WhatsApp follow-up.</span><span data-lang="zh" class="lang-hidden">适合想整理客户询问，并更快 WhatsApp 跟进的小型服务团队。</span></p>
+                <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 169</span> <span>/ month</span></div>
+                <p><span data-lang="en">For small service teams with up to 100 enquiries per month.</span><span data-lang="zh" class="lang-hidden">适合每月 100 个询盘以内的小型服务团队。</span></p>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
             </div>
             <div class="price-card highlight">
-                <h3>Enquiry Pro</h3>
-                <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 149</span> <span>/ month</span></div>
-                <p><span data-lang="en">For growing service businesses with daily enquiries and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">适合每天都有客户询问，并需要跟进提醒的成长型商家。</span></p>
+                <h3>Enquiry Growth</h3>
+                <div class="plan-price"><span data-market="sg">SGD 89</span><span data-market="my" class="market-hidden">MYR 299</span> <span>/ month</span></div>
+                <p><span data-lang="en">Recommended for businesses with daily enquiries and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">推荐给每天都有客户询问，并需要跟进提醒的商家。</span></p>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
             </div>
             <div class="price-card">
                 <h3>Business</h3>
-                <div class="plan-price"><span data-market="sg">SGD 99+</span><span data-market="my" class="market-hidden">MYR 299+</span> <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 149+</span><span data-market="my" class="market-hidden">MYR 499+</span> <span>/ month</span></div>
                 <p><span data-lang="en">For teams, multiple outlets, higher enquiry volume, or custom workflow setup.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店、更高询盘量或需要客制流程的商家。</span></p>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Business</span><span data-lang="zh" class="lang-hidden">申请 Business</span></a>
             </div>
@@ -6254,14 +6241,14 @@ def landing_page():
 
         <div class="section-head">
             <div>
-                <h2><span data-lang="en">How it works</span><span data-lang="zh" class="lang-hidden">使用方式</span></h2>
-                <p><span data-lang="en">A simple path from service selection to daily operation.</span><span data-lang="zh" class="lang-hidden">从选择服务到日常使用，流程保持简单。</span></p>
+                <h2><span data-lang="en">Three simple steps</span><span data-lang="zh" class="lang-hidden">三个简单步骤</span></h2>
+                <p><span data-lang="en">Built for busy owners who need a practical daily workflow, not another complicated system.</span><span data-lang="zh" class="lang-hidden">为忙碌老板设计，重点是每天能用，不是再多一个复杂系统。</span></p>
             </div>
         </div>
         <section class="steps">
-            <div class="step"><div><strong><span data-lang="en">Choose a service</span><span data-lang="zh" class="lang-hidden">选择服务</span></strong><p><span data-lang="en">Start with the workflow your business needs most.</span><span data-lang="zh" class="lang-hidden">先从你生意最需要的流程开始。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Set up your profile</span><span data-lang="zh" class="lang-hidden">设置商家资料</span></strong><p><span data-lang="en">Add your business details, WhatsApp, and service information.</span><span data-lang="zh" class="lang-hidden">填写商家资料、WhatsApp 和服务内容。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Run the workflow</span><span data-lang="zh" class="lang-hidden">开始使用</span></strong><p><span data-lang="en">Share your link and keep customer work organized.</span><span data-lang="zh" class="lang-hidden">分享链接，并把客户事项整理起来。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Share one link</span><span data-lang="zh" class="lang-hidden">分享一个链接</span></strong><p><span data-lang="en">Put it on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.</span><span data-lang="zh" class="lang-hidden">放在 WhatsApp、Facebook、Instagram、Google 商家资料或网站。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Receive organized enquiries</span><span data-lang="zh" class="lang-hidden">收到整理好的询盘</span></strong><p><span data-lang="en">Customer details, message, urgency, and suggested reply direction appear in your private inbox.</span><span data-lang="zh" class="lang-hidden">客户资料、留言、紧急程度和建议回复方向都会进入你的私密 inbox。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Follow up faster</span><span data-lang="zh" class="lang-hidden">更快跟进</span></strong><p><span data-lang="en">Open WhatsApp from the inbox, reply, then set the next follow-up date.</span><span data-lang="zh" class="lang-hidden">从 inbox 打开 WhatsApp 回复，然后设置下次跟进日期。</span></p></div></div>
         </section>
 
         <div class="section-head">
@@ -6310,24 +6297,24 @@ def merchant_login_page():
                 </div>
                 <div class="eyebrow">Merchant Login</div>
                 <h1><span data-lang="en">Open your private merchant inbox.</span><span data-lang="zh" class="lang-hidden">打开你的商家私密 inbox。</span></h1>
-                <p class="lead"><span data-lang="en">Enter your business slug and access key. The key is saved only in your browser, not placed in the URL.</span><span data-lang="zh" class="lang-hidden">输入 business slug 和 access key。Key 只会保存在你的浏览器，不会放进 URL。</span></p>
+                <p class="lead"><span data-lang="en">Enter your business link name and owner inbox password. The password is saved only in your browser, not placed in the URL.</span><span data-lang="zh" class="lang-hidden">输入你的商家链接名称和老板 inbox 密码。密码只会保存在你的浏览器，不会放进 URL。</span></p>
             </div>
         </section>
         <section class="form-card">
             <div class="toolbar">
-                <label>Business slug<input id="loginSlug" autocomplete="off" placeholder="your-business-slug"></label>
-                <label>Business access key<input id="loginKey" type="password" autocomplete="current-password" placeholder="biz_..."></label>
+                <label>Business link name<input id="loginSlug" autocomplete="off" placeholder="your-business-name"></label>
+                <label>Owner inbox password<input id="loginKey" type="password" autocomplete="current-password" placeholder="biz_..."></label>
             </div>
             <div class="actions">
                 <button class="btn" onclick="openMerchantInbox()"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></button>
                 <a class="btn secondary" href="/"><span data-lang="en">Back to Services</span><span data-lang="zh" class="lang-hidden">返回服务页</span></a>
             </div>
-            <div class="status" id="loginStatus"><span data-lang="en">Your access key protects customer enquiries. Do not share it publicly.</span><span data-lang="zh" class="lang-hidden">Access key 会保护客户询盘资料，请不要公开分享。</span></div>
+            <div class="status" id="loginStatus"><span data-lang="en">Your owner inbox password protects customer enquiries. Do not share it publicly.</span><span data-lang="zh" class="lang-hidden">老板 inbox 密码会保护客户询盘资料，请不要公开分享。</span></div>
         </section>
         <div class="section-head">
             <div>
                 <h2><span data-lang="en">Privacy note</span><span data-lang="zh" class="lang-hidden">隐私提示</span></h2>
-                <p><span data-lang="en">Customer names, phone numbers, messages, notes, and follow-up records are shown only after a valid business access key is provided.</span><span data-lang="zh" class="lang-hidden">客户姓名、电话、留言、备注和跟进记录，只有输入有效 business access key 后才会显示。</span></p>
+                <p><span data-lang="en">Customer names, phone numbers, messages, notes, and follow-up records are shown only after a valid owner inbox password is provided.</span><span data-lang="zh" class="lang-hidden">客户姓名、电话、留言、备注和跟进记录，只有输入有效老板 inbox 密码后才会显示。</span></p>
             </div>
         </div>
         <script>
@@ -6347,7 +6334,7 @@ def merchant_login_page():
                 const slug = normalizeSlug(document.getElementById("loginSlug").value);
                 const key = document.getElementById("loginKey").value.trim();
                 if (!slug || !key) {
-                    status.textContent = "Please enter both business slug and access key.";
+                    status.textContent = "Please enter both business link name and owner inbox password.";
                     return;
                 }
                 localStorage.setItem(`nexaflow_business_key_${slug}`, key);
@@ -6409,15 +6396,15 @@ def enquiry_app_page():
                     <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
                 </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
-                <h1><span data-lang="en">AI WhatsApp enquiry assistant for local service businesses</span><span data-lang="zh" class="lang-hidden">给本地服务商家的 AI WhatsApp 询盘助手</span></h1>
+                <h1><span data-lang="en">One enquiry link. One private inbox. Faster WhatsApp follow-up.</span><span data-lang="zh" class="lang-hidden">一个询盘链接，一个私密 inbox，更快 WhatsApp 跟进。</span></h1>
                 <p class="lead">
-                    <span data-lang="en">Collect customer enquiries, understand buyer intent, alert the merchant, and prepare a WhatsApp-ready reply.</span>
-                    <span data-lang="zh" class="lang-hidden">自动收集客户询问、判断客户想要什么、通知商家，并准备好可直接用于 WhatsApp 的回复。</span>
+                    <span data-lang="en">Share one link anywhere. Customers submit their request with consent. NexaFlow organizes the enquiry, highlights urgency, and prepares a WhatsApp-ready follow-up direction.</span>
+                    <span data-lang="zh" class="lang-hidden">把一个链接放到任何地方。客户提交询盘并确认隐私提示后，NexaFlow 会整理内容、判断紧急程度，并准备可用于 WhatsApp 跟进的方向。</span>
                 </p>
                 <p class="lead"><span data-market="sg">For Singapore service merchants: PDPA-aware enquiry capture, private inbox, and WhatsApp follow-up.</span><span data-market="my" class="market-hidden">For Malaysia service merchants: simple enquiry capture, private inbox, and WhatsApp follow-up with MYR pricing.</span></p>
                 <div class="actions">
-                    <a class="btn" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
-                    <a class="btn secondary" href="#enquiry-pricing"><span data-lang="en">View Pricing</span><span data-lang="zh" class="lang-hidden">查看价格</span></a>
+                    <a class="btn" href="/start-trial"><span data-lang="en">Create My Enquiry Link</span><span data-lang="zh" class="lang-hidden">创建我的询盘链接</span></a>
+                    <a class="btn secondary" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
                     <a class="btn secondary" href="/merchant-login"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家登录</span></a>
                 </div>
             </div>
@@ -6452,16 +6439,14 @@ def enquiry_app_page():
         </section>
         <div class="section-head">
             <div>
-                <h2><span data-lang="en">Built as a business ecosystem</span><span data-lang="zh" class="lang-hidden">以商业生态系统为基础</span></h2>
-                <p><span data-lang="en">Enquiry is the first product. The same NexaFlow core can later support CRM, Billing, Inventory, and Automation.</span><span data-lang="zh" class="lang-hidden">Enquiry 是第一个产品。未来同一个 NexaFlow 核心也可以支持 CRM、Billing、Inventory 和 Automation。</span></p>
+                <h2><span data-lang="en">Simple sales flow for service merchants</span><span data-lang="zh" class="lang-hidden">服务型商家的简单接单流程</span></h2>
+                <p><span data-lang="en">The goal is not to replace WhatsApp. The goal is to make sure every enquiry is captured, understood, and followed up.</span><span data-lang="zh" class="lang-hidden">目标不是取代 WhatsApp，而是确保每个询盘都被记录、理解和及时跟进。</span></p>
             </div>
         </div>
-        <section class="ecosystem-grid" aria-label="NexaFlow product ecosystem">
-            <div class="ecosystem-pill">Enquiry</div>
-            <div class="ecosystem-pill">CRM</div>
-            <div class="ecosystem-pill">Billing</div>
-            <div class="ecosystem-pill">Inventory</div>
-            <div class="ecosystem-pill">Automation</div>
+        <section class="steps">
+            <div class="step"><div><strong><span data-lang="en">Customer asks</span><span data-lang="zh" class="lang-hidden">客户询问</span></strong><p><span data-lang="en">A customer clicks your enquiry link from WhatsApp, Facebook, Instagram, Google Business Profile, or your website.</span><span data-lang="zh" class="lang-hidden">客户从 WhatsApp、Facebook、Instagram、Google 商家资料或网站点击你的询盘链接。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">NexaFlow organizes</span><span data-lang="zh" class="lang-hidden">NexaFlow 整理</span></strong><p><span data-lang="en">The private inbox shows customer details, message, intent, urgency, and suggested follow-up direction.</span><span data-lang="zh" class="lang-hidden">私密 inbox 显示客户资料、留言、意向、紧急程度和建议跟进方向。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Merchant follows up</span><span data-lang="zh" class="lang-hidden">商家跟进</span></strong><p><span data-lang="en">Open WhatsApp, reply faster, set a reminder, and keep the lead visible until it is handled.</span><span data-lang="zh" class="lang-hidden">打开 WhatsApp 更快回复，设置提醒，并让客户询盘保持可见直到处理完成。</span></p></div></div>
         </section>
         <div class="section-head">
             <div>
@@ -6471,7 +6456,7 @@ def enquiry_app_page():
         </div>
         <section class="grid">
             <div class="card"><h3><span data-lang="en">Consent before submit</span><span data-lang="zh" class="lang-hidden">提交前同意</span></h3><p><span data-lang="en">Every enquiry records the privacy notice, consent status, and consent time.</span><span data-lang="zh" class="lang-hidden">每个询问都会记录隐私告知、同意状态和同意时间。</span></p></div>
-            <div class="card"><h3><span data-lang="en">Private merchant inbox</span><span data-lang="zh" class="lang-hidden">商家私密 inbox</span></h3><p><span data-lang="en">Internal notes, deal value, follow-up dates, and WhatsApp links stay behind a business access key.</span><span data-lang="zh" class="lang-hidden">内部备注、成交金额、跟进日期和 WhatsApp 链接都由商家 access key 保护。</span></p></div>
+            <div class="card"><h3><span data-lang="en">Private merchant inbox</span><span data-lang="zh" class="lang-hidden">商家私密 inbox</span></h3><p><span data-lang="en">Internal notes, follow-up dates, and WhatsApp links stay behind an owner inbox password.</span><span data-lang="zh" class="lang-hidden">内部备注、跟进日期和 WhatsApp 链接都由老板 inbox 密码保护。</span></p></div>
             <div class="card"><h3><span data-lang="en">Delete customer enquiries</span><span data-lang="zh" class="lang-hidden">删除客户询盘</span></h3><p><span data-lang="en">Merchants can delete individual enquiries when they no longer need the record or receive a valid deletion request.</span><span data-lang="zh" class="lang-hidden">当商家不再需要记录，或收到有效删除请求时，可以删除单个客户询盘。</span></p></div>
             <div class="card"><h3><span data-lang="en">Export and records</span><span data-lang="zh" class="lang-hidden">导出与记录</span></h3><p><span data-lang="en">Merchants can export their leads, while Terms and Privacy explain allowed use and responsibilities.</span><span data-lang="zh" class="lang-hidden">商家可以导出 leads，同时条款和隐私政策说明资料用途和责任。</span></p></div>
         </section>
@@ -6496,7 +6481,7 @@ def enquiry_app_page():
             </div>
             <div class="price-card">
                 <h3>Starter</h3>
-                <div class="plan-price"><span data-market="sg">SGD 19</span><span data-market="my" class="market-hidden">MYR 59</span> <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 169</span> <span>/ month</span></div>
                 <p><span data-lang="en">For solo owners and small service shops.</span><span data-lang="zh" class="lang-hidden">适合个人老板或小型服务商家。</span></p>
                 <ul>
                     <li><span data-lang="en">1 business inbox</span><span data-lang="zh" class="lang-hidden">1 个商家 inbox</span></li>
@@ -6506,9 +6491,9 @@ def enquiry_app_page():
                 </ul>
             </div>
             <div class="price-card highlight">
-                <h3>Pro</h3>
-                <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 149</span> <span>/ month</span></div>
-                <p><span data-lang="en">For growing businesses with daily enquiries.</span><span data-lang="zh" class="lang-hidden">适合每天都有客户询问的成长型商家。</span></p>
+                <h3>Growth</h3>
+                <div class="plan-price"><span data-market="sg">SGD 89</span><span data-market="my" class="market-hidden">MYR 299</span> <span>/ month</span></div>
+                <p><span data-lang="en">Recommended for growing businesses with daily enquiries.</span><span data-lang="zh" class="lang-hidden">推荐给每天都有客户询问的成长型商家。</span></p>
                 <ul>
                     <li><span data-lang="en">Everything in Starter</span><span data-lang="zh" class="lang-hidden">包含 Starter 全部功能</span></li>
                     <li><span data-lang="en">Up to 500 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 500 个询问</span></li>
@@ -6518,7 +6503,7 @@ def enquiry_app_page():
             </div>
             <div class="price-card">
                 <h3>Business</h3>
-                <div class="plan-price"><span data-market="sg">SGD 99+</span><span data-market="my" class="market-hidden">MYR 299+</span> <span>/ month</span></div>
+                <div class="plan-price"><span data-market="sg">SGD 149+</span><span data-market="my" class="market-hidden">MYR 499+</span> <span>/ month</span></div>
                 <p><span data-lang="en">For teams, multiple outlets, or custom workflows.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店或需要客制流程的商家。</span></p>
                 <ul>
                     <li><span data-lang="en">Multiple inboxes</span><span data-lang="zh" class="lang-hidden">多个商家 inbox</span></li>
@@ -6531,7 +6516,7 @@ def enquiry_app_page():
         <div class="section-head" id="enquiry-form">
             <div>
                 <h2><span data-lang="en">Try the demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></h2>
-                <p><span data-lang="en">Submit a sample enquiry and see the classification result.</span><span data-lang="zh" class="lang-hidden">提交一个示例询问，看看系统如何自动判断客户意向。</span></p>
+                <p><span data-lang="en">Submit a sample customer enquiry and see how NexaFlow organizes intent and urgency before the merchant follows up in the private inbox.</span><span data-lang="zh" class="lang-hidden">提交一个示例客户询盘，看看 NexaFlow 如何在商家私密 inbox 跟进前整理客户意向和紧急程度。</span></p>
             </div>
         </div>
         <section class="form-card">
@@ -6541,7 +6526,7 @@ def enquiry_app_page():
             </div>
             <div class="toolbar">
                 <label>Email<input id="leadEmail" value="alex@example.com"></label>
-                <label><span data-lang="en">Business Type</span><span data-lang="zh" class="lang-hidden">业务类型</span>
+                <label><span data-lang="en">Service Type</span><span data-lang="zh" class="lang-hidden">服务类型</span>
                     <select id="businessType">
                         <option value="renovation">Renovation</option>
                         <option value="tuition">Tuition</option>
@@ -6555,11 +6540,12 @@ def enquiry_app_page():
             <label>Message
                 <textarea id="leadMessage">Hi, I need a quotation urgently for this week. How much is your package?</textarea>
             </label>
+            <p class="mini-note"><span data-lang="en">Please do not include NRIC/passport numbers, card details, passwords, health details, or other sensitive information in this demo.</span><span data-lang="zh" class="lang-hidden">请不要在 Demo 中填写身份证/护照号码、银行卡资料、密码、健康资料或其他敏感信息。</span></p>
             <label><input id="pdpaConsent" type="checkbox" checked> <span data-lang="en">I agree that my contact details and enquiry may be used for follow-up, support, security, and record keeping under the Privacy Policy.</span><span data-lang="zh" class="lang-hidden">我同意根据隐私政策，使用我的联系资料和询问内容作跟进、客服、安全和记录用途。</span></label>
             <div class="actions">
                 <button class="btn" onclick="submitEnquiry()"><span data-lang="en">Submit Enquiry</span><span data-lang="zh" class="lang-hidden">提交询问</span></button>
             </div>
-            <div class="status" id="enquiryStatus">Submit the demo form to create an enquiry and classification result.</div>
+            <div class="status" id="enquiryStatus">Submit the demo form to create a sample enquiry. Reply drafts are kept inside the private merchant inbox.</div>
         </section>
         <script>
             function setProductLang(lang) {
@@ -6617,7 +6603,7 @@ def enquiry_app_page():
                     status.innerHTML = `
                         Created enquiry #${result.id}<br>
                         Intent: ${escapeHtml(result.intent)} | Priority: ${escapeHtml(result.priority)}<br>
-                        Internal reply drafts are shown only inside the business inbox.
+                        Next: the merchant opens the private inbox, uses the WhatsApp follow-up direction, and updates the lead status.
                     `;
                 } catch (error) {
                     status.textContent = error.message;
@@ -6653,8 +6639,8 @@ def start_trial_page():
         <section class="hero compact">
             <div>
                 <div class="eyebrow">30-day trial</div>
-                <h1>Start your AI WhatsApp enquiry inbox.</h1>
-                <p class="lead">Tell us about your business. We will help set up your enquiry link, private inbox, and WhatsApp follow-up flow.</p>
+                <h1>Create your enquiry link.</h1>
+                <p class="lead">Tell us your business name, WhatsApp number, and service type. We will prepare your customer link, private inbox, and first demo lead.</p>
                 <div class="actions">
                     <a class="btn secondary" href="/ai-enquiry">View product</a>
                     {whatsapp_action}
@@ -6664,14 +6650,14 @@ def start_trial_page():
         <section class="admin-split">
             <div class="form-card">
                 <h2>Trial request</h2>
-                <p>Best for local service businesses that receive enquiries through WhatsApp, Facebook, Instagram, referrals, or Google Business Profile.</p>
+                <p>Best for local service businesses that receive enquiries through WhatsApp, Facebook, Instagram, calls, referrals, or Google Business Profile.</p>
                 <label>Business name<input id="trialBusinessName" placeholder="ABC Renovation"></label>
                 <label>Your name<input id="trialContactName" placeholder="Alex Tan"></label>
-                <label>Email<input id="trialEmail" type="email" placeholder="you@example.com"></label>
+                <label>Email optional<input id="trialEmail" type="email" placeholder="you@example.com"></label>
                 <label>WhatsApp phone<input id="trialWhatsapp" placeholder="+65 9123 4567"></label>
-                <label>Business type<input id="trialType" placeholder="Renovation, beauty, cleaning, repair..."></label>
-                <label>City / Area<input id="trialCity" placeholder="Singapore, KL, JB..."></label>
-                <label>Monthly enquiries
+                <label>Service type<input id="trialType" placeholder="Renovation, beauty, cleaning, repair..."></label>
+                <label>Country / Area<input id="trialCity" placeholder="Singapore, KL, JB..."></label>
+                <label>Approx. monthly enquiries
                     <select id="trialVolume">
                         <option value="1-30">1-30</option>
                         <option value="31-100">31-100</option>
@@ -6692,17 +6678,17 @@ def start_trial_page():
                         <option value="referral">Referral</option>
                     </select>
                 </label>
-                <label>What do you want NexaFlow to help with?<textarea id="trialMessage" rows="4" placeholder="Example: We get WhatsApp enquiries but often forget follow-up."></textarea></label>
-                <label><input id="trialConsent" type="checkbox"> I agree that NexaFlow may collect and use this information to contact me about the trial, setup, support, and service follow-up. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
+                <label>Where do your enquiries usually come from?<textarea id="trialMessage" rows="4" placeholder="Example: Mostly WhatsApp and Facebook. We often forget to follow up after quoting."></textarea></label>
+                <label><input id="trialConsent" type="checkbox"> I agree that NexaFlow may collect and use this information to contact me about the trial, setup, support, security, and service follow-up. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
                 <div class="actions">
                     <button class="btn" onclick="submitTrialRequest()">Submit trial request</button>
                 </div>
                 <div class="status" id="trialStatus">Submit this form first. We will follow up with setup steps.</div>
             </div>
             <div class="grid">
-                <div class="card accent-card"><h3>What happens next</h3><p>We check your business details, prepare the enquiry inbox, and send you the link and access key.</p></div>
-                <div class="card"><h3>No website needed</h3><p>You can share one enquiry link on WhatsApp, Facebook, Instagram, Google Business Profile, or your bio link.</p></div>
-                <div class="card"><h3>Privacy first</h3><p>Customer enquiries are kept inside a private merchant inbox and should only be used for service follow-up.</p></div>
+                <div class="card accent-card"><h3>1. We create your link</h3><p>You get one customer enquiry link and a private merchant inbox.</p></div>
+                <div class="card"><h3>2. You test one enquiry</h3><p>Submit a sample enquiry, check the AI sorting, and open the WhatsApp follow-up.</p></div>
+                <div class="card"><h3>3. You share it</h3><p>Use the link on WhatsApp, Facebook, Instagram, Google Business Profile, or your bio link.</p></div>
             </div>
         </section>
         <script>
@@ -6821,8 +6807,9 @@ def public_enquiry_form_page(business_slug: str):
                 <label>Name<input id="leadName" autocomplete="name" placeholder="Your name"></label>
                 <label>Phone<input id="leadPhone" autocomplete="tel" placeholder="+65 9123 4567"></label>
             </div>
-            <label>Email<input id="leadEmail" autocomplete="email" placeholder="you@example.com"></label>
+            <label>Email optional<input id="leadEmail" autocomplete="email" placeholder="you@example.com"></label>
             <label>Message<textarea id="leadMessage">Hi, I would like to enquire about your service.</textarea></label>
+            <p class="mini-note">Please do not include NRIC/passport numbers, card details, passwords, health details, or other sensitive information in your message.</p>
             <label><input id="pdpaConsent" type="checkbox"> I agree that my name, contact details, and enquiry message may be used by {business_name} and NexaFlow service providers to respond to this enquiry, provide support, keep records, and protect the service. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
             <div class="actions">
                 <button class="btn" onclick="submitEnquiry()">Send Enquiry</button>
@@ -6896,17 +6883,18 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <section class="hero compact">
             <div>
                 <div class="eyebrow">Merchant inbox</div>
-                <h1>{business_name} Leads</h1>
-                <p class="lead">View customer enquiries, follow up on WhatsApp, and keep every lead moving.</p>
+                <h1>{business_name} Private Inbox</h1>
+                <p class="lead">See new customer enquiries, reply on WhatsApp, and keep follow-ups visible.</p>
             </div>
         </section>
         <section class="form-card">
             <div class="toolbar">
-                <label>Business access key<input id="businessKey" type="password" placeholder="biz_..."></label>
-                <button class="btn" onclick="loadMerchantInbox()">Load Leads</button>
-                <button class="btn secondary" onclick="exportMerchantCsv()">Export CSV</button>
+                <label>Owner inbox password<input id="businessKey" type="password" placeholder="biz_..."></label>
+                <button class="btn" onclick="loadMerchantInbox()">Open Inbox</button>
+                <button class="btn secondary" onclick="exportMerchantCsv()">Download Customer List</button>
             </div>
-            <div class="status" id="merchantStatus">Enter your business access key to load this inbox.</div>
+            <div class="status" id="merchantStatus">Enter your owner inbox password to load this private inbox. Do not share this password publicly.</div>
+            <p class="mini-note">Customer data in this inbox should only be used for replies, quotations, appointments, service follow-up, support, security, and required records.</p>
         </section>
         <section class="action-center" id="merchantActionCenter"></section>
         <section class="grid" id="merchantStats"></section>
@@ -6962,7 +6950,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <div class="section-head">
             <div>
                 <h2>Lead pipeline</h2>
-                <p>Prioritize hot leads first, then mark each one as contacted, quoted, won, or lost.</p>
+                <p>Prioritize hot enquiries first, then mark each one as contacted, quoted, booked, or not proceeding.</p>
             </div>
         </div>
         <section class="pipeline-board" id="merchantPipelineBoard"></section>
@@ -6974,8 +6962,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <option value="new">New</option>
                         <option value="contacted">Contacted</option>
                         <option value="quoted">Quoted</option>
-                        <option value="won">Won</option>
-                        <option value="lost">Lost</option>
+                        <option value="won">Booked / Closed</option>
+                        <option value="lost">Not Proceeding</option>
                         <option value="spam">Spam</option>
                     </select>
                 </label>
@@ -7201,6 +7189,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             }}
             async function exportMerchantCsv() {{
                 const status = document.getElementById("merchantStatus");
+                if (!confirm("This download contains customer personal data. Use it only for replies, quotations, appointments, service follow-up, support, security, or required records. Keep the file secure and delete it when no longer needed.")) return;
                 status.textContent = "Preparing CSV export...";
                 try {{
                     const blob = await merchantDownload(`/apps/enquiry/api/merchant/enquiries/export.csv?${{merchantQuery(500)}}`);
@@ -7247,8 +7236,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     new: "New",
                     contacted: "Contacted",
                     quoted: "Quoted",
-                    won: "Won",
-                    lost: "Lost",
+                    won: "Booked / Closed",
+                    lost: "Not Proceeding",
                     spam: "Spam"
                 }}[value] || value || "Unknown";
             }}
@@ -7257,7 +7246,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 if (item.status === "new" && item.priority === "hot") return "Reply now and mark Contacted";
                 if (item.status === "new") return "Send first WhatsApp reply";
                 if (item.status === "contacted") return "Set follow-up date or mark Quoted";
-                if (item.status === "quoted") return "Follow up and close Won/Lost";
+                if (item.status === "quoted") return "Follow up and mark Booked or Not Proceeding";
                 if (item.follow_up_at) return "Review scheduled follow-up";
                 return "Add note and next follow-up";
             }}
@@ -7284,7 +7273,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         ? ["Reply to hot leads", `${{hot}} hot lead(s) should be contacted first.`]
                         : newCount > 0
                             ? ["Contact new leads", `${{newCount}} new lead(s) are waiting for first reply.`]
-                            : ["Keep pipeline updated", "No urgent leads. Review quoted leads and close won/lost."];
+                            : ["Keep follow-ups updated", "No urgent enquiries. Review quoted customers and mark the next step."];
                 document.getElementById("merchantActionCenter").innerHTML = `
                     <div class="action-card">
                         <h3>Today&apos;s focus</h3>
@@ -7320,8 +7309,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     ["new", "First reply needed"],
                     ["contacted", "Waiting for customer"],
                     ["quoted", "Follow up to close"],
-                    ["won", "Revenue captured"],
-                    ["lost", "Learn and archive"]
+                    ["won", "Job booked or closed"],
+                    ["lost", "Not proceeding"]
                 ];
                 document.getElementById("merchantPipelineBoard").innerHTML = stages.map(([key, hint]) => `
                     <div class="stage-card">
@@ -7413,8 +7402,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                                 ${{item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${{escapeHtml(item.whatsapp_url)}}">WhatsApp</a>` : ""}}
                                 <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">Contacted</button>
                                 <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">Quoted</button>
-                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">Won</button>
-                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'lost')">Lost</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">Booked</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'lost')">Not Proceeding</button>
                                 <button class="btn secondary" onclick="deleteMerchantLead(${{item.id}})">Delete</button>
                             </td>
                         </tr>
