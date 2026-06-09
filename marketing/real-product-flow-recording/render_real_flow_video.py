@@ -55,99 +55,62 @@ F_BADGE = font(21, True)
 SCENES = [
     {
         "file": "01-product-hero.png",
-        "title": "真实产品页",
-        "zh": "商家先打开 NexaFlow 产品页。",
-        "en": "Open the real NexaFlow product page.",
-        "cursor": [(0.18, 258, 180), (0.54, 178, 180), (0.84, 178, 180)],
-        "click": (0.62, 178, 180),
-        "duration": 3.8,
-    },
-    {
-        "file": "02-product-singapore.png",
-        "title": "选择市场",
-        "zh": "选择新加坡或马来西亚，对应本地价格。",
-        "en": "Choose Singapore or Malaysia for local pricing.",
-        "cursor": [(0.18, 54, 180), (0.56, 94, 180), (0.84, 94, 180)],
-        "click": (0.64, 94, 180),
-        "duration": 4.2,
-    },
-    {
-        "file": "03-product-chinese.png",
-        "title": "中英切换",
-        "zh": "页面支持英文和中文，比较适合本地商家。",
-        "en": "English and Chinese are both supported.",
-        "duration": 4.2,
-    },
-    {
-        "file": "04-demo-form.png",
-        "title": "客户提交询盘",
-        "zh": "客户填写名字、电话、需求，并同意资料用途。",
-        "en": "Customers submit contact details, message, and consent.",
-        "cursor": [(0.18, 280, 650), (0.58, 78, 745), (0.84, 78, 745)],
-        "click": (0.66, 78, 745),
-        "duration": 4.4,
-    },
-    {
-        "file": "06-demo-result.png",
-        "title": "AI 自动整理",
-        "zh": "系统会判断意向、优先级，并准备回复方向。",
-        "en": "AI classifies intent, priority, and reply direction.",
-        "duration": 4.5,
-    },
-    {
-        "file": "07-merchant-login.png",
-        "title": "商家后台入口",
-        "zh": "后台需要 business slug 和私密 access key。",
-        "en": "The inbox is protected by slug and private access key.",
-        "duration": 4.3,
-    },
-    {
-        "file": "08-merchant-login-filled.png",
-        "title": "安全登录",
-        "zh": "真实 key 不放进公开链接，也不要发给客户。",
-        "en": "The real key is not placed in public links.",
-        "cursor": [(0.18, 230, 424), (0.56, 88, 496), (0.84, 88, 496)],
-        "click": (0.68, 88, 496),
-        "duration": 4.4,
-    },
-    {
-        "file": "09-merchant-inbox.png",
-        "title": "Private inbox",
-        "zh": "商家进入私人 inbox，看今天该跟进谁。",
-        "en": "The merchant sees today's follow-up priorities.",
-        "duration": 4.4,
-    },
-    {
-        "file": "11-copy-main-link.png",
-        "title": "复制客户链接",
-        "zh": "一个 enquiry link 可以放在 WhatsApp、FB、IG 或网站。",
-        "en": "One enquiry link can be shared anywhere.",
-        "cursor": [(0.18, 112, 252), (0.58, 204, 320), (0.84, 204, 320)],
-        "click": (0.7, 204, 320),
+        "title": "Step 1 - Open Enquiry",
+        "zh": "打开产品页，点 Try Demo 或 Merchant Login。",
+        "en": "Open the product page. Try Demo or Merchant Login.",
+        "cursor": [(0.15, 246, 430), (0.55, 74, 594), (0.82, 74, 594)],
+        "click": (0.62, 74, 594),
         "duration": 4.6,
     },
     {
-        "file": "12-lead-pipeline.png",
-        "title": "Lead pipeline",
-        "zh": "所有客户询盘都会进入同一个跟进流程。",
-        "en": "Every lead stays visible in one workflow.",
-        "duration": 4.3,
+        "file": "08-merchant-login-filled.png",
+        "title": "Step 2 - Open Inbox",
+        "zh": "输入 slug 和 access key。key 只给商家。",
+        "en": "Enter slug and access key. Keep the key private.",
+        "cursor": [(0.18, 232, 424), (0.56, 88, 496), (0.84, 88, 496)],
+        "click": (0.68, 88, 496),
+        "duration": 4.8,
     },
     {
-        "file": "13-lead-contacted.png",
-        "title": "更新状态",
-        "zh": "跟进后可把 lead 标记为 contacted 或 quoted。",
-        "en": "After replying, update the lead status.",
-        "cursor": [(0.18, 306, 546), (0.58, 310, 422), (0.84, 310, 422)],
-        "click": (0.7, 310, 422),
-        "duration": 4.4,
+        "file": "11-copy-main-link.png",
+        "title": "Step 3 - Share Link",
+        "zh": "复制客户链接，发到 WhatsApp、FB、IG 或网站。",
+        "en": "Copy the customer link and share it anywhere.",
+        "cursor": [(0.18, 112, 252), (0.58, 204, 320), (0.84, 204, 320)],
+        "click": (0.7, 204, 320),
+        "duration": 4.8,
     },
     {
         "file": "14-customer-enquiry-form.png",
-        "title": "客户看到的页面",
-        "zh": "没有网站的商家，也可以直接分享这个询盘页。",
-        "en": "Merchants without a website can still use this link.",
-        "duration": 4.2,
+        "title": "Step 4 - Customer Sends Enquiry",
+        "zh": "客户打开链接，选择需求并提交。",
+        "en": "Customers open the link, choose a need, and submit.",
+        "cursor": [(0.18, 244, 236), (0.55, 84, 331), (0.84, 84, 331)],
+        "click": (0.64, 84, 331),
+        "duration": 4.8,
+    },
+    {
+        "file": "06-demo-result.png",
+        "title": "Step 5 - AI Sorts It",
+        "zh": "AI 判断意向、优先级和跟进方向。",
+        "en": "AI identifies intent, priority, and next action.",
+        "duration": 4.8,
+    },
+    {
+        "file": "09-merchant-inbox.png",
+        "title": "Step 6 - Follow Up",
+        "zh": "商家回到 inbox，用 WhatsApp 跟进。",
+        "en": "Return to the inbox and follow up on WhatsApp.",
+        "duration": 4.8,
+    },
+    {
+        "file": "13-lead-contacted.png",
+        "title": "Step 7 - Update Status",
+        "zh": "回复后更新状态，避免漏单。",
+        "en": "Update the lead status so no enquiry gets lost.",
+        "cursor": [(0.18, 306, 546), (0.58, 310, 422), (0.84, 310, 422)],
+        "click": (0.7, 310, 422),
+        "duration": 4.6,
     },
 ]
 
@@ -165,11 +128,14 @@ def cursor_opacity(p: float) -> int:
 
 def draw_wrapped(draw: ImageDraw.ImageDraw, xy, text: str, fnt, fill, max_width: int, line_gap=8):
     x, y = xy
-    words = text.split()
+    words = list(text) if any("\u4e00" <= ch <= "\u9fff" for ch in text) else text.split()
     lines = []
     line = ""
     for word in words:
-        trial = f"{line} {word}".strip()
+        if any("\u4e00" <= ch <= "\u9fff" for ch in text):
+            trial = f"{line}{word}"
+        else:
+            trial = f"{line} {word}".strip()
         if draw.textbbox((0, 0), trial, font=fnt)[2] <= max_width:
             line = trial
         else:
@@ -301,10 +267,12 @@ def render_sheet():
     for scene in SCENES:
         im = frame_for(scene, scene["duration"] * 0.55)
         thumbs.append(im.resize((270, 480), Image.Resampling.LANCZOS))
-    sheet = Image.new("RGB", (270 * 3, 480 * 4), (12, 12, 12))
+    cols = 3
+    rows = (len(thumbs) + cols - 1) // cols
+    sheet = Image.new("RGB", (270 * cols, 480 * rows), (12, 12, 12))
     for idx, thumb in enumerate(thumbs):
-        x = (idx % 3) * 270
-        y = (idx // 3) * 480
+        x = (idx % cols) * 270
+        y = (idx // cols) * 480
         sheet.paste(thumb, (x, y))
     sheet.save(SHEET, quality=95)
 
