@@ -90,7 +90,6 @@ SCENES = [
         "title": "AI 自动整理",
         "zh": "系统会判断意向、优先级，并准备回复方向。",
         "en": "AI classifies intent, priority, and reply direction.",
-        "result_focus": True,
         "duration": 4.5,
     },
     {
@@ -228,38 +227,6 @@ def draw_cursor(base: Image.Image, x: float, y: float, click=False, phase=0.0, o
     base.alpha_composite(overlay)
 
 
-def draw_result_focus(base: Image.Image, source_path: Path):
-    source = Image.open(source_path).convert("RGB")
-    focus = source.crop((38, 634, 336, 778)).resize((548, 265), Image.Resampling.LANCZOS)
-    overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-
-    draw.rounded_rectangle(
-        (PHONE_X, PHONE_Y, PHONE_X + PHONE_W, PHONE_Y + PHONE_H),
-        radius=24,
-        fill=(0, 0, 0, 128),
-    )
-
-    card_x = PHONE_X + 33
-    card_y = PHONE_Y + 476
-    draw.rounded_rectangle(
-        (card_x - 18, card_y - 20, card_x + 566, card_y + 285),
-        radius=30,
-        fill=(7, 12, 11, 244),
-        outline=(*TEAL, 190),
-        width=2,
-    )
-
-    shadow = Image.new("RGBA", (584, 301), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(shadow)
-    sd.rounded_rectangle((18, 18, 566, 283), radius=22, fill=(0, 0, 0, 170))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(10))
-    overlay.alpha_composite(shadow, (card_x - 18, card_y - 18))
-    overlay.alpha_composite(focus.convert("RGBA"), (card_x, card_y))
-    draw.rounded_rectangle((card_x, card_y, card_x + 548, card_y + 265), radius=20, outline=(*GOLD, 230), width=3)
-    base.alpha_composite(overlay)
-
-
 def frame_for(scene, local_t: float) -> Image.Image:
     p = min(1, max(0, local_t / scene["duration"]))
     canvas = Image.new("RGB", (W, H), BG)
@@ -284,12 +251,6 @@ def frame_for(scene, local_t: float) -> Image.Image:
     d.text((74, 44), "Nexa", font=F_LOGO, fill=TEXT)
     d.text((174, 44), "Flow", font=F_LOGO, fill=GOLD)
     d.rounded_rectangle((PHONE_X - 4, PHONE_Y - 4, PHONE_X + PHONE_W + 4, PHONE_Y + PHONE_H + 4), radius=28, outline=(52, 63, 55), width=2)
-
-    if scene.get("result_focus"):
-        canvas_rgba = canvas.convert("RGBA")
-        draw_result_focus(canvas_rgba, FRAMES / scene["file"])
-        canvas = canvas_rgba.convert("RGB")
-        d = ImageDraw.Draw(canvas)
 
     d.rounded_rectangle((44, 1648, 1036, 1858), radius=34, fill=(8, 11, 11), outline=(45, 52, 47), width=2)
     d.text((78, 1676), scene["title"], font=F_STEP, fill=GOLD)
