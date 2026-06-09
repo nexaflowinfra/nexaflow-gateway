@@ -21,11 +21,12 @@ FPS = 24
 PHONE_W, PHONE_H = 614, 1328
 PHONE_X, PHONE_Y = 233, 126
 
-BG = (5, 7, 7)
+BG = (3, 5, 5)
 TEXT = (248, 248, 244)
 MUTED = (174, 178, 172)
 GOLD = (245, 198, 94)
 TEAL = (35, 226, 214)
+PANEL = (8, 11, 11)
 
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
@@ -48,6 +49,7 @@ F_STEP = font(25, True)
 F_CAP_ZH = font(37, True)
 F_CAP_EN = font(26)
 F_SMALL = font(22)
+F_BADGE = font(21, True)
 
 
 SCENES = [
@@ -230,14 +232,15 @@ def draw_cursor(base: Image.Image, x: float, y: float, click=False, phase=0.0, o
 def frame_for(scene, local_t: float) -> Image.Image:
     p = min(1, max(0, local_t / scene["duration"]))
     canvas = Image.new("RGB", (W, H), BG)
-    bg = Image.new("RGB", (W, H), (4, 8, 8))
+    bg = Image.new("RGB", (W, H), BG)
     bd = ImageDraw.Draw(bg)
-    for i in range(0, W, 28):
-        alpha = int(28 + 22 * (i / W))
-        color = (0, alpha, alpha) if i < W // 2 else (alpha, int(alpha * 0.78), 0)
-        bd.line((i, H, i + 620, 0), fill=color, width=1)
-    bg = bg.filter(ImageFilter.GaussianBlur(1.4))
-    canvas = Image.blend(canvas, bg, 0.32)
+    bd.rectangle((0, 0, W, 150), fill=(10, 12, 12))
+    bd.rectangle((0, 1550, W, H), fill=(6, 8, 8))
+    bd.ellipse((-190, 280, 420, 980), fill=(0, 36, 32))
+    bd.ellipse((650, 180, 1280, 900), fill=(36, 26, 5))
+    bd.ellipse((260, 1120, 820, 1760), fill=(0, 26, 24))
+    bg = bg.filter(ImageFilter.GaussianBlur(58))
+    canvas = Image.blend(canvas, bg, 0.68)
 
     phone = load_phone(FRAMES / scene["file"])
     phone_layer = Image.new("RGBA", (PHONE_W + 24, PHONE_H + 24), (0, 0, 0, 0))
@@ -247,12 +250,14 @@ def frame_for(scene, local_t: float) -> Image.Image:
     canvas.paste(phone_layer.convert("RGB"), (PHONE_X, PHONE_Y))
 
     d = ImageDraw.Draw(canvas)
-    d.rounded_rectangle((44, 34, 260, 90), radius=26, fill=(7, 10, 10), outline=(46, 58, 52), width=1)
+    d.rounded_rectangle((44, 34, 276, 90), radius=26, fill=PANEL, outline=(46, 58, 52), width=1)
     d.text((74, 44), "Nexa", font=F_LOGO, fill=TEXT)
     d.text((174, 44), "Flow", font=F_LOGO, fill=GOLD)
+    d.rounded_rectangle((750, 38, 1036, 88), radius=25, fill=PANEL, outline=(63, 55, 37), width=1)
+    d.text((790, 51), "Real product walkthrough", font=F_BADGE, fill=GOLD)
     d.rounded_rectangle((PHONE_X - 4, PHONE_Y - 4, PHONE_X + PHONE_W + 4, PHONE_Y + PHONE_H + 4), radius=28, outline=(52, 63, 55), width=2)
 
-    d.rounded_rectangle((44, 1648, 1036, 1858), radius=34, fill=(8, 11, 11), outline=(45, 52, 47), width=2)
+    d.rounded_rectangle((44, 1648, 1036, 1858), radius=28, fill=PANEL, outline=(45, 52, 47), width=2)
     d.text((78, 1676), scene["title"], font=F_STEP, fill=GOLD)
     d.text((78, 1720), scene["zh"], font=F_CAP_ZH, fill=TEXT)
     draw_wrapped(d, (78, 1776), scene["en"], F_CAP_EN, MUTED, 910)
