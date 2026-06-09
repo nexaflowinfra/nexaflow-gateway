@@ -230,7 +230,7 @@ def draw_cursor(base: Image.Image, x: float, y: float, click=False, phase=0.0, o
 
 def draw_result_focus(base: Image.Image, source_path: Path):
     source = Image.open(source_path).convert("RGB")
-    focus = source.crop((30, 604, 360, 782)).resize((548, 296), Image.Resampling.LANCZOS)
+    focus = source.crop((38, 634, 336, 778)).resize((548, 265), Image.Resampling.LANCZOS)
     overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
@@ -241,25 +241,22 @@ def draw_result_focus(base: Image.Image, source_path: Path):
     )
 
     card_x = PHONE_X + 33
-    card_y = PHONE_Y + 454
+    card_y = PHONE_Y + 476
     draw.rounded_rectangle(
-        (card_x - 18, card_y - 102, card_x + 566, card_y + 328),
+        (card_x - 18, card_y - 20, card_x + 566, card_y + 285),
         radius=30,
         fill=(7, 12, 11, 244),
         outline=(*TEAL, 190),
         width=2,
     )
-    draw.text((card_x + 18, card_y - 72), "AI result", font=font(36, True), fill=GOLD)
-    draw.text((card_x + 194, card_y - 66), "Intent: quotation", font=font(23, True), fill=TEXT)
-    draw.text((card_x + 414, card_y - 66), "Hot lead", font=font(23, True), fill=TEAL)
 
-    shadow = Image.new("RGBA", (584, 332), (0, 0, 0, 0))
+    shadow = Image.new("RGBA", (584, 301), (0, 0, 0, 0))
     sd = ImageDraw.Draw(shadow)
-    sd.rounded_rectangle((18, 18, 566, 314), radius=22, fill=(0, 0, 0, 170))
+    sd.rounded_rectangle((18, 18, 566, 283), radius=22, fill=(0, 0, 0, 170))
     shadow = shadow.filter(ImageFilter.GaussianBlur(10))
     overlay.alpha_composite(shadow, (card_x - 18, card_y - 18))
     overlay.alpha_composite(focus.convert("RGBA"), (card_x, card_y))
-    draw.rounded_rectangle((card_x, card_y, card_x + 548, card_y + 296), radius=20, outline=(*GOLD, 230), width=3)
+    draw.rounded_rectangle((card_x, card_y, card_x + 548, card_y + 265), radius=20, outline=(*GOLD, 230), width=3)
     base.alpha_composite(overlay)
 
 
