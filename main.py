@@ -5776,6 +5776,111 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     gap: 18px;
                     align-items: start;
                 }}
+                .trial-request-list {{
+                    display: grid;
+                    gap: 14px;
+                    margin-top: 14px;
+                }}
+                .trial-request-card {{
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+                    gap: 16px;
+                    border: 1px solid var(--line);
+                    border-radius: 10px;
+                    padding: 16px;
+                    background:
+                        linear-gradient(135deg, rgba(45,212,191,.04), rgba(243,199,106,.035)),
+                        var(--surface);
+                }}
+                .trial-request-head {{
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 12px;
+                }}
+                .trial-request-title {{
+                    margin: 0 0 4px;
+                    font-size: 19px;
+                }}
+                .trial-request-subtitle {{
+                    color: var(--muted);
+                    font-size: 13px;
+                    line-height: 1.45;
+                }}
+                .trial-contact {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 10px;
+                    margin: 12px 0;
+                }}
+                .trial-field {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 10px;
+                    background: rgba(255,255,255,.025);
+                    min-width: 0;
+                }}
+                .trial-field span {{
+                    display: block;
+                    color: var(--muted);
+                    font-size: 11px;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    margin-bottom: 4px;
+                }}
+                .trial-field strong, .trial-field code {{
+                    color: var(--ink);
+                    font-size: 13px;
+                    overflow-wrap: anywhere;
+                }}
+                .trial-message {{
+                    border: 1px solid rgba(243,199,106,.28);
+                    border-radius: 8px;
+                    padding: 12px;
+                    background: rgba(243,199,106,.045);
+                }}
+                .trial-message span {{
+                    display: block;
+                    color: var(--brand-strong);
+                    font-size: 12px;
+                    font-weight: 900;
+                    margin-bottom: 5px;
+                }}
+                .trial-message p {{
+                    margin: 0;
+                    color: var(--ink);
+                }}
+                .trial-meta {{
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 8px;
+                    margin-top: 12px;
+                }}
+                .trial-followup {{
+                    border-left: 1px solid var(--line);
+                    padding-left: 16px;
+                    display: grid;
+                    align-content: start;
+                    gap: 12px;
+                }}
+                .trial-followup h3 {{
+                    margin: 0;
+                    font-size: 16px;
+                }}
+                .trial-followup p {{
+                    margin: 0;
+                    color: var(--ink);
+                }}
+                .trial-actions {{
+                    display: grid;
+                    grid-template-columns: 1fr;
+                    gap: 8px;
+                    margin-top: 0;
+                }}
+                .trial-actions .btn {{
+                    width: 100%;
+                }}
                 table {{
                     width: 100%;
                     border-collapse: collapse;
@@ -5816,10 +5921,12 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
+                    .trial-request-head {{ display: grid; }}
+                    .trial-followup {{ border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 14px; }}
                     .form-card, .action-card, .share-link-box {{ width: 100%; }}
                     .floating-whatsapp {{ right: 14px; bottom: 14px; min-height: 44px; padding: 10px 14px; }}
                 }}
@@ -7608,12 +7715,7 @@ def enquiry_admin_page():
         </div>
         <div class="status" id="trialRequestStatus">Enter admin key above to load trial requests.</div>
         <section class="grid" id="trialRequestStats"></section>
-        <table>
-            <thead>
-                <tr><th>Time</th><th>Business</th><th>Contact</th><th>Type</th><th>Volume</th><th>Source</th><th>Message</th><th>Status</th><th>Age</th><th>Trial End</th><th>Priority</th><th>Next action</th><th>Action</th></tr>
-            </thead>
-            <tbody id="trialRequestRows"></tbody>
-        </table>
+        <section class="trial-request-list" id="trialRequestRows"></section>
         <div class="section-head">
             <div>
                 <h2>All enquiries</h2>
@@ -7767,6 +7869,27 @@ def enquiry_admin_page():
                     status.textContent = error.message;
                 }
             }
+            function shortDate(value) {
+                if (!value) return "Not started";
+                return String(value).slice(0, 10);
+            }
+            function statusLabel(value) {
+                return ({
+                    new: "New request",
+                    contacted: "Contacted",
+                    trial_setup: "Trial setup",
+                    won: "Converted",
+                    lost: "Not proceeding",
+                    spam: "Spam"
+                })[value] || value;
+            }
+            function priorityClass(value) {
+                return value === "high" ? "hot" : "";
+            }
+            function trialEndLabel(item) {
+                if (!item.trial_ends_at) return "Not started";
+                return `${escapeHtml(item.days_until_trial_end)} day(s) left - ${escapeHtml(shortDate(item.trial_ends_at))}`;
+            }
             async function loadTrialRequests() {
                 const status = document.getElementById("trialRequestStatus");
                 status.textContent = "Loading trial requests...";
@@ -7781,29 +7904,77 @@ def enquiry_admin_page():
                         <section class="card"><h3>Won</h3><div class="price">${stats.won || 0}</div></section>
                     `;
                     document.getElementById("trialRequestRows").innerHTML = data.trial_requests.map(item => `
-                        <tr>
-                            <td>${escapeHtml(item.created_at)}</td>
-                            <td>${escapeHtml(item.business_name)}<br>${escapeHtml(item.city || "")}</td>
-                            <td>${escapeHtml(item.contact_name)}<br>${escapeHtml(item.whatsapp_phone)}<br>${escapeHtml(item.contact_email || "")}</td>
-                            <td>${escapeHtml(item.business_type || "")}</td>
-                            <td>${escapeHtml(item.monthly_enquiries || "")}</td>
-                            <td>${escapeHtml(item.lead_source || "direct")}${item.campaign ? `<br>${escapeHtml(item.campaign)}` : ""}${item.referrer ? `<br><small>${escapeHtml(item.referrer.slice(0, 80))}</small>` : ""}</td>
-                            <td>${escapeHtml(item.message || "")}</td>
-                            <td>${escapeHtml(item.status)}</td>
-                            <td>${escapeHtml(item.age_days)} day(s)</td>
-                            <td>${item.trial_ends_at ? `${escapeHtml(item.days_until_trial_end)} day(s)<br>${escapeHtml(item.trial_ends_at.slice(0, 10))}` : "not started"}</td>
-                            <td><span class="lead-badge ${item.follow_up_priority === "high" ? "hot" : ""}">${escapeHtml(item.follow_up_priority)}</span></td>
-                            <td>${escapeHtml(item.next_action || "")}<br><small>${escapeHtml(item.conversion_stage || "")}: ${escapeHtml(item.conversion_next_action || "")}</small></td>
-                            <td>
+                        <section class="trial-request-card">
+                            <div>
+                                <div class="trial-request-head">
+                                    <div>
+                                        <div class="eyebrow">Trial request #${escapeHtml(item.id)} - ${escapeHtml(shortDate(item.created_at))}</div>
+                                        <h3 class="trial-request-title">${escapeHtml(item.business_name)}</h3>
+                                        <div class="trial-request-subtitle">
+                                            ${escapeHtml(item.city || "No area")} - ${escapeHtml(item.business_type || "Service business")} - ${escapeHtml(item.monthly_enquiries || "Unknown volume")} enquiries
+                                        </div>
+                                    </div>
+                                    <div class="lead-badges">
+                                        <span class="lead-badge">${escapeHtml(statusLabel(item.status))}</span>
+                                        <span class="lead-badge ${priorityClass(item.follow_up_priority)}">${escapeHtml(item.follow_up_priority)} priority</span>
+                                    </div>
+                                </div>
+                                <div class="trial-contact">
+                                    <div class="trial-field">
+                                        <span>Contact</span>
+                                        <strong>${escapeHtml(item.contact_name)}</strong><br>
+                                        <code>${escapeHtml(item.whatsapp_phone)}</code>
+                                    </div>
+                                    <div class="trial-field">
+                                        <span>Email</span>
+                                        <code>${escapeHtml(item.contact_email || "Not provided")}</code>
+                                    </div>
+                                    <div class="trial-field">
+                                        <span>Source</span>
+                                        <strong>${escapeHtml(item.lead_source || "direct")}</strong>
+                                        ${item.campaign ? `<br><code>${escapeHtml(item.campaign)}</code>` : ""}
+                                    </div>
+                                </div>
+                                <div class="trial-message">
+                                    <span>Merchant pain point / message</span>
+                                    <p>${escapeHtml(item.message || "No message provided.")}</p>
+                                </div>
+                                <div class="trial-meta">
+                                    <div class="trial-field">
+                                        <span>Age</span>
+                                        <strong>${escapeHtml(item.age_days)} day(s)</strong>
+                                    </div>
+                                    <div class="trial-field">
+                                        <span>Trial End</span>
+                                        <strong>${trialEndLabel(item)}</strong>
+                                    </div>
+                                    <div class="trial-field">
+                                        <span>Stage</span>
+                                        <strong>${escapeHtml(item.conversion_stage || "manual_review")}</strong>
+                                    </div>
+                                    <div class="trial-field">
+                                        <span>Referrer</span>
+                                        <code>${escapeHtml(item.referrer ? item.referrer.slice(0, 80) : "None")}</code>
+                                    </div>
+                                </div>
+                            </div>
+                            <aside class="trial-followup">
+                                <div>
+                                    <h3>Next action</h3>
+                                    <p>${escapeHtml(item.next_action || "Review manually.")}</p>
+                                    <span class="next-action">${escapeHtml(item.conversion_next_action || "")}</span>
+                                </div>
+                                <div class="trial-actions">
                                 ${item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.whatsapp_url)}">WhatsApp</a>` : ""}
                                 ${item.conversion_whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(item.conversion_whatsapp_url)}">Upgrade WhatsApp</a>` : ""}
-                                <button class="btn secondary" onclick="createInboxFromTrial(${item.id})">Create Inbox</button>
+                                <button class="btn secondary" onclick="createInboxFromTrial(${item.id})">${item.status === "trial_setup" ? "Refresh Inbox" : "Create Inbox"}</button>
                                 <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'contacted')">Contacted</button>
                                 <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'trial_setup')">Trial Setup</button>
-                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'won')">Won</button>
-                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'lost')">Lost</button>
-                            </td>
-                        </tr>
+                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'won')">Converted</button>
+                                <button class="btn secondary" onclick="setTrialStatus(${item.id}, 'lost')">Not Proceeding</button>
+                                </div>
+                            </aside>
+                        </section>
                     `).join("");
                     status.textContent = `Loaded ${data.trial_requests.length} trial requests.`;
                 } catch (error) {
