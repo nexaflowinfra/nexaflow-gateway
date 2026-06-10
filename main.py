@@ -5507,6 +5507,22 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     width: auto;
                     margin-right: 8px;
                 }}
+                .checkbox-label {{
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                    margin: 12px 0 14px;
+                    color: var(--muted);
+                    font-size: 13px;
+                    line-height: 1.55;
+                }}
+                .checkbox-label input[type="checkbox"] {{
+                    flex: 0 0 auto;
+                    margin: 3px 0 0;
+                }}
+                .checkbox-label span {{
+                    min-width: 0;
+                }}
                 textarea {{ min-height: 110px; resize: vertical; }}
                 label {{
                     display: grid;
@@ -6541,7 +6557,7 @@ def enquiry_app_page():
                 <textarea id="leadMessage">Hi, I need a quotation urgently for this week. How much is your package?</textarea>
             </label>
             <p class="mini-note"><span data-lang="en">Please do not include NRIC/passport numbers, card details, passwords, health details, or other sensitive information in this demo.</span><span data-lang="zh" class="lang-hidden">请不要在 Demo 中填写身份证/护照号码、银行卡资料、密码、健康资料或其他敏感信息。</span></p>
-            <label><input id="pdpaConsent" type="checkbox" checked> <span data-lang="en">I agree that my contact details and enquiry may be used for follow-up, support, security, and record keeping under the Privacy Policy.</span><span data-lang="zh" class="lang-hidden">我同意根据隐私政策，使用我的联系资料和询问内容作跟进、客服、安全和记录用途。</span></label>
+            <label class="checkbox-label"><input id="pdpaConsent" type="checkbox" checked> <span><span data-lang="en">I agree that my contact details and enquiry may be used for follow-up, support, security, and record keeping under the Privacy Policy.</span><span data-lang="zh" class="lang-hidden">我同意根据隐私政策，使用我的联系资料和询问内容作跟进、客服、安全和记录用途。</span></span></label>
             <div class="actions">
                 <button class="btn" onclick="submitEnquiry()"><span data-lang="en">Submit Enquiry</span><span data-lang="zh" class="lang-hidden">提交询问</span></button>
             </div>
@@ -6679,7 +6695,7 @@ def start_trial_page():
                     </select>
                 </label>
                 <label>Where do your enquiries usually come from?<textarea id="trialMessage" rows="4" placeholder="Example: Mostly WhatsApp and Facebook. We often forget to follow up after quoting."></textarea></label>
-                <label><input id="trialConsent" type="checkbox"> I agree that NexaFlow may collect and use this information to contact me about the trial, setup, support, security, and service follow-up. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
+                <label class="checkbox-label"><input id="trialConsent" type="checkbox"> <span>I agree that NexaFlow may collect and use this information to contact me about the trial, setup, support, security, and service follow-up. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label>
                 <div class="actions">
                     <button class="btn" onclick="submitTrialRequest()">Submit trial request</button>
                 </div>
@@ -6810,7 +6826,7 @@ def public_enquiry_form_page(business_slug: str):
             <label>Email optional<input id="leadEmail" autocomplete="email" placeholder="you@example.com"></label>
             <label>Message<textarea id="leadMessage">Hi, I would like to enquire about your service.</textarea></label>
             <p class="mini-note">Please do not include NRIC/passport numbers, card details, passwords, health details, or other sensitive information in your message.</p>
-            <label><input id="pdpaConsent" type="checkbox"> I agree that my name, contact details, and enquiry message may be used by {business_name} and NexaFlow service providers to respond to this enquiry, provide support, keep records, and protect the service. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
+            <label class="checkbox-label"><input id="pdpaConsent" type="checkbox"> <span>I agree that my name, contact details, and enquiry message may be used by {business_name} and NexaFlow service providers to respond to this enquiry, provide support, keep records, and protect the service. See the <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label>
             <div class="actions">
                 <button class="btn" onclick="submitEnquiry()">Send Enquiry</button>
             </div>
