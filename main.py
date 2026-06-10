@@ -5770,6 +5770,86 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     color: var(--muted);
                     margin: 8px 0 10px;
                 }}
+                .setup-package {{
+                    display: grid;
+                    gap: 14px;
+                    color: var(--ink);
+                }}
+                .setup-package p {{
+                    margin: 0;
+                }}
+                .setup-package-head {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 12px;
+                }}
+                .setup-package-head h3 {{
+                    margin: 0 0 4px;
+                }}
+                .setup-package-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 10px;
+                }}
+                .setup-package-box {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 12px;
+                    background: rgba(255,255,255,.025);
+                    min-width: 0;
+                }}
+                .setup-package-box span {{
+                    display: block;
+                    color: var(--muted);
+                    font-size: 11px;
+                    font-weight: 900;
+                    text-transform: uppercase;
+                    margin-bottom: 6px;
+                }}
+                .setup-package-box code {{
+                    display: block;
+                    white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
+                    color: var(--ink);
+                    margin-bottom: 10px;
+                }}
+                .setup-package-message {{
+                    border: 1px solid rgba(243,199,106,.32);
+                    border-radius: 8px;
+                    padding: 12px;
+                    background: rgba(243,199,106,.045);
+                }}
+                .setup-package-message pre {{
+                    margin: 8px 0 10px;
+                    max-height: 220px;
+                }}
+                .setup-checklist {{
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 8px;
+                }}
+                .setup-check {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 10px;
+                    background: var(--surface);
+                    color: var(--muted);
+                    font-size: 12px;
+                    line-height: 1.45;
+                }}
+                .setup-check strong {{
+                    display: block;
+                    color: var(--ink);
+                    font-size: 13px;
+                    margin-bottom: 3px;
+                }}
+                .setup-copy-status {{
+                    color: var(--brand-strong);
+                    font-size: 12px;
+                    font-weight: 800;
+                }}
                 .admin-split {{
                     display: grid;
                     grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
@@ -5921,10 +6001,11 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
+                    .setup-package-head {{ display: grid; }}
                     .trial-request-head {{ display: grid; }}
                     .trial-followup {{ border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 14px; }}
                     .form-card, .action-card, .share-link-box {{ width: 100%; }}
@@ -7750,6 +7831,27 @@ def enquiry_admin_page():
                 }
                 return response.json();
             }
+            function absoluteUrl(path) {
+                try {
+                    return new URL(path, window.location.origin).toString();
+                } catch (error) {
+                    return path;
+                }
+            }
+            async function copyAdminText(value, label, statusId) {
+                const target = document.getElementById(statusId);
+                try {
+                    await navigator.clipboard.writeText(value || "");
+                    if (target) target.textContent = `${label} copied.`;
+                } catch (error) {
+                    if (target) target.textContent = `Copy failed. Select and copy manually: ${value || ""}`;
+                }
+            }
+            async function copyAdminElement(elementId, label, statusId) {
+                const element = document.getElementById(elementId);
+                const value = element?.dataset.copy || element?.textContent?.trim() || "";
+                await copyAdminText(value, label, statusId);
+            }
             async function saveProfile() {
                 const status = document.getElementById("profileStatus");
                 status.textContent = "Saving profile...";
@@ -7854,14 +7956,57 @@ def enquiry_admin_page():
                         method: "POST"
                     });
                     const profile = result.profile;
+                    const packageId = `trialSetup-${String(profile.slug || id).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+                    const formUrl = absoluteUrl(profile.form_url);
+                    const inboxUrl = absoluteUrl(profile.inbox_url);
+                    const accessKey = profile.business_access_key || "not rotated";
+                    const onboardingMessage = result.onboarding_message || "";
                     status.innerHTML = `
-                        Created inbox for ${escapeHtml(profile.business_name)}.
-                        Form: <a target="_blank" href="${escapeHtml(profile.form_url)}">${escapeHtml(profile.form_url)}</a>.
-                        Inbox: <a target="_blank" href="${escapeHtml(profile.inbox_url)}">${escapeHtml(profile.inbox_url)}</a>.
-                        Access key: <strong>${escapeHtml(profile.business_access_key || "not rotated")}</strong>
-                        ${result.onboarding_whatsapp_url ? `<br><a class="btn secondary" target="_blank" href="${escapeHtml(result.onboarding_whatsapp_url)}">Send Setup WhatsApp</a>` : ""}
-                        ${result.conversion_whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(result.conversion_whatsapp_url)}">Prepare Upgrade WhatsApp</a>` : ""}
-                        <pre>${escapeHtml(result.onboarding_message || "")}</pre>
+                        <section class="setup-package">
+                            <div class="setup-package-head">
+                                <div>
+                                    <h3>Setup package ready: ${escapeHtml(profile.business_name)}</h3>
+                                    <p>Send this to the merchant, then help them submit one test enquiry before promotion.</p>
+                                </div>
+                                <div class="lead-badges">
+                                    <span class="lead-badge hot">Private owner key generated</span>
+                                    <span class="lead-badge">Trial setup</span>
+                                </div>
+                            </div>
+                            <div class="setup-package-grid">
+                                <div class="setup-package-box">
+                                    <span>Customer enquiry link</span>
+                                    <code id="${packageId}-form" data-copy="${escapeHtml(formUrl)}">${escapeHtml(formUrl)}</code>
+                                    <button class="btn secondary" onclick="copyAdminElement('${packageId}-form', 'Customer enquiry link', '${packageId}-copy-status')">Copy Form Link</button>
+                                </div>
+                                <div class="setup-package-box">
+                                    <span>Merchant private inbox</span>
+                                    <code id="${packageId}-inbox" data-copy="${escapeHtml(inboxUrl)}">${escapeHtml(inboxUrl)}</code>
+                                    <button class="btn secondary" onclick="copyAdminElement('${packageId}-inbox', 'Merchant inbox link', '${packageId}-copy-status')">Copy Inbox Link</button>
+                                </div>
+                                <div class="setup-package-box">
+                                    <span>Owner inbox password</span>
+                                    <code id="${packageId}-key" data-copy="${escapeHtml(accessKey)}">${escapeHtml(accessKey)}</code>
+                                    <button class="btn secondary" onclick="copyAdminElement('${packageId}-key', 'Owner inbox password', '${packageId}-copy-status')">Copy Password</button>
+                                </div>
+                            </div>
+                            <div class="setup-package-message">
+                                <strong>WhatsApp setup message</strong>
+                                <pre id="${packageId}-message" data-copy="${escapeHtml(onboardingMessage)}">${escapeHtml(onboardingMessage)}</pre>
+                                <div class="actions">
+                                    <button class="btn secondary" onclick="copyAdminElement('${packageId}-message', 'Setup message', '${packageId}-copy-status')">Copy Message</button>
+                                    ${result.onboarding_whatsapp_url ? `<a class="btn" target="_blank" href="${escapeHtml(result.onboarding_whatsapp_url)}">Send Setup WhatsApp</a>` : ""}
+                                    ${result.conversion_whatsapp_url ? `<a class="btn secondary" target="_blank" href="${escapeHtml(result.conversion_whatsapp_url)}">Prepare Upgrade WhatsApp</a>` : ""}
+                                </div>
+                            </div>
+                            <div class="setup-checklist">
+                                <div class="setup-check"><strong>1. Send setup</strong>Send WhatsApp message with the form link, inbox link, and owner password.</div>
+                                <div class="setup-check"><strong>2. Submit test enquiry</strong>Open the customer form and submit one sample lead for the merchant.</div>
+                                <div class="setup-check"><strong>3. Open inbox</strong>Use the owner password and confirm the lead appears in the private inbox.</div>
+                                <div class="setup-check"><strong>4. Share link</strong>Ask merchant to place the enquiry link on WhatsApp, Facebook, Instagram, or Google profile.</div>
+                            </div>
+                            <div class="setup-copy-status" id="${packageId}-copy-status">Keep the owner password private. Share it only with the merchant owner.</div>
+                        </section>
                     `;
                     await loadTrialRequests();
                     await loadProfiles();
