@@ -5094,9 +5094,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <meta name="description" content="NexaFlow Enquiry helps local service merchants collect customer enquiries, organize leads in a private inbox, and follow up faster on WhatsApp.">
+            <meta name="description" content="NexaFlow Enquiry helps merchants collect scattered enquiries, capture missing customer details, and manage follow-up in a private WhatsApp-ready inbox.">
             <meta property="og:title" content="{safe_title}">
-            <meta property="og:description" content="One enquiry link, one private inbox, and WhatsApp-ready follow-up for local service merchants.">
+            <meta property="og:description" content="One enquiry workspace for scattered customer enquiries, missing details, reply drafts, and WhatsApp-ready follow-up.">
             <meta property="og:image" content="https://api.nexaflowinfra.com/assets/brand/nexaflow-final.png">
             <meta property="og:type" content="website">
             <link rel="icon" type="image/png" href="/assets/brand/nexaflow-icon.png">
@@ -6364,9 +6364,9 @@ def landing_page():
                     <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
                 </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
-                <h1><span data-lang="en">One enquiry link. One private inbox.</span><span data-lang="zh" class="lang-hidden">一个询盘链接，一个私密 inbox。</span></h1>
-                <p class="lead"><span data-lang="en">Stop losing customer enquiries inside WhatsApp, Facebook, Instagram, calls, or referrals. NexaFlow collects each enquiry, organizes it, and helps you follow up faster on WhatsApp.</span><span data-lang="zh" class="lang-hidden">不要再让客户询问散落在 WhatsApp、Facebook、Instagram、电话或介绍里。NexaFlow 帮你集中收询盘、整理客户，并更快用 WhatsApp 跟进。</span></p>
-                <p class="lead"><span data-market="sg">Built for Singapore service merchants that need PDPA-aware enquiry capture and faster WhatsApp follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia service merchants that need simple enquiry capture, private inbox, WhatsApp follow-up, and local MYR pricing.</span></p>
+                <h1><span data-lang="en">One inbox for every enquiry. One follow-up plan for every lead.</span><span data-lang="zh" class="lang-hidden">所有询盘进一个 inbox，每个客户都有下一步跟进。</span></h1>
+                <p class="lead"><span data-lang="en">Stop losing customer enquiries across WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, or referrals. NexaFlow helps you collect each enquiry, capture missing details, prepare the next reply, and keep follow-up visible.</span><span data-lang="zh" class="lang-hidden">不要再让客户询问散落在 WhatsApp、Instagram、Facebook、TikTok、小红书、电话或介绍里。NexaFlow 帮你集中收询盘、补齐客户资料、准备下一句回复，并持续提醒跟进。</span></p>
+                <p class="lead"><span data-market="sg">Built for Singapore merchants and sales teams that need PDPA-aware enquiry capture, private records, and WhatsApp-ready follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia merchants and sales teams that need simple enquiry capture, private inbox, WhatsApp follow-up, and local MYR pricing.</span></p>
                 <div class="actions">
                     <a class="btn" href="/start-trial"><span data-lang="en">Start 30-day Trial</span><span data-lang="zh" class="lang-hidden">申请 30 天试用</span></a>
                     <a class="btn secondary" href="/ai-enquiry#enquiry-form"><span data-lang="en">See Demo</span><span data-lang="zh" class="lang-hidden">看 Demo</span></a>
@@ -6378,9 +6378,9 @@ def landing_page():
                 <div class="product-panel">
                     <div class="panel-top"><span data-lang="en">How it helps today</span><span data-lang="zh" class="lang-hidden">今天可以怎么帮你</span><span class="pill good">Live</span></div>
                     <div class="signal-list">
-                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">Share one customer link</span><span data-lang="zh" class="lang-hidden">分享一个客户链接</span></strong><span data-lang="en">Use it on WhatsApp, Facebook, Instagram, Google Business Profile, or a website.</span><span data-lang="zh" class="lang-hidden">可以放在 WhatsApp、Facebook、Instagram、Google 商家资料或网站。</span></div><a href="/start-trial"><span data-lang="en">Create</span><span data-lang="zh" class="lang-hidden">开通</span></a></div>
-                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">AI organizes the enquiry</span><span data-lang="zh" class="lang-hidden">AI 自动整理询盘</span></strong><span data-lang="en">Intent, urgency, missing details, and reply direction are prepared for you.</span><span data-lang="zh" class="lang-hidden">系统整理客户意向、紧急程度、缺少资料和回复方向。</span></div><a href="/ai-enquiry#enquiry-form">Demo</a></div>
-                        <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Follow up on WhatsApp</span><span data-lang="zh" class="lang-hidden">用 WhatsApp 跟进</span></strong><span data-lang="en">Open the private inbox, use the suggested reply, and update the lead status.</span><span data-lang="zh" class="lang-hidden">打开私密 inbox，用建议回复跟进并更新状态。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
+                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">Share one enquiry link</span><span data-lang="zh" class="lang-hidden">分享一个询盘链接</span></strong><span data-lang="en">Use it on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or a website.</span><span data-lang="zh" class="lang-hidden">可以放在 WhatsApp、Instagram、Facebook、TikTok、小红书、Google 商家资料或网站。</span></div><a href="/start-trial"><span data-lang="en">Create</span><span data-lang="zh" class="lang-hidden">开通</span></a></div>
+                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></strong><span data-lang="en">AI helps extract source, request, budget, appointment timing, notes, and what is still missing.</span><span data-lang="zh" class="lang-hidden">AI 帮你整理来源、需求、预算、预约时间、备注，以及还缺什么资料。</span></div><a href="/ai-enquiry#enquiry-form">Demo</a></div>
+                        <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Follow up with the next question</span><span data-lang="zh" class="lang-hidden">用下一句问题跟进</span></strong><span data-lang="en">Open the inbox, use the reply draft, update the status, and set the next follow-up.</span><span data-lang="zh" class="lang-hidden">打开 inbox，用回复草稿、更新状态，并设置下一次跟进。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
                     </div>
                 </div>
             </div>
@@ -6388,25 +6388,46 @@ def landing_page():
 
         <div class="section-head" id="services">
             <div>
-                <h2><span data-lang="en">What NexaFlow does now</span><span data-lang="zh" class="lang-hidden">NexaFlow 现在帮你做什么</span></h2>
-                <p><span data-lang="en">A focused enquiry assistant for local service merchants. No website or technical setup required to start.</span><span data-lang="zh" class="lang-hidden">专门给本地服务型商家的询盘助手。开始时不需要网站，也不需要技术设置。</span></p>
+                <h2><span data-lang="en">What NexaFlow helps you manage</span><span data-lang="zh" class="lang-hidden">NexaFlow 帮你管理什么</span></h2>
+                <p><span data-lang="en">A focused enquiry workspace for teams that receive leads from social apps, WhatsApp, calls, and referrals. Start with one link, then keep every follow-up visible.</span><span data-lang="zh" class="lang-hidden">给从社媒、WhatsApp、电话和介绍收到客户的团队使用。先从一个链接开始，再把每次跟进清楚记录下来。</span></p>
             </div>
         </div>
         <section class="grid">
             <div class="card">
-                <h3><span data-lang="en">Collect enquiries</span><span data-lang="zh" class="lang-hidden">集中收询盘</span></h3>
-                <p><span data-lang="en">Customers submit name, contact details, message, and privacy acknowledgement through one simple link.</span><span data-lang="zh" class="lang-hidden">客户通过一个简单链接提交姓名、联系方式、留言和隐私确认。</span></p>
+                <h3><span data-lang="en">Unified enquiry inbox</span><span data-lang="zh" class="lang-hidden">统一询盘 inbox</span></h3>
+                <p><span data-lang="en">Customers submit name, contact details, source, request, and privacy acknowledgement through one simple link.</span><span data-lang="zh" class="lang-hidden">客户通过一个简单链接提交姓名、联系方式、来源、需求和隐私确认。</span></p>
                 <a class="btn" href="/start-trial"><span data-lang="en">Create My Link</span><span data-lang="zh" class="lang-hidden">创建我的链接</span></a>
             </div>
             <div class="card">
-                <h3><span data-lang="en">Know who to reply first</span><span data-lang="zh" class="lang-hidden">知道先回谁</span></h3>
-                <p><span data-lang="en">NexaFlow labels urgency, customer intent, and the next reply direction so hot enquiries do not get buried.</span><span data-lang="zh" class="lang-hidden">NexaFlow 判断紧急程度、客户意向和回复方向，让高意向客户不被聊天记录埋掉。</span></p>
+                <h3><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></h3>
+                <p><span data-lang="en">NexaFlow summarizes what the customer asked, what is missing, and what your team should ask next.</span><span data-lang="zh" class="lang-hidden">NexaFlow 总结客户问了什么、还缺什么资料，以及下一句应该问什么。</span></p>
                 <a class="btn secondary" href="/ai-enquiry#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
             </div>
             <div class="card">
-                <h3><span data-lang="en">Follow up on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 快速跟进</span></h3>
-                <p><span data-lang="en">The private inbox keeps message, status, notes, suggested reply, and follow-up date in one place.</span><span data-lang="zh" class="lang-hidden">私密 inbox 集中保存客户留言、状态、备注、建议回复和跟进日期。</span></p>
+                <h3><span data-lang="en">Follow-up Copilot</span><span data-lang="zh" class="lang-hidden">跟进助手</span></h3>
+                <p><span data-lang="en">The private inbox keeps message, status, notes, reply draft, and next follow-up date in one place.</span><span data-lang="zh" class="lang-hidden">私密 inbox 集中保存客户留言、状态、备注、回复草稿和下次跟进日期。</span></p>
                 <a class="btn secondary" href="/merchant-login"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></a>
+            </div>
+        </section>
+
+        <div class="section-head">
+            <div>
+                <h2><span data-lang="en">Bring enquiries in from every channel</span><span data-lang="zh" class="lang-hidden">不同渠道的询盘，都可以收进来</span></h2>
+                <p><span data-lang="en">Connect supported channels directly. For platforms with limited private-message access, use assisted capture by link, copy, screenshot, or source tracking.</span><span data-lang="zh" class="lang-hidden">支持的渠道可以直接连接；如果平台私信权限有限，可以用链接、复制文字、截图或来源追踪来辅助导入。</span></p>
+            </div>
+        </div>
+        <section class="grid">
+            <div class="card accent-card">
+                <h3><span data-lang="en">Automatic sync</span><span data-lang="zh" class="lang-hidden">自动同步</span></h3>
+                <p><span data-lang="en">Use official APIs and approved account access where available, such as WhatsApp Business, Instagram, or Facebook messaging paths.</span><span data-lang="zh" class="lang-hidden">在官方 API 和账号权限允许的情况下，连接 WhatsApp Business、Instagram 或 Facebook 消息渠道。</span></p>
+            </div>
+            <div class="card">
+                <h3><span data-lang="en">Assisted capture</span><span data-lang="zh" class="lang-hidden">辅助导入</span></h3>
+                <p><span data-lang="en">For TikTok, Xiaohongshu, calls, and referrals, paste text, upload screenshots, or share a tagged enquiry link so AI can extract customer details.</span><span data-lang="zh" class="lang-hidden">TikTok、小红书、电话和介绍来的客户，可以复制文字、上传截图或分享带来源的询盘链接，让 AI 整理客户资料。</span></p>
+            </div>
+            <div class="card">
+                <h3><span data-lang="en">Source tracking</span><span data-lang="zh" class="lang-hidden">来源追踪</span></h3>
+                <p><span data-lang="en">When direct sending is not supported, keep the source handle, notes, reply draft, and next follow-up in NexaFlow while replying in the original app.</span><span data-lang="zh" class="lang-hidden">当平台不支持直接发送时，在 NexaFlow 记录来源账号、备注、回复草稿和下次跟进，再回到原平台回复。</span></p>
             </div>
         </section>
 
@@ -6420,7 +6441,7 @@ def landing_page():
             <div class="price-card trial">
                 <h3><span data-lang="en">30-day trial</span><span data-lang="zh" class="lang-hidden">30 天试用</span></h3>
                 <div class="plan-price">Free <span>for trial</span></div>
-                <p><span data-lang="en">Test enquiry capture, private inbox, AI sorting, and WhatsApp follow-up drafts.</span><span data-lang="zh" class="lang-hidden">试用询盘收集、私密 inbox、AI 分类和 WhatsApp 回复草稿。</span></p>
+                <p><span data-lang="en">Test enquiry capture, assisted import, private inbox, reply drafts, and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">试用询盘收集、辅助导入、私密 inbox、回复草稿和跟进提醒。</span></p>
                 <a class="btn" href="/start-trial"><span data-lang="en">Start Trial</span><span data-lang="zh" class="lang-hidden">开始试用</span></a>
             </div>
             <div class="price-card">
@@ -6446,13 +6467,13 @@ def landing_page():
         <div class="section-head">
             <div>
                 <h2><span data-lang="en">Three simple steps</span><span data-lang="zh" class="lang-hidden">三个简单步骤</span></h2>
-                <p><span data-lang="en">Built for busy owners who need a practical daily workflow, not another complicated system.</span><span data-lang="zh" class="lang-hidden">为忙碌老板设计，重点是每天能用，不是再多一个复杂系统。</span></p>
+                <p><span data-lang="en">Built for busy owners and sales teams who need a practical daily workflow, not another complicated system.</span><span data-lang="zh" class="lang-hidden">为忙碌老板和销售团队设计，重点是每天能用，不是再多一个复杂系统。</span></p>
             </div>
         </div>
         <section class="steps">
-            <div class="step"><div><strong><span data-lang="en">Share one link</span><span data-lang="zh" class="lang-hidden">分享一个链接</span></strong><p><span data-lang="en">Put it on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.</span><span data-lang="zh" class="lang-hidden">放在 WhatsApp、Facebook、Instagram、Google 商家资料或网站。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Receive organized enquiries</span><span data-lang="zh" class="lang-hidden">收到整理好的询盘</span></strong><p><span data-lang="en">Customer details, message, urgency, and suggested reply direction appear in your private inbox.</span><span data-lang="zh" class="lang-hidden">客户资料、留言、紧急程度和建议回复方向都会进入你的私密 inbox。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Follow up faster</span><span data-lang="zh" class="lang-hidden">更快跟进</span></strong><p><span data-lang="en">Open WhatsApp from the inbox, reply, then set the next follow-up date.</span><span data-lang="zh" class="lang-hidden">从 inbox 打开 WhatsApp 回复，然后设置下次跟进日期。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Share one enquiry link</span><span data-lang="zh" class="lang-hidden">分享一个询盘链接</span></strong><p><span data-lang="en">Put it on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or your website.</span><span data-lang="zh" class="lang-hidden">放在 WhatsApp、Instagram、Facebook、TikTok、小红书、Google 商家资料或网站。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></strong><p><span data-lang="en">Customer source, request, notes, missing details, and reply draft appear in your private inbox.</span><span data-lang="zh" class="lang-hidden">客户来源、需求、备注、缺少资料和回复草稿都会进入你的私密 inbox。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Follow up with the next question</span><span data-lang="zh" class="lang-hidden">用下一句问题跟进</span></strong><p><span data-lang="en">Open WhatsApp or the original platform, reply with context, then set the next follow-up date.</span><span data-lang="zh" class="lang-hidden">打开 WhatsApp 或原平台，带着客户背景回复，然后设置下次跟进日期。</span></p></div></div>
         </section>
 
         <div class="section-head">
