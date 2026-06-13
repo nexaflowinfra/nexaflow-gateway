@@ -364,6 +364,7 @@ def test_business_profile_create_and_public_form_loads():
     inbox = client.get(f"/inbox/{slug}")
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
+    assert "Follow-up Cockpit" in inbox.text
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
     assert "saveMerchantNote" in inbox.text
@@ -372,11 +373,17 @@ def test_business_profile_create_and_public_form_loads():
     assert "Website widget code" in inbox.text
     assert "Today&apos;s focus" in inbox.text
     assert "Fast shortcuts" in inbox.text
+    assert "Channel inbox" in inbox.text
+    assert "Assisted capture" in inbox.text
+    assert "Follow-up Copilot" in inbox.text
+    assert "TikTok" in inbox.text
+    assert "Xiaohongshu" in inbox.text
     assert "Main customer link" in inbox.text
     assert "Copy Main Link" in inbox.text
     assert "Lead pipeline" in inbox.text
     assert "Pipeline Value" in inbox.text
     assert "filterPriority" in inbox.text
+    assert "filterSource" in inbox.text
     assert "filterFollowUp" in inbox.text
     assert "Due Follow-ups" in inbox.text
     assert "clearMerchantFilters" in inbox.text
@@ -506,6 +513,79 @@ def test_enquiry_create_classifies_and_generates_whatsapp_reply():
     assert "Recommended next action" in email
     assert "Auto follow-up date" in email
     assert saved["auto_summary"] in email
+
+
+def test_vehicle_enquiry_identifies_sales_followup_signals():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"dealer-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "City Used Cars",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "60123456789",
+            "offer_summary": "used car sales, loan support, and viewing appointments",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    response = client.post(
+        "/apps/enquiry/api/enquiries",
+        json={
+            "business_slug": slug,
+            "name": "Alex",
+            "phone": "+60 12-345 6789",
+            "business_type": "used_car_dealer",
+            "message": "Saw the Civic on TikTok. Can loan? monthly below RM900. I am comparing the same car with another dealer, can view today?",
+            "source": "tiktok",
+            "campaign": "civic-video",
+            "pdpa_consent": True,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["intent"] == "quotation"
+    assert response.json()["priority"] == "hot"
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=tiktok",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    saved = listing.json()["enquiries"][0]
+    signal_labels = {item["label"] for item in saved["follow_up_signals"]}
+    assert "Finance / loan" in signal_labels
+    assert "Monthly payment" in signal_labels
+    assert "Price comparison" in signal_labels
+    assert "Viewing / appointment" in signal_labels
+    assert saved["source"] == "tiktok"
+    assert "target monthly payment" in saved["next_action"]
+    assert "loan support" in saved["reply_draft"]
+    assert "Signals:" in saved["auto_summary"]
+    assert saved["follow_up_at"] == datetime.now(timezone.utc).date().isoformat()
+
+
+def test_carpet_care_enquiry_does_not_trigger_vehicle_followup():
+    assert main.vehicle_sales_context("Need carpet care quotation", "repair") is False
+    classification = main.classify_enquiry("Need carpet care quotation", "repair")
+    draft = main.enquiry_reply_draft(
+        "Casey",
+        "repair",
+        "Need carpet care quotation",
+        classification,
+        {
+            **main.default_enquiry_profile(),
+            "business_name": "Care Repair",
+            "business_type": "repair",
+            "offer_summary": "carpet care and cleaning",
+        },
+    )
+    assert "carpet care" in draft
+    assert "loan support" not in draft
+    assert "monthly payment" not in draft
+    assert "view the car" not in draft
 
 
 def test_enquiry_tracks_marketing_attribution_and_source_stats():
@@ -1299,6 +1379,7 @@ def test_merchant_can_filter_enquiries_and_exports():
             "name": "Hot Quote Buyer",
             "phone": "6591112222",
             "message": "Need urgent quotation this week",
+            "source": "instagram",
             "pdpa_consent": True,
         },
     )
@@ -1309,6 +1390,7 @@ def test_merchant_can_filter_enquiries_and_exports():
             "name": "Booking Buyer",
             "phone": "6593334444",
             "message": "Can I book a slot next month?",
+            "source": "tiktok",
             "pdpa_consent": True,
         },
     )
@@ -1323,6 +1405,15 @@ def test_merchant_can_filter_enquiries_and_exports():
     names = [item["name"] for item in filtered.json()["enquiries"]]
     assert "Hot Quote Buyer" in names
     assert "Booking Buyer" not in names
+
+    source_filtered = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=instagram",
+        headers={"X-Business-Key": business_key},
+    )
+    assert source_filtered.status_code == 200
+    source_names = [item["name"] for item in source_filtered.json()["enquiries"]]
+    assert "Hot Quote Buyer" in source_names
+    assert "Booking Buyer" not in source_names
 
     status_update = client.patch(
         f"/apps/enquiry/api/merchant/enquiries/{booking.json()['id']}?business_slug={slug}",
@@ -1341,7 +1432,7 @@ def test_merchant_can_filter_enquiries_and_exports():
     assert "Hot Quote Buyer" not in status_names
 
     exported = client.get(
-        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug}&priority=hot&search=urgent",
+        f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug}&priority=hot&source=instagram&search=urgent",
         headers={"X-Business-Key": business_key},
     )
     assert exported.status_code == 200
