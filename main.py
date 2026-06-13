@@ -248,6 +248,17 @@ class BusinessProfileSettingsUpdate(BaseModel):
     data_retention_days: int = Field(default=365, ge=30, le=2555)
 
 
+class MerchantSignupRequest(BaseModel):
+    business_name: str = Field(..., min_length=1, max_length=160)
+    whatsapp_phone: str = Field(..., min_length=5, max_length=40)
+    contact_email: str = Field(..., min_length=3, max_length=200)
+    business_type: str = Field(default="used_car_dealer", max_length=80)
+    market: str = Field(default="my", pattern="^(my|sg|other)$")
+    preferred_slug: str | None = Field(default=None, max_length=80)
+    monthly_enquiries: str = Field(default="", max_length=80)
+    pdpa_consent: bool = False
+
+
 class EnquiryStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(new|contacted|quoted|won|lost|spam)$")
 
@@ -2881,6 +2892,114 @@ def upsert_business_profile(req, owner_client_id=None):
     if raw_access_key:
         profile["business_access_key"] = raw_access_key
     return profile
+
+
+def business_slug_base(value, fallback="dealer"):
+    raw = "".join(char.lower() if char.isalnum() else "-" for char in (value or "").strip())
+    base = "-".join(part for part in raw.split("-") if part)
+    if len(base) < 3:
+        base = fallback
+    return base[:64].strip("-") or fallback
+
+
+def business_slug_is_available(slug, connection=None):
+    normalized_slug = normalize_slug(slug)
+    query = "SELECT slug FROM business_profiles WHERE slug = ?"
+    params = (normalized_slug,)
+    if connection is not None:
+        return connection.execute(query, params).fetchone() is None
+    with db_connection() as lookup_connection:
+        return lookup_connection.execute(query, params).fetchone() is None
+
+
+def merchant_signup_response(profile, access_key):
+    safe_profile = {key: value for key, value in profile.items() if key != "business_access_key"}
+    return {
+        "profile": safe_profile,
+        "business_access_key": access_key,
+        "form_url": profile["form_url"],
+        "inbox_url": profile["inbox_url"],
+        "channels_url": f"/channels/{profile['slug']}",
+        "login_url": "/merchant-login",
+        "security_notice": (
+            "Never paste social media passwords, OTPs, cookies, app secrets, or access tokens into NexaFlow. "
+            "Use official platform authorization or assisted capture only."
+        ),
+        "next_steps": [
+            "Open your private inbox.",
+            "Submit one test enquiry.",
+            "Set up WhatsApp, Facebook, and Instagram sources.",
+        ],
+    }
+
+
+def create_merchant_workspace(req):
+    if not req.pdpa_consent:
+        raise HTTPException(status_code=400, detail="Privacy and data-use consent is required to create a workspace.")
+    if contains_forbidden_channel_secret(
+        req.business_name,
+        req.whatsapp_phone,
+        req.contact_email,
+        req.preferred_slug or "",
+        req.monthly_enquiries,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Do not paste passwords, OTPs, cookies, app secrets, or access tokens into signup.",
+        )
+    enforce_enquiry_rate_limit(
+        "merchant-signup",
+        normalize_email(req.contact_email) or req.whatsapp_phone,
+        limit=3,
+        window_seconds=3600,
+    )
+
+    if req.preferred_slug:
+        slug = normalize_slug(req.preferred_slug)
+        if not business_slug_is_available(slug):
+            raise HTTPException(status_code=409, detail="Business link name is already taken.")
+    else:
+        base = business_slug_base(req.business_name, fallback="dealer")
+        slug = base
+        with db_connection() as connection:
+            while not business_slug_is_available(slug, connection=connection):
+                slug = f"{base[:56].strip('-')}-{secrets.token_hex(3)}"
+
+    profile = upsert_business_profile(
+        BusinessProfileRequest(
+            slug=slug,
+            business_name=req.business_name.strip(),
+            business_type=req.business_type.strip() or "used_car_dealer",
+            whatsapp_phone=req.whatsapp_phone.strip(),
+            contact_email=req.contact_email,
+            offer_summary=(
+                f"{req.business_name.strip()} uses NexaFlow to collect car buyer enquiries, "
+                "track missing details, and keep follow-up visible across social channels."
+            ),
+            reply_tone="friendly, sales-focused, and clear",
+            opening_hours="",
+            status="active",
+            rotate_access_key=True,
+            auto_followup_enabled=True,
+            hot_followup_hours=2,
+            standard_followup_days=1,
+            data_retention_days=365,
+        )
+    )
+    write_data_audit_event(
+        "business.self_signup_created",
+        "merchant",
+        "business_profile",
+        profile["slug"],
+        business_slug=profile["slug"],
+        metadata={
+            "market": req.market,
+            "business_type": req.business_type,
+            "monthly_enquiries": req.monthly_enquiries,
+            "access_key_prefix": profile.get("access_key_prefix"),
+        },
+    )
+    return merchant_signup_response(profile, profile["business_access_key"])
 
 
 def rotate_business_access_key(slug, owner_client_id=None):
@@ -6820,7 +6939,7 @@ def landing_page():
                 <p class="lead"><span data-lang="en">Stop losing customer enquiries across WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, or referrals. NexaFlow helps you collect each enquiry, capture missing details, prepare the next reply, and keep follow-up visible.</span><span data-lang="zh" class="lang-hidden">不要再让客户询问散落在 WhatsApp、Instagram、Facebook、TikTok、小红书、电话或介绍里。NexaFlow 帮你集中收询盘、补齐客户资料、准备下一句回复，并持续提醒跟进。</span></p>
                 <p class="lead"><span data-market="sg">Built for Singapore merchants and sales teams that need PDPA-aware enquiry capture, private records, and WhatsApp-ready follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia merchants and sales teams that need simple enquiry capture, private inbox, WhatsApp follow-up, and local MYR pricing.</span></p>
                 <div class="actions">
-                    <a class="btn" href="/start-trial"><span data-lang="en">Start 30-day Trial</span><span data-lang="zh" class="lang-hidden">申请 30 天试用</span></a>
+                    <a class="btn" href="/merchant-signup"><span data-lang="en">Create Workspace</span><span data-lang="zh" class="lang-hidden">创建工作区</span></a>
                     <a class="btn secondary" href="/ai-enquiry#enquiry-form"><span data-lang="en">See Demo</span><span data-lang="zh" class="lang-hidden">看 Demo</span></a>
                     <a class="btn secondary" href="/merchant-login"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家登录</span></a>
                 </div>
@@ -6830,7 +6949,7 @@ def landing_page():
                 <div class="product-panel">
                     <div class="panel-top"><span data-lang="en">How it helps today</span><span data-lang="zh" class="lang-hidden">今天可以怎么帮你</span><span class="pill good">Live</span></div>
                     <div class="signal-list">
-                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">Share one enquiry link</span><span data-lang="zh" class="lang-hidden">分享一个询盘链接</span></strong><span data-lang="en">Use it on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or a website.</span><span data-lang="zh" class="lang-hidden">可以放在 WhatsApp、Instagram、Facebook、TikTok、小红书、Google 商家资料或网站。</span></div><a href="/start-trial"><span data-lang="en">Create</span><span data-lang="zh" class="lang-hidden">开通</span></a></div>
+                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">Create your workspace</span><span data-lang="zh" class="lang-hidden">创建你的工作区</span></strong><span data-lang="en">Use it for WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or a website.</span><span data-lang="zh" class="lang-hidden">可以用来集中 WhatsApp、Instagram、Facebook、TikTok、小红书、Google 商家资料或网站询盘。</span></div><a href="/merchant-signup"><span data-lang="en">Create</span><span data-lang="zh" class="lang-hidden">开通</span></a></div>
                         <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></strong><span data-lang="en">AI helps extract source, request, budget, appointment timing, notes, and what is still missing.</span><span data-lang="zh" class="lang-hidden">AI 帮你整理来源、需求、预算、预约时间、备注，以及还缺什么资料。</span></div><a href="/ai-enquiry#enquiry-form">Demo</a></div>
                         <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Follow up with the next question</span><span data-lang="zh" class="lang-hidden">用下一句问题跟进</span></strong><span data-lang="en">Open the inbox, use the reply draft, update the status, and set the next follow-up.</span><span data-lang="zh" class="lang-hidden">打开 inbox，用回复草稿、更新状态，并设置下一次跟进。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
                     </div>
@@ -6848,7 +6967,7 @@ def landing_page():
             <div class="card">
                 <h3><span data-lang="en">Unified enquiry inbox</span><span data-lang="zh" class="lang-hidden">统一询盘 inbox</span></h3>
                 <p><span data-lang="en">Customers submit name, contact details, source, request, and privacy acknowledgement through one simple link.</span><span data-lang="zh" class="lang-hidden">客户通过一个简单链接提交姓名、联系方式、来源、需求和隐私确认。</span></p>
-                <a class="btn" href="/start-trial"><span data-lang="en">Create My Link</span><span data-lang="zh" class="lang-hidden">创建我的链接</span></a>
+                <a class="btn" href="/merchant-signup"><span data-lang="en">Create My Workspace</span><span data-lang="zh" class="lang-hidden">创建我的工作区</span></a>
             </div>
             <div class="card">
                 <h3><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></h3>
@@ -6894,7 +7013,7 @@ def landing_page():
                 <h3><span data-lang="en">30-day trial</span><span data-lang="zh" class="lang-hidden">30 天试用</span></h3>
                 <div class="plan-price">Free <span>for trial</span></div>
                 <p><span data-lang="en">Test enquiry capture, assisted import, private inbox, reply drafts, and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">试用询盘收集、辅助导入、私密 inbox、回复草稿和跟进提醒。</span></p>
-                <a class="btn" href="/start-trial"><span data-lang="en">Start Trial</span><span data-lang="zh" class="lang-hidden">开始试用</span></a>
+                <a class="btn" href="/merchant-signup"><span data-lang="en">Create Workspace</span><span data-lang="zh" class="lang-hidden">创建工作区</span></a>
             </div>
             <div class="price-card">
                 <h3><span data-lang="en">Enquiry Starter</span><span data-lang="zh" class="lang-hidden">询盘入门版</span></h3>
@@ -6984,6 +7103,7 @@ def merchant_login_page():
             </div>
             <div class="actions">
                 <button class="btn" onclick="openMerchantInbox()"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></button>
+                <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create Workspace</span><span data-lang="zh" class="lang-hidden">创建工作区</span></a>
                 <a class="btn secondary" href="/"><span data-lang="en">Back to Services</span><span data-lang="zh" class="lang-hidden">返回服务页</span></a>
             </div>
             <div class="status" id="loginStatus"><span data-lang="en">Your owner inbox password protects customer enquiries. Do not share it publicly.</span><span data-lang="zh" class="lang-hidden">老板 inbox 密码会保护客户询盘资料，请不要公开分享。</span></div>
@@ -7018,6 +7138,132 @@ def merchant_login_page():
                 window.location.href = `/inbox/${slug}`;
             }
             setLoginLang(localStorage.getItem("nexaflow_login_lang") || "en");
+        </script>
+        """,
+        show_sales_contact=True,
+    )
+
+
+@app.get("/merchant-signup", response_class=HTMLResponse)
+def merchant_signup_page():
+    return merchant_html(
+        "Create NexaFlow Workspace",
+        "NexaFlow",
+        """
+        <section class="hero compact">
+            <div>
+                <div class="eyebrow">NexaFlow Workspace</div>
+                <h1>Create one inbox for your car buyer enquiries.</h1>
+                <p class="lead">Set up your dealer workspace, then connect WhatsApp, Facebook, Instagram, TikTok, Xiaohongshu, or assisted sources from one place.</p>
+            </div>
+        </section>
+        <section class="form-card">
+            <div class="toolbar">
+                <label>Car dealer / business name<input id="signupBusinessName" autocomplete="organization" placeholder="ABC Auto"></label>
+                <label>Email for owner access<input id="signupEmail" type="email" autocomplete="email" placeholder="owner@example.com"></label>
+            </div>
+            <div class="toolbar">
+                <label>WhatsApp number<input id="signupWhatsapp" autocomplete="tel" placeholder="6012xxxxxxx"></label>
+                <label>Business link name<input id="signupSlug" autocomplete="off" placeholder="abc-auto"></label>
+            </div>
+            <div class="toolbar">
+                <label>Market
+                    <select id="signupMarket">
+                        <option value="my">Malaysia</option>
+                        <option value="sg">Singapore</option>
+                        <option value="other">Other</option>
+                    </select>
+                </label>
+                <label>Monthly enquiries
+                    <select id="signupMonthly">
+                        <option value="under_50">Under 50</option>
+                        <option value="50_200">50 - 200</option>
+                        <option value="200_plus">200+</option>
+                    </select>
+                </label>
+            </div>
+            <label>Business type
+                <select id="signupBusinessType">
+                    <option value="used_car_dealer">Used car dealer</option>
+                    <option value="auto_dealer">Auto dealer</option>
+                    <option value="service_merchant">Service merchant</option>
+                    <option value="general">General</option>
+                </select>
+            </label>
+            <label class="checkbox-label"><input id="signupConsent" type="checkbox"> <span>I agree that NexaFlow may create this workspace and process buyer enquiry data for follow-up, security, support, and record keeping under the Privacy Policy.</span></label>
+            <div class="actions">
+                <button class="btn" onclick="createMerchantWorkspace()">Create Workspace</button>
+                <a class="btn secondary" href="/merchant-login">I already have a workspace</a>
+            </div>
+            <div class="status" id="signupStatus">No social media password is needed here.</div>
+        </section>
+        <section class="form-card" id="workspaceResult" style="display:none">
+            <h2>Your workspace is ready</h2>
+            <p>Save this owner inbox password now. NexaFlow stores only a protected hash and cannot show it again.</p>
+            <div class="setup-panel">
+                <div class="setup-step"><strong>Workspace</strong><span id="createdWorkspace">-</span></div>
+                <div class="setup-step"><strong>Owner inbox password</strong><span><code id="createdPassword">-</code></span></div>
+                <div class="setup-step"><strong>Security</strong><span id="createdSecurity">Never paste platform passwords, OTPs, cookies, or tokens.</span></div>
+                <div class="setup-step"><strong>Next</strong><span>Open inbox, submit one test enquiry, then set sources.</span></div>
+            </div>
+            <div class="actions">
+                <a class="btn" id="createdInbox" href="/merchant-login">Open Inbox</a>
+                <a class="btn secondary" id="createdChannels" href="/merchant-login">Set Social Sources</a>
+                <a class="btn secondary" id="createdForm" href="/ai-enquiry">Test Customer Form</a>
+            </div>
+        </section>
+        <section class="grid">
+            <div class="card"><h3>Private workspace</h3><p>Each dealer gets a separate inbox, owner password, customer list, and social source setup.</p></div>
+            <div class="card"><h3>Official access only</h3><p>NexaFlow should use platform authorization or assisted capture, not shared staff passwords.</p></div>
+            <div class="card"><h3>Start simple</h3><p>The first daily view shows who needs follow-up now, then hides advanced settings until needed.</p></div>
+        </section>
+        <script>
+            function normalizeSignupSlug(value) {
+                return String(value || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+            }
+            function signupValue(id) {
+                return document.getElementById(id).value.trim();
+            }
+            async function createMerchantWorkspace() {
+                const status = document.getElementById("signupStatus");
+                status.textContent = "Creating workspace...";
+                const payload = {
+                    business_name: signupValue("signupBusinessName"),
+                    contact_email: signupValue("signupEmail"),
+                    whatsapp_phone: signupValue("signupWhatsapp"),
+                    preferred_slug: normalizeSignupSlug(signupValue("signupSlug")),
+                    market: signupValue("signupMarket"),
+                    monthly_enquiries: signupValue("signupMonthly"),
+                    business_type: signupValue("signupBusinessType"),
+                    pdpa_consent: document.getElementById("signupConsent").checked,
+                };
+                if (!payload.preferred_slug) {
+                    payload.preferred_slug = null;
+                }
+                try {
+                    const response = await fetch("/apps/enquiry/api/merchant/signup", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.detail || "Could not create workspace.");
+                    }
+                    const slug = result.profile.slug;
+                    localStorage.setItem(`nexaflow_business_key_${slug}`, result.business_access_key);
+                    document.getElementById("createdWorkspace").textContent = `${result.profile.business_name} / ${slug}`;
+                    document.getElementById("createdPassword").textContent = result.business_access_key;
+                    document.getElementById("createdSecurity").textContent = result.security_notice;
+                    document.getElementById("createdInbox").href = result.inbox_url;
+                    document.getElementById("createdChannels").href = result.channels_url;
+                    document.getElementById("createdForm").href = result.form_url;
+                    document.getElementById("workspaceResult").style.display = "block";
+                    status.textContent = "Workspace created. Your owner inbox password was saved in this browser.";
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
         </script>
         """,
         show_sales_contact=True,
@@ -7080,7 +7326,7 @@ def enquiry_app_page():
                 </p>
                 <p class="lead"><span data-market="sg">For Singapore service merchants: PDPA-aware enquiry capture, private inbox, and WhatsApp follow-up.</span><span data-market="my" class="market-hidden">For Malaysia service merchants: simple enquiry capture, private inbox, and WhatsApp follow-up with MYR pricing.</span></p>
                 <div class="actions">
-                    <a class="btn" href="/start-trial"><span data-lang="en">Create My Enquiry Link</span><span data-lang="zh" class="lang-hidden">创建我的询盘链接</span></a>
+                    <a class="btn" href="/merchant-signup"><span data-lang="en">Create My Workspace</span><span data-lang="zh" class="lang-hidden">创建我的工作区</span></a>
                     <a class="btn secondary" href="#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
                     <a class="btn secondary" href="/merchant-login"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家登录</span></a>
                 </div>
@@ -7154,7 +7400,7 @@ def enquiry_app_page():
                     <li><span data-lang="en">AI reply drafts</span><span data-lang="zh" class="lang-hidden">AI 回复草稿</span></li>
                     <li><span data-lang="en">Manual onboarding support</span><span data-lang="zh" class="lang-hidden">人工协助开通</span></li>
                 </ul>
-                <a class="btn" href="/start-trial"><span data-lang="en">Request Trial</span><span data-lang="zh" class="lang-hidden">申请试用</span></a>
+                <a class="btn" href="/merchant-signup"><span data-lang="en">Create Workspace</span><span data-lang="zh" class="lang-hidden">创建工作区</span></a>
             </div>
             <div class="price-card">
                 <h3>Starter</h3>
@@ -10175,6 +10421,11 @@ def create_or_update_business_profile(
 ):
     admin_guard(admin_key, x_admin_key)
     return upsert_business_profile(req)
+
+
+@app.post("/apps/enquiry/api/merchant/signup")
+def create_merchant_signup(req: MerchantSignupRequest):
+    return create_merchant_workspace(req)
 
 
 @app.get("/apps/enquiry/api/business-profiles")
