@@ -39,12 +39,15 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
-    assert "One enquiry link. One private inbox." in response.text
-    assert "一个询盘链接" in response.text
-    assert "What NexaFlow does now" in response.text
-    assert "Collect enquiries" in response.text
-    assert "Know who to reply first" in response.text
-    assert "Follow up on WhatsApp" in response.text
+    assert "One inbox for every enquiry. One follow-up plan for every lead." in response.text
+    assert "所有询盘进一个 inbox" in response.text
+    assert "What NexaFlow helps you manage" in response.text
+    assert "Unified enquiry inbox" in response.text
+    assert "Capture missing details" in response.text
+    assert "Follow-up Copilot" in response.text
+    assert "Bring enquiries in from every channel" in response.text
+    assert "Assisted capture" in response.text
+    assert "Follow up with the next question" in response.text
     assert "Simple pricing after trial" in response.text
     assert "30-day trial" in response.text
     assert "SGD 49" in response.text
