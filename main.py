@@ -9,6 +9,7 @@ import csv
 import hmac
 import json
 import os
+import re
 import secrets
 import shutil
 import sqlite3
@@ -3147,14 +3148,72 @@ def business_guard(
     return profile
 
 
-def classify_enquiry(message):
+def vehicle_sales_context(message="", business_type=""):
+    text = f"{message} {business_type}".lower()
+    english_keywords = [
+        "car",
+        "vehicle",
+        "auto",
+        "automotive",
+        "dealer",
+        "dealership",
+        "motor",
+        "used car",
+        "recond",
+        "trade in",
+        "trade-in",
+        "test drive",
+        "showroom",
+    ]
+    cjk_keywords = ["车", "汽车", "二手车", "车商", "试驾", "看车"]
+    return any(re.search(rf"\b{re.escape(keyword)}\b", text) for keyword in english_keywords) or any(
+        keyword in text for keyword in cjk_keywords
+    )
+
+
+def enquiry_followup_signals(message, business_type=""):
+    text = message.lower()
+    signals = []
+
+    def add_signal(key, label, detail):
+        if not any(item["key"] == key for item in signals):
+            signals.append({"key": key, "label": label, "detail": detail})
+
+    if any(keyword in text for keyword in ["loan", "finance", "financing", "bank", "月供", "贷款", "供车", "银行"]):
+        add_signal("finance", "Finance / loan", "Ask target monthly payment, down payment, and loan readiness.")
+    if any(keyword in text for keyword in ["monthly", "installment", "instalment", "payment", "月供", "供多少", "供期"]):
+        add_signal("monthly_payment", "Monthly payment", "Clarify comfortable monthly range before pushing an appointment.")
+    if any(keyword in text for keyword in ["budget", "down payment", "downpayment", "deposit", "首付", "头期", "预算"]):
+        add_signal("budget", "Budget / down payment", "Ask budget range and cash upfront so the offer fits.")
+    if any(keyword in text for keyword in ["compare", "cheaper", "best price", "discount", "other dealer", "same car", "比价", "哪里便宜", "最低", "别家"]):
+        add_signal("comparison", "Price comparison", "Ask what offer, spec, and monthly payment they are comparing against.")
+    if any(keyword in text for keyword in ["view car", "view today", "view tomorrow", "can view", "see car", "test drive", "showroom", "appointment", "来看车", "看车", "试驾", "预约"]):
+        add_signal("appointment", "Viewing / appointment", "Confirm day, time, branch, and whether they need loan support.")
+    if any(keyword in text for keyword in ["model", "variant", "year", "mileage", "color", "stock", "available", "unit", "spec", "车型", "车款", "年份", "公里", "颜色", "现车", "库存"]):
+        add_signal("vehicle_fit", "Vehicle fit", "Confirm model, year, mileage, color, and must-have specs.")
+    if any(keyword in text for keyword in ["income", "salary", "payslip", "epf", "commitment", "薪水", "收入", "粮单", "文件"]):
+        add_signal("income_check", "Loan background", "Ask only the needed loan-readiness question and avoid collecting sensitive details too early.")
+    if any(keyword in text for keyword in ["urgent", "asap", "today", "tonight", "now", "immediately", "紧急", "今天", "马上", "急"]):
+        add_signal("time_sensitive", "Time sensitive", "Reply quickly and set a same-day follow-up if they go quiet.")
+
+    if vehicle_sales_context(message, business_type) and not signals:
+        add_signal("discovery", "Needs discovery", "Ask model, budget/monthly payment, loan need, and timeline.")
+
+    return signals[:6]
+
+
+def classify_enquiry(message, business_type=""):
     text = message.lower()
     urgent_keywords = ["urgent", "asap", "today", "tonight", "emergency", "now", "immediately", "紧急", "今天", "马上", "急"]
-    quote_keywords = ["price", "quote", "quotation", "cost", "how much", "budget", "package", "多少钱", "价格", "报价", "费用"]
-    booking_keywords = ["book", "appointment", "schedule", "reserve", "available", "slot", "预约", "安排", "时间"]
-    inventory_keywords = ["stock", "available", "inventory", "in stock", "quantity", "库存", "现货", "数量"]
+    finance_keywords = ["loan", "finance", "financing", "monthly", "installment", "instalment", "down payment", "downpayment", "bank", "income", "salary", "月供", "贷款", "首付", "头期", "供车", "银行", "收入"]
+    comparison_keywords = ["compare", "cheaper", "best price", "discount", "other dealer", "same car", "比价", "哪里便宜", "最低", "别家"]
+    quote_keywords = ["price", "quote", "quotation", "cost", "how much", "budget", "package", "多少钱", "价格", "报价", "费用"] + finance_keywords + comparison_keywords
+    booking_keywords = ["book", "appointment", "schedule", "reserve", "available", "slot", "view car", "view today", "view tomorrow", "can view", "see car", "test drive", "showroom", "预约", "安排", "时间", "看车", "试驾"]
+    inventory_keywords = ["stock", "available", "inventory", "in stock", "quantity", "model", "variant", "year", "mileage", "color", "spec", "库存", "现货", "数量", "车型", "车款", "年份", "公里", "颜色"]
+    signals = enquiry_followup_signals(message, business_type)
+    signal_keys = {item["key"] for item in signals}
 
-    if any(keyword in text for keyword in urgent_keywords):
+    if any(keyword in text for keyword in urgent_keywords) or ("appointment" in signal_keys and "time_sensitive" in signal_keys):
         priority = "hot"
     elif any(keyword in text for keyword in quote_keywords + booking_keywords):
         priority = "warm"
@@ -3172,7 +3231,7 @@ def classify_enquiry(message):
 
     if priority == "hot":
         estimated_value = "high"
-    elif intent in {"quotation", "booking"}:
+    elif intent in {"quotation", "booking"} or signal_keys.intersection({"finance", "monthly_payment", "budget", "comparison", "appointment"}):
         estimated_value = "medium"
     else:
         estimated_value = "unknown"
@@ -3190,7 +3249,22 @@ def enquiry_reply_draft(name, business_type, message, classification, profile=No
     business_name = profile.get("business_name") or "us"
     tone = profile.get("reply_tone") or "friendly and professional"
     hours = f" Our opening hours are {profile['opening_hours']}." if profile.get("opening_hours") else ""
-    if classification["intent"] == "quotation":
+    signals = enquiry_followup_signals(message, business_type)
+    signal_keys = {item["key"] for item in signals}
+    if vehicle_sales_context(message, business_type):
+        if signal_keys.intersection({"finance", "monthly_payment"}):
+            next_step = "Can I check your target monthly payment, down payment range, and whether you need loan support?"
+        elif "budget" in signal_keys:
+            next_step = "Can you share your budget range, preferred monthly payment, and whether you plan to use loan?"
+        elif "comparison" in signal_keys:
+            next_step = "Can you share which offer or spec you are comparing against so I can advise the closest option clearly?"
+        elif "appointment" in signal_keys:
+            next_step = "Can I confirm which day you want to view the car, your preferred branch, and whether you need loan support?"
+        elif "vehicle_fit" in signal_keys:
+            next_step = "Can you confirm the model, year, budget or monthly range, and must-have specs?"
+        else:
+            next_step = "Can you share the model you want, budget or monthly range, loan need, and when you hope to view the car?"
+    elif classification["intent"] == "quotation":
         next_step = "Can you share your preferred date, budget range, and any photos or details so we can prepare a more accurate quote?"
     elif classification["intent"] == "booking":
         next_step = "Can you share your preferred date and time so we can check availability?"
@@ -3209,6 +3283,7 @@ def enquiry_reply_draft(name, business_type, message, classification, profile=No
 def enquiry_workflow_summary(name, message, classification, profile=None):
     profile = profile or default_enquiry_profile()
     business_name = profile.get("business_name") or "the business"
+    business_type = profile.get("business_type") or "general"
     clean_message = " ".join(message.strip().split())
     if len(clean_message) > 140:
         clean_message = f"{clean_message[:137]}..."
@@ -3229,7 +3304,31 @@ def enquiry_workflow_summary(name, message, classification, profile=None):
         f"{name} sent a {priority_label} {intent_label} for {business_name}. "
         f"Message: {clean_message}"
     )
-    if classification["priority"] == "hot":
+    signals = enquiry_followup_signals(message, business_type)
+    signal_keys = {item["key"] for item in signals}
+    if signals:
+        auto_summary += " Signals: " + ", ".join(item["label"] for item in signals) + "."
+
+    if vehicle_sales_context(message, business_type):
+        if signal_keys.intersection({"finance", "monthly_payment"}):
+            next_action = "Clarify target monthly payment, down payment, and loan need before pushing for viewing."
+            follow_up = "If no reply, follow up within 2 hours with one clear loan or monthly-payment question."
+        elif "comparison" in signal_keys:
+            next_action = "Ask what price, spec, or monthly payment they are comparing, then explain the strongest matching option."
+            follow_up = "Follow up within 4 hours; comparison shoppers often go cold when the next step is unclear."
+        elif "appointment" in signal_keys:
+            next_action = "Confirm viewing time, branch, preferred model, and whether loan support is needed."
+            follow_up = "Follow up the same day if the appointment is not confirmed."
+        elif "vehicle_fit" in signal_keys:
+            next_action = "Confirm model, year, mileage, budget or monthly range, and must-have specs."
+            follow_up = "Follow up within 1 business day with one matching option or a short discovery question."
+        elif "budget" in signal_keys:
+            next_action = "Ask budget range, down payment comfort, and monthly payment target."
+            follow_up = "Follow up within 1 business day with an option that fits the stated budget."
+        else:
+            next_action = "Do discovery first: ask model, budget/monthly range, loan need, and viewing timeline."
+            follow_up = "Follow up within 1 business day if the customer does not answer the discovery question."
+    elif classification["priority"] == "hot":
         next_action = "Reply as soon as possible, then mark the lead as Contacted."
         follow_up = "Follow up today if the customer has not replied."
     elif classification["intent"] == "quotation":
@@ -3359,6 +3458,7 @@ def row_to_enquiry(row):
         "intent": row["intent"],
         "priority": row["priority"],
         "estimated_value": row["estimated_value"],
+        "follow_up_signals": enquiry_followup_signals(row["message"], row["business_type"]),
         "auto_summary": row["auto_summary"] if "auto_summary" in row.keys() else "",
         "next_action": row["next_action"] if "next_action" in row.keys() else "",
         "follow_up_recommendation": row["follow_up_recommendation"] if "follow_up_recommendation" in row.keys() else "",
@@ -3706,8 +3806,8 @@ def create_enquiry_record(req):
         )
     enforce_enquiry_rate_limit(profile["slug"], req.phone)
 
-    classification = classify_enquiry(req.message)
     business_type = profile.get("business_type") or req.business_type
+    classification = classify_enquiry(req.message, business_type)
     workflow = enquiry_workflow_summary(req.name, req.message, classification, profile)
     follow_up_at = enquiry_auto_follow_up_date(classification, profile)
     reply_draft = enquiry_reply_draft(req.name, business_type, req.message, classification, profile)
@@ -3809,6 +3909,7 @@ def list_enquiry_records(
     limit=50,
     priority=None,
     intent=None,
+    source=None,
     search=None,
     follow_up=None,
 ):
@@ -3824,6 +3925,9 @@ def list_enquiry_records(
     if intent:
         filters.append("intent = ?")
         params.append(intent)
+    if source:
+        filters.append("lower(source) = lower(?)")
+        params.append(source.strip())
     if business_slug:
         filters.append("business_slug = ?")
         params.append(normalize_slug(business_slug))
@@ -7108,8 +7212,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <section class="hero compact">
             <div>
                 <div class="eyebrow">Merchant inbox</div>
-                <h1>{business_name} Private Inbox</h1>
-                <p class="lead">See new customer enquiries, reply on WhatsApp, and keep follow-ups visible.</p>
+                <h1>{business_name} Follow-up Cockpit</h1>
+                <p class="lead">Bring WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referral enquiries into one working list with AI signals for the next follow-up.</p>
             </div>
         </section>
         <section class="form-card">
@@ -7123,11 +7227,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
         </section>
         <section class="action-center" id="merchantActionCenter"></section>
         <section class="grid" id="merchantStats"></section>
+        <section class="action-center" id="merchantChannelCenter"></section>
         <section class="form-card" id="merchantQuickShare">
             <div class="section-head onboarding-head">
                 <div>
                     <h2>Share your enquiry link</h2>
-                    <p>Use one link on WhatsApp, Facebook, Instagram, Google Business Profile, or your website.</p>
+                    <p>Use one link on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or your website.</p>
                 </div>
             </div>
             <div id="merchantShareLinks"></div>
@@ -7211,6 +7316,23 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <option value="general">General</option>
                     </select>
                 </label>
+                <label>Source
+                    <select id="filterSource">
+                        <option value="">All sources</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="xiaohongshu">Xiaohongshu</option>
+                        <option value="direct">Direct link</option>
+                        <option value="public-form">Public form</option>
+                        <option value="google-business">Google Business Profile</option>
+                        <option value="website-widget">Website widget</option>
+                        <option value="web">Website</option>
+                        <option value="demo">Demo</option>
+                        <option value="manual">Manual / call</option>
+                    </select>
+                </label>
                 <label>Follow-up
                     <select id="filterFollowUp">
                         <option value="">All follow-ups</option>
@@ -7228,7 +7350,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
         </section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Lead</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Lead</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Follow-up Copilot</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody id="merchantRows"></tbody>
         </table>
@@ -7237,7 +7359,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             const checklistStorageKey = `nexaflow_trial_checklist_${{businessSlug}}`;
             const checklistSteps = [
                 ["loaded", "Load inbox", "Paste your business access key and load this private inbox."],
-                ["copied_link", "Copy enquiry link", "Share this link on WhatsApp, Facebook, Instagram, or Google Business Profile."],
+                ["copied_link", "Copy enquiry link", "Share this link on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, or Google Business Profile."],
                 ["settings", "Review settings", "Confirm business name, WhatsApp number, service summary, and opening hours."],
                 ["first_lead", "Receive first lead", "Submit one test enquiry before sending the link to real customers."]
             ];
@@ -7436,11 +7558,13 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const status = document.getElementById("filterStatus")?.value;
                 const priority = document.getElementById("filterPriority")?.value;
                 const intent = document.getElementById("filterIntent")?.value;
+                const source = document.getElementById("filterSource")?.value;
                 const followUp = document.getElementById("filterFollowUp")?.value;
                 const search = document.getElementById("filterSearch")?.value;
                 if (status) params.set("status", status);
                 if (priority) params.set("priority", priority);
                 if (intent) params.set("intent", intent);
+                if (source) params.set("source", source);
                 if (followUp) params.set("follow_up", followUp);
                 if (search) params.set("search", search);
                 return params.toString();
@@ -7449,6 +7573,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 document.getElementById("filterStatus").value = "";
                 document.getElementById("filterPriority").value = "";
                 document.getElementById("filterIntent").value = "";
+                document.getElementById("filterSource").value = "";
                 document.getElementById("filterFollowUp").value = "";
                 document.getElementById("filterSearch").value = "";
                 loadMerchantInbox();
@@ -7465,6 +7590,34 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     lost: "Not Proceeding",
                     spam: "Spam"
                 }}[value] || value || "Unknown";
+            }}
+            function sourceLabel(value) {{
+                return {{
+                    whatsapp: "WhatsApp",
+                    instagram: "Instagram",
+                    facebook: "Facebook",
+                    tiktok: "TikTok",
+                    xiaohongshu: "Xiaohongshu",
+                    direct: "Direct link",
+                    "public-form": "Public form",
+                    "google-business": "Google Business Profile",
+                    "website-widget": "Website widget",
+                    web: "Website",
+                    demo: "Demo",
+                    manual: "Manual / call",
+                    referral: "Referral"
+                }}[value] || value || "Unknown";
+            }}
+            function renderFollowUpSignals(item) {{
+                const signals = item.follow_up_signals || [];
+                if (!signals.length) {{
+                    return `<span class="lead-badge">Needs discovery</span>`;
+                }}
+                return signals.map(signal => `
+                    <span class="lead-badge ${{["finance", "monthly_payment", "appointment", "time_sensitive"].includes(signal.key) ? "hot" : ""}}" title="${{escapeHtml(signal.detail || "")}}">
+                        ${{escapeHtml(signal.label)}}
+                    </span>
+                `).join("");
             }}
             function chooseNextAction(item) {{
                 if (item.next_action) return item.next_action;
@@ -7524,6 +7677,40 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">New leads</button>
                             <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">Due follow-ups</button>
                             <button class="btn secondary" onclick="copyMerchantElement('merchantShareDirect', 'Customer enquiry link')">Copy enquiry link</button>
+                        </div>
+                    </div>
+                `;
+            }}
+            function renderChannelCenter(stats) {{
+                const bySource = (stats || {{}}).by_source || {{}};
+                const channels = [
+                    ["whatsapp", "WhatsApp", "Automatic or assisted capture from customer chat."],
+                    ["instagram", "Instagram", "Use bio link, DM link, or manual assisted capture."],
+                    ["facebook", "Facebook", "Track Marketplace, page, group, or Messenger enquiries."],
+                    ["tiktok", "TikTok", "Use profile link or assisted capture for video comments and DMs."],
+                    ["xiaohongshu", "Xiaohongshu", "Use link-in-bio or assisted capture for notes and DMs."],
+                    ["direct", "Direct link", "Track customers who came through the shared enquiry link."],
+                    ["google-business", "Google Business Profile", "Track enquiries from your Google Business Profile link."],
+                    ["website-widget", "Website widget", "Track enquiries that came from the embedded website widget."],
+                    ["manual", "Calls / referrals", "Add phone, walk-in, or referral leads without losing follow-up."]
+                ];
+                const totalSources = Object.values(bySource).reduce((sum, count) => sum + Number(count || 0), 0);
+                document.getElementById("merchantChannelCenter").innerHTML = `
+                    <div class="action-card">
+                        <h3>Channel inbox</h3>
+                        <p>Use this as one daily working list even when the customer first came from social media, WhatsApp, calls, or referrals.</p>
+                        <div class="lead-badges">
+                            ${{channels.map(([key, label]) => `<span class="lead-badge ${{bySource[key] ? "hot" : ""}}">${{escapeHtml(label)}} · ${{bySource[key] || 0}}</span>`).join("")}}
+                        </div>
+                        <span class="next-action">Tracked sources: ${{totalSources}} enquiry record(s) with source data.</span>
+                    </div>
+                    <div class="action-card">
+                        <h3>Assisted capture</h3>
+                        <p>When a platform cannot sync directly yet, copy the enquiry into NexaFlow with the right source so AI can still prepare follow-up.</p>
+                        <div class="action-list">
+                            ${{channels.slice(1, 5).map(([key, label, detail]) => `
+                                <div class="action-item"><span class="action-dot">${{bySource[key] || 0}}</span><div><strong>${{escapeHtml(label)}}</strong><span>${{escapeHtml(detail)}}</span></div></div>
+                            `).join("")}}
                         </div>
                     </div>
                 `;
@@ -7601,6 +7788,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <section class="card"><h3>Due Follow-ups</h3><div class="price">${{stats.due_followups || 0}}</div></section>
                     `;
                     renderActionCenter(data);
+                    renderChannelCenter(stats);
                     renderPipelineBoard(stats);
                     localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
                     markChecklistStep("loaded");
@@ -7609,10 +7797,15 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <tr>
                             <td>${{escapeHtml(item.created_at)}}</td>
                             <td>${{escapeHtml(item.name)}}<br>${{escapeHtml(item.phone)}}<br>${{escapeHtml(item.email || "")}}</td>
-                            <td>${{escapeHtml(item.source || "unknown")}}${{item.campaign ? `<br>${{escapeHtml(item.campaign)}}` : ""}}${{item.referrer ? `<br><small>${{escapeHtml(item.referrer.slice(0, 80))}}</small>` : ""}}</td>
+                            <td>${{escapeHtml(sourceLabel(item.source || "unknown"))}}${{item.campaign ? `<br>${{escapeHtml(item.campaign)}}` : ""}}${{item.referrer ? `<br><small>${{escapeHtml(item.referrer.slice(0, 80))}}</small>` : ""}}</td>
                             <td>${{escapeHtml(item.intent)}}</td>
                             <td>${{escapeHtml(item.priority)}}</td>
                             <td>${{escapeHtml(item.message)}}${{item.auto_summary ? `<br><small>${{escapeHtml(item.auto_summary)}}</small>` : ""}}</td>
+                            <td>
+                                <div class="lead-badges">${{renderFollowUpSignals(item)}}</div>
+                                <span class="next-action">${{escapeHtml(chooseNextAction(item))}}</span>
+                                ${{(item.follow_up_signals || []).map(signal => `<small>${{escapeHtml(signal.detail || "")}}</small>`).join("<br>")}}
+                            </td>
                             <td>${{escapeHtml(item.reply_draft)}}</td>
                             <td><input id="follow-up-${{item.id}}" type="date" value="${{escapeHtml(item.follow_up_at || "")}}"></td>
                             <td><input id="deal-value-${{item.id}}" type="number" min="0" step="0.01" value="${{item.deal_value ?? ""}}" placeholder="0"></td>
@@ -9443,6 +9636,7 @@ def list_enquiries(
     business_slug: str | None = None,
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
     intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    source: str | None = Query(default=None, max_length=80),
     follow_up: str | None = Query(default=None, pattern="^(due|scheduled|none)$"),
     search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
@@ -9457,6 +9651,7 @@ def list_enquiries(
             business_slug=business_slug,
             priority=priority,
             intent=intent,
+            source=source,
             follow_up=follow_up,
             search=search,
             limit=limit,
@@ -9470,6 +9665,7 @@ def list_merchant_enquiries(
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
     intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    source: str | None = Query(default=None, max_length=80),
     follow_up: str | None = Query(default=None, pattern="^(due|scheduled|none)$"),
     search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
@@ -9493,6 +9689,7 @@ def list_merchant_enquiries(
             business_slug=profile["slug"],
             priority=priority,
             intent=intent,
+            source=source,
             follow_up=follow_up,
             search=search,
             limit=limit,
@@ -9506,6 +9703,7 @@ def export_merchant_enquiries_csv(
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
     intent: str | None = Query(default=None, pattern="^(quotation|booking|inventory|general)$"),
+    source: str | None = Query(default=None, max_length=80),
     follow_up: str | None = Query(default=None, pattern="^(due|scheduled|none)$"),
     search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=500, ge=1, le=1000),
@@ -9524,6 +9722,7 @@ def export_merchant_enquiries_csv(
         business_slug=profile["slug"],
         priority=priority,
         intent=intent,
+        source=source,
         follow_up=follow_up,
         search=search,
         limit=limit,
@@ -9538,6 +9737,7 @@ def export_merchant_enquiries_csv(
             "status": status or "",
             "priority": priority or "",
             "intent": intent or "",
+            "source": source or "",
             "follow_up": follow_up or "",
             "search_used": bool(search),
         },
