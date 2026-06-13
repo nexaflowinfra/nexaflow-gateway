@@ -367,6 +367,7 @@ def test_business_profile_create_and_public_form_loads():
     assert "Follow-up Cockpit" in inbox.text
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
+    assert "/channels/" in inbox.text
     assert "saveMerchantNote" in inbox.text
     assert "Customer enquiry link" in inbox.text
     assert "copyMerchantElement" in inbox.text
@@ -391,6 +392,17 @@ def test_business_profile_create_and_public_form_loads():
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
     assert legacy_inbox.status_code == 200
+
+    channels = client.get(f"/channels/{slug}")
+    assert channels.status_code == 200
+    assert "Channel Connections" in channels.text
+    assert "Never paste platform passwords" in channels.text
+    assert "Official API requested" in channels.text
+    assert "Assisted capture" in channels.text
+    assert "/admin/dashboard" not in channels.text
+
+    legacy_channels = client.get(f"/apps/enquiry/channels/{slug}")
+    assert legacy_channels.status_code == 200
 
     embed = client.get(f"/embed/enquiry/{slug}.js")
     assert embed.status_code == 200
@@ -972,6 +984,132 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
     audit_payload = json.dumps(events)
     assert "Own Lead" not in audit_payload
     assert "6591112222" not in audit_payload
+
+
+def test_merchant_channel_connections_are_private_and_audited():
+    suffix = uuid.uuid4().hex[:8]
+    slug_one = f"channels-one-{suffix}"
+    slug_two = f"channels-two-{suffix}"
+    profile_one = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_one,
+            "business_name": "Channels One",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    profile_two = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug_two,
+            "business_name": "Channels Two",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6022223333",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile_one.status_code == 200
+    assert profile_two.status_code == 200
+    business_key = profile_one.json()["business_access_key"]
+
+    unauthorized = client.get(
+        f"/apps/enquiry/api/merchant/channel-connections?business_slug={slug_one}"
+    )
+    assert unauthorized.status_code == 401
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/channel-connections?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    body = listing.json()
+    assert body["data_protection"]["tokens_stored"] is False
+    assert body["data_protection"]["owner_key_required"] is True
+    assert "passwords, OTPs, cookies" in body["security_notice"]
+    assert {item["channel"] for item in body["connections"]}.issuperset({"whatsapp", "instagram", "facebook", "tiktok", "xiaohongshu"})
+
+    rejected_secret = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_one}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "City Cars WABA",
+            "external_account_id": "waba_123",
+            "data_processing_acknowledged": True,
+            "notes": "Prepare Cloud API setup. access_token=should-not-be-used",
+            "access_token": "secret-token-that-should-be-ignored",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert rejected_secret.status_code == 400
+
+    update = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_one}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "City Cars WABA",
+            "external_account_id": "waba_123",
+            "data_processing_acknowledged": True,
+            "notes": "Prepare Cloud API setup with server-side OAuth later.",
+            "access_token": "secret-token-that-should-be-ignored",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert update.status_code == 200
+    saved = update.json()
+    assert saved["channel"] == "whatsapp"
+    assert saved["token_status"] == "not_stored"
+    assert "access_token" not in json.dumps(saved)
+    assert "secret-token" not in json.dumps(saved)
+
+    blocked = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/instagram?business_slug={slug_two}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "data_processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked.status_code == 403
+
+    limited_official = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/tiktok?business_slug={slug_one}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "data_processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert limited_official.status_code == 400
+
+    missing_ack = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/facebook?business_slug={slug_one}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "data_processing_acknowledged": False,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert missing_ack.status_code == 400
+
+    audit = client.get(
+        f"/admin/data-audit-events?business_slug={slug_one}&event_type=channel.connection_updated",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert audit.status_code == 200
+    events = audit.json()["events"]
+    assert events
+    audit_payload = json.dumps(events)
+    assert "whatsapp" in audit_payload
+    assert "not_stored" in audit_payload
+    assert "secret-token" not in audit_payload
+    assert "access_token" not in audit_payload
 
 
 def test_merchant_inbox_includes_action_center_and_pipeline_board():

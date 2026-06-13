@@ -259,6 +259,18 @@ class MerchantEnquiryUpdate(BaseModel):
     deal_value: float | None = Field(default=None, ge=0, le=1000000000)
 
 
+class ChannelConnectionUpdate(BaseModel):
+    integration_mode: str = Field(
+        default="official_api_requested",
+        pattern="^(official_api_requested|assisted_capture|smart_link|lead_form)$",
+    )
+    status: str = Field(default="requested", pattern="^(requested|assisted|paused)$")
+    account_label: str = Field(default="", max_length=160)
+    external_account_id: str = Field(default="", max_length=160)
+    data_processing_acknowledged: bool = False
+    notes: str = Field(default="", max_length=500)
+
+
 class TrialRequestCreate(BaseModel):
     business_name: str = Field(..., min_length=1, max_length=160)
     contact_name: str = Field(..., min_length=1, max_length=120)
@@ -838,6 +850,52 @@ def init_db():
         ensure_column(connection, "trial_requests", "trial_ends_at", "TEXT")
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS channel_connections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                business_slug TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                integration_mode TEXT NOT NULL,
+                status TEXT NOT NULL,
+                account_label TEXT,
+                external_account_id TEXT,
+                capabilities_json TEXT,
+                token_status TEXT NOT NULL DEFAULT 'not_stored',
+                data_processing_acknowledged INTEGER NOT NULL DEFAULT 0,
+                security_reviewed_at TEXT,
+                last_sync_at TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE (business_slug, channel)
+            )
+            """
+        )
+        ensure_column(connection, "channel_connections", "capabilities_json", "TEXT")
+        ensure_column(connection, "channel_connections", "token_status", "TEXT NOT NULL DEFAULT 'not_stored'")
+        ensure_column(connection, "channel_connections", "data_processing_acknowledged", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(connection, "channel_connections", "security_reviewed_at", "TEXT")
+        ensure_column(connection, "channel_connections", "last_sync_at", "TEXT")
+        ensure_column(connection, "channel_connections", "notes", "TEXT")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS channel_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                business_slug TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                connection_id INTEGER,
+                external_message_id TEXT,
+                customer_display_name TEXT,
+                customer_handle TEXT,
+                direction TEXT NOT NULL,
+                message_preview TEXT,
+                received_at TEXT,
+                retention_until TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS data_audit_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
@@ -856,6 +914,8 @@ def init_db():
         connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_priority ON enquiries (business_slug, priority)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_business_profiles_client ON business_profiles (client_id)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_trial_requests_status_created ON trial_requests (status, created_at)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_connections_business ON channel_connections (business_slug, channel)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_messages_business_created ON channel_messages (business_slug, created_at)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_data_audit_business_created ON data_audit_events (business_slug, created_at)")
 
 
@@ -2406,6 +2466,264 @@ def merchant_share_links(profile, campaign="merchant-share"):
             "instagram_bio": links["instagram"]["url"],
             "facebook_post": caption,
         },
+    }
+
+
+CHANNEL_CATALOG = {
+    "whatsapp": {
+        "label": "WhatsApp Business",
+        "official_status": "available",
+        "default_mode": "official_api_requested",
+        "capabilities": ["webhook_inbox", "service_replies", "template_followups"],
+        "security_requirements": ["business_verification", "webhook_signature", "least_privilege_tokens"],
+        "data_note": "Use WhatsApp Business Platform or Cloud API. Do not paste personal WhatsApp passwords or OTPs.",
+    },
+    "instagram": {
+        "label": "Instagram DM",
+        "official_status": "available_with_review",
+        "default_mode": "official_api_requested",
+        "capabilities": ["webhook_inbox", "reply_window_tracking", "lead_source_mapping"],
+        "security_requirements": ["professional_account", "meta_app_review", "webhook_signature"],
+        "data_note": "Requires a professional account connected to Meta Business. Personal inbox scraping is not supported.",
+    },
+    "facebook": {
+        "label": "Facebook Page Messenger",
+        "official_status": "available_with_review",
+        "default_mode": "official_api_requested",
+        "capabilities": ["page_inbox", "webhook_inbox", "reply_window_tracking"],
+        "security_requirements": ["page_admin_authorization", "meta_app_review", "webhook_signature"],
+        "data_note": "Works with Facebook Pages, not personal accounts or unsupported Marketplace private inboxes.",
+    },
+    "tiktok": {
+        "label": "TikTok",
+        "official_status": "limited",
+        "default_mode": "assisted_capture",
+        "capabilities": ["source_tracking", "assisted_capture", "lead_form_handoff"],
+        "security_requirements": ["no_scraping", "no_password_collection", "official_partner_review"],
+        "data_note": "Treat TikTok DM sync as limited until official business messaging access is approved.",
+    },
+    "xiaohongshu": {
+        "label": "Xiaohongshu",
+        "official_status": "limited",
+        "default_mode": "assisted_capture",
+        "capabilities": ["source_tracking", "assisted_capture", "keyword_handoff"],
+        "security_requirements": ["no_scraping", "no_password_collection", "official_platform_review"],
+        "data_note": "Use assisted capture or official merchant platform access only. Do not store passwords or cookies.",
+    },
+}
+
+
+def channel_catalog_item(channel):
+    item = CHANNEL_CATALOG.get(channel)
+    if not item:
+        raise HTTPException(status_code=404, detail="Channel is not supported")
+    return item
+
+
+def row_to_channel_connection(row):
+    capabilities = json.loads(row["capabilities_json"] or "[]")
+    return {
+        "id": row["id"],
+        "business_slug": row["business_slug"],
+        "channel": row["channel"],
+        "integration_mode": row["integration_mode"],
+        "status": row["status"],
+        "account_label": row["account_label"] or "",
+        "external_account_id": row["external_account_id"] or "",
+        "capabilities": capabilities,
+        "token_status": row["token_status"] or "not_stored",
+        "data_processing_acknowledged": bool(row["data_processing_acknowledged"]),
+        "security_reviewed_at": row["security_reviewed_at"] or "",
+        "last_sync_at": row["last_sync_at"] or "",
+        "notes": row["notes"] or "",
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def list_channel_connections(business_slug):
+    with db_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM channel_connections WHERE business_slug = ? ORDER BY channel",
+            (normalize_slug(business_slug),),
+        ).fetchall()
+    return {row["channel"]: row_to_channel_connection(row) for row in rows}
+
+
+def channel_connection_response(profile):
+    saved = list_channel_connections(profile["slug"])
+    connections = []
+    for channel, item in CHANNEL_CATALOG.items():
+        existing = saved.get(channel)
+        if existing:
+            status = existing["status"]
+            integration_mode = existing["integration_mode"]
+            account_label = existing["account_label"]
+            external_account_id = existing["external_account_id"]
+            acknowledged = existing["data_processing_acknowledged"]
+            notes = existing["notes"]
+            updated_at = existing["updated_at"]
+        else:
+            status = "setup_required" if item["official_status"] != "limited" else "limited"
+            integration_mode = item["default_mode"]
+            account_label = ""
+            external_account_id = ""
+            acknowledged = False
+            notes = ""
+            updated_at = ""
+
+        connections.append(
+            {
+                "channel": channel,
+                "label": item["label"],
+                "official_status": item["official_status"],
+                "integration_mode": integration_mode,
+                "status": status,
+                "account_label": account_label,
+                "external_account_id": external_account_id,
+                "capabilities": item["capabilities"],
+                "security_requirements": item["security_requirements"],
+                "token_status": "not_stored",
+                "data_processing_acknowledged": acknowledged,
+                "data_note": item["data_note"],
+                "notes": notes,
+                "updated_at": updated_at,
+            }
+        )
+
+    return {
+        "business": {
+            "slug": profile["slug"],
+            "business_name": profile["business_name"],
+            "data_retention_days": profile.get("data_retention_days", 365),
+        },
+        "summary": {
+            "total": len(connections),
+            "official_ready": sum(1 for item in connections if item["official_status"].startswith("available")),
+            "limited": sum(1 for item in connections if item["official_status"] == "limited"),
+            "configured": sum(1 for item in connections if item["status"] in {"requested", "assisted", "connected"}),
+        },
+        "security_notice": (
+            "NexaFlow stores channel connection metadata only in this setup screen. "
+            "Do not paste platform passwords, OTPs, cookies, long-lived access tokens, or customer identity documents."
+        ),
+        "data_protection": {
+            "owner_key_required": True,
+            "tokens_stored": False,
+            "audit_events": True,
+            "retention_days": profile.get("data_retention_days", 365),
+        },
+        "connections": connections,
+    }
+
+
+def contains_forbidden_channel_secret(*values):
+    text = " ".join(str(value or "") for value in values).lower()
+    secret_markers = [
+        "access_token",
+        "refresh_token",
+        "client_secret",
+        "app_secret",
+        "bearer ",
+        "cookie",
+        "sessionid",
+        "password=",
+        "passwd",
+        "otp",
+        "authorization:",
+    ]
+    return any(marker in text for marker in secret_markers)
+
+
+def upsert_channel_connection(profile, channel, req):
+    catalog = channel_catalog_item(channel)
+    if req.integration_mode == "official_api_requested" and catalog["official_status"] == "limited":
+        raise HTTPException(status_code=400, detail="This channel does not support official DM sync in the current setup")
+    if req.status == "requested" and not req.data_processing_acknowledged:
+        raise HTTPException(status_code=400, detail="Data processing acknowledgement is required before requesting a channel connection")
+    if contains_forbidden_channel_secret(req.account_label, req.external_account_id, req.notes):
+        raise HTTPException(status_code=400, detail="Do not paste passwords, OTPs, cookies, app secrets, or access tokens into channel setup")
+
+    timestamp = now_iso()
+    capabilities_json = json.dumps(catalog["capabilities"], separators=(",", ":"), sort_keys=True)
+    with db_connection() as connection:
+        existing = connection.execute(
+            "SELECT * FROM channel_connections WHERE business_slug = ? AND channel = ?",
+            (profile["slug"], channel),
+        ).fetchone()
+        if existing:
+            connection.execute(
+                """
+                UPDATE channel_connections
+                SET integration_mode = ?, status = ?, account_label = ?, external_account_id = ?,
+                    capabilities_json = ?, token_status = 'not_stored', data_processing_acknowledged = ?,
+                    security_reviewed_at = ?, notes = ?, updated_at = ?
+                WHERE business_slug = ? AND channel = ?
+                """,
+                (
+                    req.integration_mode,
+                    req.status,
+                    req.account_label.strip(),
+                    req.external_account_id.strip(),
+                    capabilities_json,
+                    1 if req.data_processing_acknowledged else 0,
+                    timestamp if req.data_processing_acknowledged else None,
+                    req.notes.strip(),
+                    timestamp,
+                    profile["slug"],
+                    channel,
+                ),
+            )
+        else:
+            connection.execute(
+                """
+                INSERT INTO channel_connections (
+                    business_slug, channel, integration_mode, status, account_label, external_account_id,
+                    capabilities_json, token_status, data_processing_acknowledged, security_reviewed_at,
+                    notes, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'not_stored', ?, ?, ?, ?, ?)
+                """,
+                (
+                    profile["slug"],
+                    channel,
+                    req.integration_mode,
+                    req.status,
+                    req.account_label.strip(),
+                    req.external_account_id.strip(),
+                    capabilities_json,
+                    1 if req.data_processing_acknowledged else 0,
+                    timestamp if req.data_processing_acknowledged else None,
+                    req.notes.strip(),
+                    timestamp,
+                    timestamp,
+                ),
+            )
+        row = connection.execute(
+            "SELECT * FROM channel_connections WHERE business_slug = ? AND channel = ?",
+            (profile["slug"], channel),
+        ).fetchone()
+        write_data_audit_event(
+            "channel.connection_updated",
+            "merchant",
+            "channel_connection",
+            row["id"],
+            business_slug=profile["slug"],
+            metadata={
+                "channel": channel,
+                "integration_mode": req.integration_mode,
+                "status": req.status,
+                "token_status": "not_stored",
+                "data_processing_acknowledged": req.data_processing_acknowledged,
+            },
+            connection=connection,
+        )
+
+    return {
+        **row_to_channel_connection(row),
+        "label": catalog["label"],
+        "official_status": catalog["official_status"],
+        "security_requirements": catalog["security_requirements"],
+        "data_note": catalog["data_note"],
     }
 
 
@@ -7220,6 +7538,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div class="toolbar">
                 <label>Owner inbox password<input id="businessKey" type="password" placeholder="biz_..."></label>
                 <button class="btn" onclick="loadMerchantInbox()">Open Inbox</button>
+                <a class="btn secondary" href="/channels/{slug}">Connect Channels</a>
                 <button class="btn secondary" onclick="exportMerchantCsv()">Download Customer List</button>
             </div>
             <div class="status" id="merchantStatus">Enter your owner inbox password to load this private inbox. Do not share this password publicly.</div>
@@ -7837,6 +8156,162 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 loadMerchantInbox();
             }}
             renderMerchantChecklist();
+        </script>
+        """
+    )
+
+
+@app.get("/channels/{business_slug}", response_class=HTMLResponse)
+@app.get("/apps/enquiry/channels/{business_slug}", response_class=HTMLResponse)
+def merchant_channel_connections_page(business_slug: str):
+    profile = get_business_profile(business_slug)
+    business_name = escape_html(profile["business_name"])
+    slug = escape_html(profile["slug"])
+    return merchant_html(
+        f"{business_name} Channel Connections",
+        profile["business_name"],
+        f"""
+        <section class="hero compact">
+            <div>
+                <div class="eyebrow">Connect Channels</div>
+                <h1>{business_name} Channel Connections</h1>
+                <p class="lead">Prepare official WhatsApp, Instagram, and Facebook inbox sync while keeping TikTok and Xiaohongshu in safe assisted-capture mode until official access is approved.</p>
+            </div>
+        </section>
+        <section class="form-card">
+            <div class="toolbar">
+                <label>Owner inbox password<input id="businessKey" type="password" placeholder="biz_..."></label>
+                <button class="btn" onclick="loadChannelConnections()">Load Channels</button>
+                <a class="btn secondary" href="/inbox/{slug}">Back to Inbox</a>
+            </div>
+            <div class="status" id="channelStatus">Enter the owner inbox password to manage channel connections.</div>
+            <p class="mini-note">Never paste platform passwords, OTPs, cookies, access tokens, or customer identity documents here. This setup stores connection metadata only.</p>
+        </section>
+        <section class="grid" id="channelSummary"></section>
+        <section class="form-card">
+            <div class="section-head onboarding-head">
+                <div>
+                    <h2>Security baseline</h2>
+                    <p>Direct DM sync must use official APIs, signed webhooks, least-privilege permissions, audit logs, and retention rules. Unsupported inbox scraping is not part of NexaFlow.</p>
+                </div>
+            </div>
+            <div class="setup-panel">
+                <div class="setup-step"><strong>No token paste</strong><span>OAuth tokens and app secrets belong in server-side secret storage, not merchant forms.</span></div>
+                <div class="setup-step"><strong>Owner key required</strong><span>Only the private owner inbox key can view or update channel connection plans.</span></div>
+                <div class="setup-step"><strong>Audit trail</strong><span>Every channel request records who changed what, without exposing customer message content.</span></div>
+                <div class="setup-step"><strong>Retention aware</strong><span>Future synced messages must follow the business data-retention window.</span></div>
+            </div>
+        </section>
+        <section class="grid" id="channelCards"></section>
+        <script>
+            const businessSlug = "{slug}";
+            function escapeHtml(value) {{
+                return String(value ?? "").replace(/[&<>"']/g, char => ({{
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }}[char]));
+            }}
+            function selected(value, expected) {{
+                return value === expected ? "selected" : "";
+            }}
+            async function channelApi(path, options = {{}}) {{
+                const businessKey = document.getElementById("businessKey").value;
+                const headers = {{ "X-Business-Key": businessKey, ...(options.headers || {{}}) }};
+                const response = await fetch(path, {{ ...options, headers }});
+                if (!response.ok) {{
+                    throw new Error(await response.text());
+                }}
+                return response.json();
+            }}
+            function renderChannelConnections(payload) {{
+                const summary = payload.summary || {{}};
+                const protection = payload.data_protection || {{}};
+                document.getElementById("channelSummary").innerHTML = `
+                    <section class="card"><h3>Total Channels</h3><div class="price">${{summary.total || 0}}</div></section>
+                    <section class="card"><h3>Official-ready</h3><div class="price">${{summary.official_ready || 0}}</div></section>
+                    <section class="card"><h3>Limited</h3><div class="price">${{summary.limited || 0}}</div></section>
+                    <section class="card"><h3>Tokens Stored</h3><div class="price">${{protection.tokens_stored ? "Yes" : "No"}}</div></section>
+                    <section class="card"><h3>Retention Days</h3><div class="price">${{protection.retention_days || 365}}</div></section>
+                    <section class="card"><h3>Audit Events</h3><div class="price">${{protection.audit_events ? "On" : "Off"}}</div></section>
+                `;
+                document.getElementById("channelCards").innerHTML = (payload.connections || []).map(item => `
+                    <section class="card">
+                        <h3>${{escapeHtml(item.label)}}</h3>
+                        <p>${{escapeHtml(item.data_note || "")}}</p>
+                        <div class="lead-badges">
+                            <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{escapeHtml(item.official_status)}}</span>
+                            <span class="lead-badge">Token: ${{escapeHtml(item.token_status || "not_stored")}}</span>
+                            <span class="lead-badge">${{item.data_processing_acknowledged ? "Data processing acknowledged" : "Needs acknowledgement"}}</span>
+                        </div>
+                        <label>Integration mode
+                            <select id="mode-${{item.channel}}">
+                                <option value="official_api_requested" ${{selected(item.integration_mode, "official_api_requested")}}>Official API requested</option>
+                                <option value="assisted_capture" ${{selected(item.integration_mode, "assisted_capture")}}>Assisted capture</option>
+                                <option value="smart_link" ${{selected(item.integration_mode, "smart_link")}}>Smart link / QR</option>
+                                <option value="lead_form" ${{selected(item.integration_mode, "lead_form")}}>Lead form handoff</option>
+                            </select>
+                        </label>
+                        <label>Status
+                            <select id="status-${{item.channel}}">
+                                <option value="requested" ${{selected(item.status, "requested")}}>Requested</option>
+                                <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active</option>
+                                <option value="paused" ${{selected(item.status, "paused")}}>Paused</option>
+                            </select>
+                        </label>
+                        <label>Account or page label<input id="label-${{item.channel}}" value="${{escapeHtml(item.account_label || "")}}" placeholder="@dealer or page name"></label>
+                        <label>External account ID optional<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="Page ID / WABA ID / handle"></label>
+                        <label>Notes<textarea id="notes-${{item.channel}}" placeholder="Setup notes, never secrets">${{escapeHtml(item.notes || "")}}</textarea></label>
+                        <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>I confirm this channel may be used for customer enquiry follow-up and I will not paste platform passwords, OTPs, cookies, or access tokens.</span></label>
+                        <div class="lead-badges">
+                            ${{(item.capabilities || []).map(value => `<span class="lead-badge">${{escapeHtml(value)}}</span>`).join("")}}
+                        </div>
+                        <span class="next-action">Security: ${{(item.security_requirements || []).map(value => escapeHtml(value)).join(" · ")}}</span>
+                        <button class="btn" onclick="saveChannelConnection('${{item.channel}}')">Save Channel</button>
+                    </section>
+                `).join("");
+            }}
+            async function loadChannelConnections() {{
+                const status = document.getElementById("channelStatus");
+                status.textContent = "Loading channel connections...";
+                try {{
+                    const payload = await channelApi(`/apps/enquiry/api/merchant/channel-connections?business_slug=${{businessSlug}}`);
+                    renderChannelConnections(payload);
+                    localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
+                    status.textContent = payload.security_notice || "Loaded.";
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+            async function saveChannelConnection(channel) {{
+                const status = document.getElementById("channelStatus");
+                status.textContent = `Saving ${{channel}} connection...`;
+                try {{
+                    await channelApi(`/apps/enquiry/api/merchant/channel-connections/${{channel}}?business_slug=${{businessSlug}}`, {{
+                        method: "PATCH",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            integration_mode: document.getElementById(`mode-${{channel}}`).value,
+                            status: document.getElementById(`status-${{channel}}`).value,
+                            account_label: document.getElementById(`label-${{channel}}`).value,
+                            external_account_id: document.getElementById(`external-${{channel}}`).value,
+                            notes: document.getElementById(`notes-${{channel}}`).value,
+                            data_processing_acknowledged: document.getElementById(`ack-${{channel}}`).checked
+                        }})
+                    }});
+                    await loadChannelConnections();
+                    status.textContent = `${{channel}} connection saved. No passwords or access tokens were stored.`;
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+            const savedBusinessKey = localStorage.getItem(`nexaflow_business_key_${{businessSlug}}`);
+            if (savedBusinessKey) {{
+                document.getElementById("businessKey").value = savedBusinessKey;
+                loadChannelConnections();
+            }}
         </script>
         """
     )
@@ -9791,6 +10266,40 @@ def get_merchant_share_links(
         authorization=authorization,
     )
     return merchant_share_links(profile, campaign=campaign)
+
+
+@app.get("/apps/enquiry/api/merchant/channel-connections")
+def get_merchant_channel_connections(
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return channel_connection_response(profile)
+
+
+@app.patch("/apps/enquiry/api/merchant/channel-connections/{channel}")
+def update_merchant_channel_connection(
+    channel: str,
+    req: ChannelConnectionUpdate,
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return upsert_channel_connection(profile, channel, req)
 
 
 @app.patch("/apps/enquiry/api/merchant/profile")
