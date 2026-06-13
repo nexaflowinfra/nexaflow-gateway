@@ -6165,6 +6165,36 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     font-size: 12px;
                     font-weight: 800;
                 }}
+                .simple-lead-list {{
+                    display: grid;
+                    gap: 12px;
+                }}
+                .simple-lead-card {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background: var(--surface);
+                    padding: 14px;
+                    display: grid;
+                    grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.2fr) minmax(180px, .8fr);
+                    gap: 12px;
+                    align-items: start;
+                }}
+                .simple-lead-card strong {{
+                    color: var(--ink);
+                    display: block;
+                    margin-bottom: 4px;
+                }}
+                .simple-lead-card small {{
+                    color: var(--muted);
+                    display: block;
+                    line-height: 1.45;
+                }}
+                .simple-actions {{
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    align-items: center;
+                }}
                 details.form-card summary {{
                     cursor: pointer;
                     color: var(--ink);
@@ -6423,7 +6453,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
@@ -7530,80 +7560,92 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <section class="hero compact">
             <div>
                 <div class="eyebrow">Merchant inbox</div>
-                <h1>{business_name} Follow-up Cockpit</h1>
-                <p class="lead">Bring WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referral enquiries into one working list with AI signals for the next follow-up.</p>
+                <h1>Today&apos;s Customer Follow-up</h1>
+                <p class="lead">Open once a day, see who needs attention, and use the next suggested question before the lead goes cold.</p>
             </div>
         </section>
         <section class="form-card">
             <div class="toolbar">
                 <label>Owner inbox password<input id="businessKey" type="password" placeholder="biz_..."></label>
-                <button class="btn" onclick="loadMerchantInbox()">Open Inbox</button>
+                <button class="btn" onclick="loadMerchantInbox()">Open Today</button>
                 <a class="btn secondary" href="/channels/{slug}">Connect Channels</a>
-                <button class="btn secondary" onclick="exportMerchantCsv()">Download Customer List</button>
             </div>
             <div class="status" id="merchantStatus">Enter your owner inbox password to load this private inbox. Do not share this password publicly.</div>
             <p class="mini-note">Customer data in this inbox should only be used for replies, quotations, appointments, service follow-up, support, security, and required records.</p>
         </section>
         <section class="action-center" id="merchantActionCenter"></section>
-        <section class="grid" id="merchantStats"></section>
-        <section class="action-center" id="merchantChannelCenter"></section>
-        <section class="form-card" id="merchantQuickShare">
+        <section class="form-card" id="merchantDailyWork">
             <div class="section-head onboarding-head">
                 <div>
-                    <h2>Share your enquiry link</h2>
-                    <p>Use one link on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or your website.</p>
+                    <h2>Customers to handle now</h2>
+                    <p>Start from the top. Each card shows the customer, what they are likely stuck on, and the next action.</p>
                 </div>
             </div>
-            <div id="merchantShareLinks"></div>
+            <div class="simple-lead-list" id="merchantDailyLeads"></div>
         </section>
         <details class="form-card">
-            <summary>Trial launch checklist</summary>
-            <p>Complete these once before sending the enquiry link to real customers.</p>
-            <button class="btn secondary" onclick="resetMerchantChecklist()">Reset</button>
-            <div class="checklist" id="merchantChecklist"></div>
+            <summary>Advanced tools: sources, sharing, setup, and settings</summary>
+            <section class="grid" id="merchantStats"></section>
+            <section class="action-center" id="merchantChannelCenter"></section>
+            <section class="form-card" id="merchantQuickShare">
+                <div class="section-head onboarding-head">
+                    <div>
+                        <h2>Share your enquiry link</h2>
+                        <p>Use one link on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or your website.</p>
+                    </div>
+                </div>
+                <div id="merchantShareLinks"></div>
+            </section>
+            <details class="form-card">
+                <summary>Trial launch checklist</summary>
+                <p>Complete these once before sending the enquiry link to real customers.</p>
+                <button class="btn secondary" onclick="resetMerchantChecklist()">Reset</button>
+                <div class="checklist" id="merchantChecklist"></div>
+            </details>
+            <details class="form-card">
+                <summary>Business settings</summary>
+                <p>Update these only when your WhatsApp, email, service summary, or opening hours change.</p>
+                <div class="toolbar">
+                    <label>Business Name<input id="settingsBusinessName" placeholder="Your business"></label>
+                    <label>Business Type
+                        <select id="settingsBusinessType">
+                            <option value="renovation">Renovation</option>
+                            <option value="repair">Repair</option>
+                            <option value="tuition">Tuition</option>
+                            <option value="beauty">Beauty</option>
+                            <option value="retail">Retail</option>
+                            <option value="general">General Service</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="toolbar">
+                    <label>WhatsApp Phone<input id="settingsWhatsapp" placeholder="+65 9123 4567"></label>
+                    <label>Notification Email<input id="settingsEmail" placeholder="owner@example.com"></label>
+                </div>
+                <label>Service Summary<textarea id="settingsOffer" placeholder="Tell customers what service you provide."></textarea></label>
+                <div class="toolbar">
+                    <label>Reply Tone<input id="settingsTone" placeholder="friendly and professional"></label>
+                    <label>Opening Hours<input id="settingsHours" placeholder="Mon-Sat, 9am-6pm"></label>
+                </div>
+                <div class="toolbar">
+                    <label><input id="settingsAutoFollowup" type="checkbox"> Auto-schedule follow-up</label>
+                    <label>Hot Lead Follow-up Hours<input id="settingsHotFollowupHours" type="number" min="0" max="72" step="1"></label>
+                    <label>Standard Follow-up Days<input id="settingsStandardFollowupDays" type="number" min="1" max="30" step="1"></label>
+                    <label>Data Retention Days<input id="settingsDataRetentionDays" type="number" min="30" max="2555" step="1"></label>
+                </div>
+                <button class="btn" onclick="saveMerchantSettings()">Save Settings</button>
+                <div class="status" id="settingsStatus">Load leads first, then update your business settings here.</div>
+            </details>
         </details>
         <details class="form-card">
-            <summary>Business settings</summary>
-            <p>Update these only when your WhatsApp, email, service summary, or opening hours change.</p>
-            <div class="toolbar">
-                <label>Business Name<input id="settingsBusinessName" placeholder="Your business"></label>
-                <label>Business Type
-                    <select id="settingsBusinessType">
-                        <option value="renovation">Renovation</option>
-                        <option value="repair">Repair</option>
-                        <option value="tuition">Tuition</option>
-                        <option value="beauty">Beauty</option>
-                        <option value="retail">Retail</option>
-                        <option value="general">General Service</option>
-                    </select>
-                </label>
+            <summary>Full lead list and filters</summary>
+            <div class="section-head">
+                <div>
+                    <h2>Lead pipeline</h2>
+                    <p>Prioritize hot enquiries first, then mark each one as contacted, quoted, booked, or not proceeding.</p>
+                </div>
             </div>
-            <div class="toolbar">
-                <label>WhatsApp Phone<input id="settingsWhatsapp" placeholder="+65 9123 4567"></label>
-                <label>Notification Email<input id="settingsEmail" placeholder="owner@example.com"></label>
-            </div>
-            <label>Service Summary<textarea id="settingsOffer" placeholder="Tell customers what service you provide."></textarea></label>
-            <div class="toolbar">
-                <label>Reply Tone<input id="settingsTone" placeholder="friendly and professional"></label>
-                <label>Opening Hours<input id="settingsHours" placeholder="Mon-Sat, 9am-6pm"></label>
-            </div>
-            <div class="toolbar">
-                <label><input id="settingsAutoFollowup" type="checkbox"> Auto-schedule follow-up</label>
-                <label>Hot Lead Follow-up Hours<input id="settingsHotFollowupHours" type="number" min="0" max="72" step="1"></label>
-                <label>Standard Follow-up Days<input id="settingsStandardFollowupDays" type="number" min="1" max="30" step="1"></label>
-                <label>Data Retention Days<input id="settingsDataRetentionDays" type="number" min="30" max="2555" step="1"></label>
-            </div>
-            <button class="btn" onclick="saveMerchantSettings()">Save Settings</button>
-            <div class="status" id="settingsStatus">Load leads first, then update your business settings here.</div>
-        </details>
-        <div class="section-head">
-            <div>
-                <h2>Lead pipeline</h2>
-                <p>Prioritize hot enquiries first, then mark each one as contacted, quoted, booked, or not proceeding.</p>
-            </div>
-        </div>
-        <section class="pipeline-board" id="merchantPipelineBoard"></section>
-        <section class="form-card">
+            <section class="pipeline-board" id="merchantPipelineBoard"></section>
             <div class="toolbar">
                 <label>Status
                     <select id="filterStatus">
@@ -7666,13 +7708,14 @@ def merchant_enquiry_inbox_page(business_slug: str):
             </div>
             <button class="btn" onclick="loadMerchantInbox()">Apply Filters</button>
             <button class="btn secondary" onclick="clearMerchantFilters()">Clear</button>
-        </section>
-        <table>
-            <thead>
-                <tr><th>Time</th><th>Lead</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Follow-up Copilot</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
-            </thead>
-            <tbody id="merchantRows"></tbody>
-        </table>
+            <button class="btn secondary" onclick="exportMerchantCsv()">Download Customer List</button>
+            <table>
+                <thead>
+                    <tr><th>Time</th><th>Lead</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Follow-up Copilot</th><th>Draft</th><th>Follow-up</th><th>Value</th><th>Note</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody id="merchantRows"></tbody>
+            </table>
+        </details>
         <script>
             const businessSlug = "{slug}";
             const checklistStorageKey = `nexaflow_trial_checklist_${{businessSlug}}`;
@@ -7954,6 +7997,51 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 today.setHours(0, 0, 0, 0);
                 return !Number.isNaN(due.getTime()) && due <= today;
             }}
+            function simpleLeadRank(item) {{
+                if (isDueFollowUp(item)) return 0;
+                if (item.priority === "hot" && !["won", "lost", "spam"].includes(item.status)) return 1;
+                if (item.status === "new") return 2;
+                if (item.status === "quoted") return 3;
+                if (item.status === "contacted") return 4;
+                return 9;
+            }}
+            function renderDailyLeads(leads) {{
+                const actionable = (leads || [])
+                    .filter(item => !["won", "lost", "spam"].includes(item.status))
+                    .sort((a, b) => simpleLeadRank(a) - simpleLeadRank(b))
+                    .slice(0, 8);
+                const target = document.getElementById("merchantDailyLeads");
+                if (!actionable.length) {{
+                    target.innerHTML = `
+                        <div class="status">No customers need action right now. New enquiries and due follow-ups will appear here first.</div>
+                    `;
+                    return;
+                }}
+                target.innerHTML = actionable.map(item => `
+                    <div class="simple-lead-card">
+                        <div>
+                            <strong>${{escapeHtml(item.name)}}</strong>
+                            <small>${{escapeHtml(item.phone)}}${{item.email ? ` · ${{escapeHtml(item.email)}}` : ""}}</small>
+                            <div class="lead-badges">
+                                <span class="lead-badge ${{item.priority === "hot" || isDueFollowUp(item) ? "hot" : ""}}">${{isDueFollowUp(item) ? "Due now" : escapeHtml(item.priority)}}</span>
+                                <span class="lead-badge">${{escapeHtml(sourceLabel(item.source || "unknown"))}}</span>
+                                <span class="lead-badge">${{escapeHtml(statusLabel(item.status))}}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <strong>${{escapeHtml(chooseNextAction(item))}}</strong>
+                            <small>${{escapeHtml((item.message || "").slice(0, 180))}}</small>
+                            <div class="lead-badges">${{renderFollowUpSignals(item)}}</div>
+                        </div>
+                        <div class="simple-actions">
+                            ${{item.whatsapp_url ? `<a class="btn" target="_blank" href="${{escapeHtml(item.whatsapp_url)}}">WhatsApp</a>` : ""}}
+                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">Contacted</button>
+                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">Quoted</button>
+                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">Booked</button>
+                        </div>
+                    </div>
+                `).join("");
+            }}
             function renderActionCenter(data) {{
                 const stats = data.stats || {{}};
                 const leads = data.enquiries || [];
@@ -7965,15 +8053,15 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const quoted = (stats.by_status || {{}}).quoted || 0;
                 const topLead = leads.find(isDueFollowUp) || leads.find(item => item.priority === "hot" && item.status !== "won" && item.status !== "lost") || leads.find(item => item.status === "new");
                 const firstAction = due > 0
-                    ? ["Follow up due leads", `${{due}} lead(s) need attention today.`]
+                    ? ["Follow up due buyers", `${{due}} buyer(s) need attention today.`]
                     : hot > 0
-                        ? ["Reply to hot leads", `${{hot}} hot lead(s) should be contacted first.`]
+                        ? ["Reply to hot buyers", `${{hot}} hot buyer(s) should be contacted first.`]
                         : newCount > 0
-                            ? ["Contact new leads", `${{newCount}} new lead(s) are waiting for first reply.`]
-                            : ["Keep follow-ups updated", "No urgent enquiries. Review quoted customers and mark the next step."];
+                            ? ["Reply to new buyers", `${{newCount}} new buyer(s) are waiting for first reply.`]
+                            : ["Review active buyers", "No urgent enquiries. Check quoted buyers and mark the next step."];
                 document.getElementById("merchantActionCenter").innerHTML = `
                     <div class="action-card">
-                        <h3>Today&apos;s focus</h3>
+                        <h3>Today&apos;s follow-up</h3>
                         <p>${{escapeHtml(firstAction[1])}}</p>
                         <div class="action-list">
                             <div class="action-item"><span class="action-dot">1</span><div><strong>${{escapeHtml(firstAction[0])}}</strong><span>${{topLead ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.` : "Share your enquiry link and wait for new submissions."}}</span></div></div>
@@ -7982,19 +8070,22 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         </div>
                     </div>
                     <div class="action-card">
-                        <h3>Setup status</h3>
+                        <h3>Quick numbers</h3>
                         <p>${{escapeHtml(onboarding.percent ?? 0)}}% ready · ${{escapeHtml(onboarding.next_action || "Complete setup before promotion.")}}</p>
                         <div class="lead-badges">
-                            ${{onboardingChecks.map(item => `<span class="lead-badge ${{item.done ? "hot" : ""}}">${{item.done ? "Done" : "Todo"}} · ${{escapeHtml(item.label)}}</span>`).join("")}}
+                            <span class="lead-badge ${{due ? "hot" : ""}}">Due today · ${{due}}</span>
+                            <span class="lead-badge ${{hot ? "hot" : ""}}">Hot · ${{hot}}</span>
+                            <span class="lead-badge">New · ${{newCount}}</span>
+                            <span class="lead-badge">Quoted · ${{quoted}}</span>
                         </div>
-                        <span class="next-action">Target: get 3-5 real enquiries in trial week one.</span>
+                        <span class="next-action">Use this page as the daily follow-up list.</span>
                     </div>
                     <div class="action-card">
-                        <h3>Fast shortcuts</h3>
-                        <p>Most merchants only need these three actions every day.</p>
+                        <h3>Shortcuts</h3>
+                        <p>Most dealers only need these actions during the day.</p>
                         <div class="lead-badges">
-                            <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">New leads</button>
-                            <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">Due follow-ups</button>
+                            <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">New buyers</button>
+                            <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">Due today</button>
                             <button class="btn secondary" onclick="copyMerchantElement('merchantShareDirect', 'Customer enquiry link')">Copy enquiry link</button>
                         </div>
                     </div>
@@ -8107,6 +8198,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <section class="card"><h3>Due Follow-ups</h3><div class="price">${{stats.due_followups || 0}}</div></section>
                     `;
                     renderActionCenter(data);
+                    renderDailyLeads(data.enquiries || []);
                     renderChannelCenter(stats);
                     renderPipelineBoard(stats);
                     localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
@@ -8168,28 +8260,29 @@ def merchant_channel_connections_page(business_slug: str):
     business_name = escape_html(profile["business_name"])
     slug = escape_html(profile["slug"])
     return merchant_html(
-        f"{business_name} Channel Connections",
+        f"{business_name} Social Source Setup",
         profile["business_name"],
         f"""
         <section class="hero compact">
             <div>
-                <div class="eyebrow">Connect Channels</div>
-                <h1>{business_name} Channel Connections</h1>
-                <p class="lead">Prepare official WhatsApp, Instagram, and Facebook inbox sync while keeping TikTok and Xiaohongshu in safe assisted-capture mode until official access is approved.</p>
+                <div class="eyebrow">Social sources</div>
+                <h1>Social Source Setup</h1>
+                <p class="lead">Set where buyer messages come from. Start with WhatsApp, Facebook, and Instagram; keep TikTok and Xiaohongshu in assisted mode until official access is ready.</p>
             </div>
         </section>
         <section class="form-card">
             <div class="toolbar">
                 <label>Owner inbox password<input id="businessKey" type="password" placeholder="biz_..."></label>
-                <button class="btn" onclick="loadChannelConnections()">Load Channels</button>
+                <button class="btn" onclick="loadChannelConnections()">Open Settings</button>
                 <a class="btn secondary" href="/inbox/{slug}">Back to Inbox</a>
             </div>
-            <div class="status" id="channelStatus">Enter the owner inbox password to manage channel connections.</div>
+            <div class="status" id="channelStatus">Enter the owner inbox password to manage social source settings.</div>
             <p class="mini-note">Never paste platform passwords, OTPs, cookies, access tokens, or customer identity documents here. This setup stores connection metadata only.</p>
         </section>
         <section class="grid" id="channelSummary"></section>
-        <section class="form-card">
-            <div class="section-head onboarding-head">
+        <details class="form-card">
+            <summary>Security details</summary>
+            <div class="section-head">
                 <div>
                     <h2>Security baseline</h2>
                     <p>Direct DM sync must use official APIs, signed webhooks, least-privilege permissions, audit logs, and retention rules. Unsupported inbox scraping is not part of NexaFlow.</p>
@@ -8201,7 +8294,7 @@ def merchant_channel_connections_page(business_slug: str):
                 <div class="setup-step"><strong>Audit trail</strong><span>Every channel request records who changed what, without exposing customer message content.</span></div>
                 <div class="setup-step"><strong>Retention aware</strong><span>Future synced messages must follow the business data-retention window.</span></div>
             </div>
-        </section>
+        </details>
         <section class="grid" id="channelCards"></section>
         <script>
             const businessSlug = "{slug}";
@@ -8229,49 +8322,60 @@ def merchant_channel_connections_page(business_slug: str):
             function renderChannelConnections(payload) {{
                 const summary = payload.summary || {{}};
                 const protection = payload.data_protection || {{}};
+                const connections = payload.connections || [];
+                const mainChannels = connections.filter(item => ["whatsapp", "facebook", "instagram"].includes(item.channel));
+                const otherChannels = connections.filter(item => !["whatsapp", "facebook", "instagram"].includes(item.channel));
                 document.getElementById("channelSummary").innerHTML = `
-                    <section class="card"><h3>Total Channels</h3><div class="price">${{summary.total || 0}}</div></section>
-                    <section class="card"><h3>Official-ready</h3><div class="price">${{summary.official_ready || 0}}</div></section>
-                    <section class="card"><h3>Limited</h3><div class="price">${{summary.limited || 0}}</div></section>
-                    <section class="card"><h3>Tokens Stored</h3><div class="price">${{protection.tokens_stored ? "Yes" : "No"}}</div></section>
-                    <section class="card"><h3>Retention Days</h3><div class="price">${{protection.retention_days || 365}}</div></section>
-                    <section class="card"><h3>Audit Events</h3><div class="price">${{protection.audit_events ? "On" : "Off"}}</div></section>
+                    <section class="card"><h3>Main sources</h3><div class="price">${{mainChannels.length}}</div><p>WhatsApp, Facebook, Instagram</p></section>
+                    <section class="card"><h3>Setup requested</h3><div class="price">${{summary.configured || 0}}</div><p>Saved source settings</p></section>
+                    <section class="card"><h3>Limited sources</h3><div class="price">${{summary.limited || 0}}</div><p>TikTok / Xiaohongshu assisted mode</p></section>
                 `;
-                document.getElementById("channelCards").innerHTML = (payload.connections || []).map(item => `
+                function renderChannelCard(item) {{
+                    return `
                     <section class="card">
                         <h3>${{escapeHtml(item.label)}}</h3>
                         <p>${{escapeHtml(item.data_note || "")}}</p>
                         <div class="lead-badges">
-                            <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{escapeHtml(item.official_status)}}</span>
-                            <span class="lead-badge">Token: ${{escapeHtml(item.token_status || "not_stored")}}</span>
-                            <span class="lead-badge">${{item.data_processing_acknowledged ? "Data processing acknowledged" : "Needs acknowledgement"}}</span>
+                            <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{item.official_status === "limited" ? "Assisted only" : "Can request sync"}}</span>
+                            <span class="lead-badge">${{item.data_processing_acknowledged ? "Confirmed" : "Needs confirm"}}</span>
                         </div>
-                        <label>Integration mode
+                        <label>Current way
                             <select id="mode-${{item.channel}}">
-                                <option value="official_api_requested" ${{selected(item.integration_mode, "official_api_requested")}}>Official API requested</option>
-                                <option value="assisted_capture" ${{selected(item.integration_mode, "assisted_capture")}}>Assisted capture</option>
-                                <option value="smart_link" ${{selected(item.integration_mode, "smart_link")}}>Smart link / QR</option>
-                                <option value="lead_form" ${{selected(item.integration_mode, "lead_form")}}>Lead form handoff</option>
-                            </select>
-                        </label>
-                        <label>Status
-                            <select id="status-${{item.channel}}">
-                                <option value="requested" ${{selected(item.status, "requested")}}>Requested</option>
-                                <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active</option>
-                                <option value="paused" ${{selected(item.status, "paused")}}>Paused</option>
+                                <option value="official_api_requested" ${{selected(item.integration_mode, "official_api_requested")}}>Request auto sync</option>
+                                <option value="assisted_capture" ${{selected(item.integration_mode, "assisted_capture")}}>Manual / assisted record</option>
+                                <option value="smart_link" ${{selected(item.integration_mode, "smart_link")}}>Link or QR</option>
+                                <option value="lead_form" ${{selected(item.integration_mode, "lead_form")}}>Lead form</option>
                             </select>
                         </label>
                         <label>Account or page label<input id="label-${{item.channel}}" value="${{escapeHtml(item.account_label || "")}}" placeholder="@dealer or page name"></label>
-                        <label>External account ID optional<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="Page ID / WABA ID / handle"></label>
-                        <label>Notes<textarea id="notes-${{item.channel}}" placeholder="Setup notes, never secrets">${{escapeHtml(item.notes || "")}}</textarea></label>
-                        <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>I confirm this channel may be used for customer enquiry follow-up and I will not paste platform passwords, OTPs, cookies, or access tokens.</span></label>
-                        <div class="lead-badges">
-                            ${{(item.capabilities || []).map(value => `<span class="lead-badge">${{escapeHtml(value)}}</span>`).join("")}}
-                        </div>
-                        <span class="next-action">Security: ${{(item.security_requirements || []).map(value => escapeHtml(value)).join(" · ")}}</span>
-                        <button class="btn" onclick="saveChannelConnection('${{item.channel}}')">Save Channel</button>
+                        <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>I confirm this is for buyer follow-up and I will not enter passwords or verification codes here.</span></label>
+                        <details>
+                            <summary>Advanced channel details</summary>
+                            <label>Status
+                                <select id="status-${{item.channel}}">
+                                    <option value="requested" ${{selected(item.status, "requested")}}>Requested</option>
+                                    <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active</option>
+                                    <option value="paused" ${{selected(item.status, "paused")}}>Paused</option>
+                                </select>
+                            </label>
+                            <label>External account ID optional<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="Page ID / WABA ID / handle"></label>
+                            <label>Notes<textarea id="notes-${{item.channel}}" placeholder="Setup notes, never secrets">${{escapeHtml(item.notes || "")}}</textarea></label>
+                            <div class="lead-badges">
+                                ${{(item.capabilities || []).map(value => `<span class="lead-badge">${{escapeHtml(value)}}</span>`).join("")}}
+                            </div>
+                            <span class="next-action">Security: ${{(item.security_requirements || []).map(value => escapeHtml(value)).join(" · ")}}</span>
+                        </details>
+                        <button class="btn" onclick="saveChannelConnection('${{item.channel}}')">Save source</button>
                     </section>
-                `).join("");
+                    `;
+                }}
+                document.getElementById("channelCards").innerHTML = `
+                    ${{mainChannels.map(renderChannelCard).join("")}}
+                    <details class="form-card">
+                        <summary>Other sources: TikTok, Xiaohongshu, website, and assisted capture</summary>
+                        <div class="grid">${{otherChannels.map(renderChannelCard).join("")}}</div>
+                    </details>
+                `;
             }}
             async function loadChannelConnections() {{
                 const status = document.getElementById("channelStatus");

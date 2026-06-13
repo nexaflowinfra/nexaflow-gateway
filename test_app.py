@@ -364,7 +364,9 @@ def test_business_profile_create_and_public_form_loads():
     inbox = client.get(f"/inbox/{slug}")
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
-    assert "Follow-up Cockpit" in inbox.text
+    assert "Today&apos;s Customer Follow-up" in inbox.text
+    assert "Customers to handle now" in inbox.text
+    assert "merchantDailyLeads" in inbox.text
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
     assert "/channels/" in inbox.text
@@ -372,8 +374,9 @@ def test_business_profile_create_and_public_form_loads():
     assert "Customer enquiry link" in inbox.text
     assert "copyMerchantElement" in inbox.text
     assert "Website widget code" in inbox.text
-    assert "Today&apos;s focus" in inbox.text
-    assert "Fast shortcuts" in inbox.text
+    assert "Today&apos;s follow-up" in inbox.text
+    assert "Shortcuts" in inbox.text
+    assert "Advanced tools: sources, sharing, setup, and settings" in inbox.text
     assert "Channel inbox" in inbox.text
     assert "Assisted capture" in inbox.text
     assert "Follow-up Copilot" in inbox.text
@@ -395,9 +398,9 @@ def test_business_profile_create_and_public_form_loads():
 
     channels = client.get(f"/channels/{slug}")
     assert channels.status_code == 200
-    assert "Channel Connections" in channels.text
+    assert "Social Source Setup" in channels.text
     assert "Never paste platform passwords" in channels.text
-    assert "Official API requested" in channels.text
+    assert "Request auto sync" in channels.text
     assert "Assisted capture" in channels.text
     assert "/admin/dashboard" not in channels.text
 
@@ -1130,13 +1133,17 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     response = client.get(f"/inbox/{slug}")
     assert response.status_code == 200
     assert "merchantActionCenter" in response.text
+    assert "merchantDailyLeads" in response.text
+    assert "Customers to handle now" in response.text
     assert "merchantPipelineBoard" in response.text
-    assert "Today&apos;s focus" in response.text
-    assert "Setup status" in response.text
-    assert "Fast shortcuts" in response.text
+    assert "Today&apos;s follow-up" in response.text
+    assert "Quick numbers" in response.text
+    assert "Shortcuts" in response.text
     assert "Main customer link" in response.text
     assert "Suggested caption" in response.text
     assert "merchantShareDirectPrimary" in response.text
+    assert "Advanced tools: sources, sharing, setup, and settings" in response.text
+    assert "Full lead list and filters" in response.text
     assert "Lead pipeline" in response.text
     assert "chooseNextAction" in response.text
     assert "Trial launch checklist" in response.text
