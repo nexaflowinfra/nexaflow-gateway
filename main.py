@@ -5263,7 +5263,7 @@ def dealer_demo_page_body():
         <div class="section-head">
             <div>
                 <h2>{lang_span("Today&apos;s buyer queue", "今天的买家队列")}</h2>
-                <p>{lang_span("Start from the top, open one buyer, then copy the next reply. Demo records only; no real buyer data, access key, export, delete, or admin route is exposed here.", "从最上面开始，点开一个买家，然后复制下一句回复。这里都是 Demo 资料；不会显示真实买家资料、access key、导出、删除或 admin 入口。")}</p>
+                <p>{lang_span("Start from the top, open one buyer, then copy the next reply. Demo data only. No message is sent.", "从最上面开始，点开一个买家，然后复制下一句回复。这里是 Demo 资料，不会发送任何消息。")}</p>
             </div>
         </div>
         <div class="dealer-demo-board">
@@ -6750,6 +6750,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
         if whatsapp_url
         else ""
     )
+    merchant_login_nav = '<a class="nav-login" href="/merchant-login">Dealer Login</a>'
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -6769,16 +6770,17 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 :root {{
                     color-scheme: dark;
                     --bg: #000000;
-                    --surface: #0b0b0d;
-                    --surface-2: #121214;
-                    --ink: #f5f5f5;
-                    --muted: #a3a3a3;
-                    --line: #2c2822;
-                    --soft: #16130f;
+                    --surface: #0c0c0d;
+                    --surface-2: #141312;
+                    --surface-3: #191715;
+                    --ink: #f7f3ea;
+                    --muted: #aaa39a;
+                    --line: rgba(255, 255, 255, .095);
+                    --soft: #18140d;
                     --brand: #f3c76a;
                     --brand-strong: #ffe3a0;
                     --accent: #f3c76a;
-                    --teal: #2dd4bf;
+                    --teal: #45d5c7;
                     --gold: #f3c76a;
                     --danger: #ef4444;
                 }}
@@ -6787,9 +6789,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     margin: 0;
                     font-family: Inter, Segoe UI, Arial, sans-serif;
                     background:
-                        radial-gradient(circle at 12% 10%, rgba(45,212,191,.16), transparent 28%),
-                        radial-gradient(circle at 88% 18%, rgba(243,199,106,.15), transparent 26%),
-                        linear-gradient(180deg, #050505 0%, var(--bg) 42%, #050505 100%);
+                        linear-gradient(180deg, #070707 0%, #030303 42%, #000000 100%);
                     color: var(--ink);
                     line-height: 1.5;
                     overflow-x: hidden;
@@ -6801,9 +6801,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     z-index: 0;
                     pointer-events: none;
                     background:
-                        linear-gradient(115deg, transparent 0 28%, rgba(45,212,191,.07) 28.2%, transparent 29.4% 48%, rgba(243,199,106,.06) 48.2%, transparent 49.3% 100%),
-                        repeating-linear-gradient(90deg, rgba(255,255,255,.024) 0 1px, transparent 1px 88px);
-                    mask-image: linear-gradient(180deg, rgba(0,0,0,.86), rgba(0,0,0,.42) 48%, transparent 88%);
+                        linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 120px),
+                        linear-gradient(180deg, rgba(243,199,106,.055), transparent 34%);
+                    mask-image: linear-gradient(180deg, rgba(0,0,0,.52), transparent 72%);
                 }}
                 header, main, footer {{
                     position: relative;
@@ -6811,7 +6811,8 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 header {{
                     border-bottom: 1px solid var(--line);
-                    background: rgba(0, 0, 0, .92);
+                    background: rgba(0, 0, 0, .82);
+                    backdrop-filter: blur(14px);
                     position: sticky;
                     top: 0;
                     z-index: 10;
@@ -6825,6 +6826,21 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     gap: 16px;
                     align-items: center;
                 }}
+                .nav-actions {{
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 12px;
+                    min-width: 0;
+                }}
+                .nav-login {{
+                    color: var(--muted);
+                    text-decoration: none;
+                    font-size: 14px;
+                    font-weight: 800;
+                    white-space: nowrap;
+                }}
+                .nav-login:hover {{ color: var(--ink); }}
                 .nav-contact {{
                     display: inline-flex;
                     align-items: center;
@@ -6856,60 +6872,36 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     box-shadow: 0 0 18px rgba(243,199,106,.18);
                 }}
                 main {{
-                    max-width: 1120px;
+                    max-width: 1160px;
                     margin: 0 auto;
-                    padding: 34px 20px 48px;
+                    padding: 38px 20px 64px;
                 }}
                 .hero {{
                     display: grid;
-                    grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
-                    gap: 28px;
+                    grid-template-columns: minmax(0, .98fr) minmax(380px, 1.02fr);
+                    gap: 34px;
                     align-items: center;
                     padding: 18px 0 34px;
                 }}
                 .hero.product-hero {{
                     position: relative;
-                    padding: 52px 0 46px;
+                    padding: 44px 0 48px;
                     isolation: isolate;
                 }}
                 .hero.product-hero::before {{
-                    content: "";
-                    position: absolute;
-                    inset: -46px -44px auto auto;
-                    width: min(520px, 55vw);
-                    height: 260px;
-                    border-radius: 999px;
-                    background:
-                        radial-gradient(circle at 28% 34%, rgba(45,212,191,.18), transparent 28%),
-                        radial-gradient(circle at 70% 60%, rgba(243,199,106,.20), transparent 34%),
-                        linear-gradient(135deg, rgba(45,212,191,.08), rgba(243,199,106,.07), transparent 72%);
-                    filter: blur(20px);
-                    opacity: .92;
-                    z-index: -1;
-                    pointer-events: none;
+                    content: none;
                 }}
                 .hero.product-hero::after {{
-                    content: "";
-                    position: absolute;
-                    inset: 20px -70px 0 42%;
-                    z-index: -1;
-                    pointer-events: none;
-                    border-radius: 999px;
-                    background:
-                        linear-gradient(122deg, transparent 0 16%, rgba(45,212,191,.18) 16.2%, transparent 17.2% 34%, rgba(255,255,255,.08) 34.2%, transparent 35.4% 54%, rgba(243,199,106,.18) 54.2%, transparent 55.4% 100%),
-                        repeating-linear-gradient(122deg, transparent 0 26px, rgba(255,255,255,.06) 27px, transparent 29px);
-                    mask-image: radial-gradient(ellipse at center, rgba(0,0,0,.86), transparent 72%);
-                    transform: skewY(-6deg);
-                    opacity: .72;
+                    content: none;
                 }}
                 .hero.compact {{ grid-template-columns: minmax(0, 1fr); max-width: 820px; }}
-                h1 {{ font-size: 44px; line-height: 1.08; margin: 0 0 12px; letter-spacing: 0; }}
+                h1 {{ font-size: 48px; line-height: 1.04; margin: 0 0 14px; letter-spacing: 0; }}
                 h2 {{ font-size: 24px; margin: 30px 0 14px; }}
                 h3 {{ margin: 0 0 8px; }}
                 p {{ color: var(--muted); line-height: 1.6; margin: 0 0 14px; }}
-                .lead {{ font-size: 18px; max-width: 720px; }}
+                .lead {{ font-size: 18px; max-width: 680px; }}
                 .eyebrow {{
-                    color: var(--muted);
+                    color: var(--brand-strong);
                     font-size: 13px;
                     font-weight: 800;
                     margin-bottom: 10px;
@@ -6920,14 +6912,14 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     display: inline-flex;
                     gap: 6px;
                     border: 1px solid var(--line);
-                    border-radius: 999px;
+                    border-radius: 10px;
                     padding: 4px;
                     margin-bottom: 18px;
-                    background: rgba(255,255,255,.03);
+                    background: rgba(255,255,255,.035);
                 }}
                 .language-toggle button {{
                     border: 0;
-                    border-radius: 999px;
+                    border-radius: 8px;
                     padding: 7px 11px;
                     background: transparent;
                     color: var(--muted);
@@ -6944,7 +6936,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     align-items: center;
                     justify-content: center;
                     border: 0;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     padding: 10px 14px;
                     background: var(--brand);
                     color: #000000;
@@ -6955,19 +6947,30 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .btn:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 .btn.secondary {{
-                    background: transparent;
+                    background: rgba(255,255,255,.025);
                     color: var(--ink);
                     border: 1px solid var(--line);
                 }}
                 .btn.secondary:hover {{ background: var(--soft); }}
+                .text-link {{
+                    display: inline-flex;
+                    align-items: center;
+                    color: var(--muted);
+                    text-decoration: none;
+                    font-size: 14px;
+                    font-weight: 700;
+                    min-height: 40px;
+                    padding: 0 4px;
+                }}
+                .text-link:hover {{ color: var(--ink); }}
                 .product-panel, .form-card {{
                     border: 1px solid var(--line);
                     border-radius: 8px;
                     overflow: hidden;
                     background:
-                        linear-gradient(135deg, rgba(45,212,191,.035), rgba(243,199,106,.035)),
+                        linear-gradient(135deg, rgba(255,255,255,.03), rgba(243,199,106,.025)),
                         var(--surface);
-                    box-shadow: none;
+                    box-shadow: 0 24px 70px rgba(0,0,0,.28);
                 }}
                 .panel-top {{
                     display: flex;
@@ -7013,6 +7016,94 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     display: grid;
                     gap: 14px;
                     min-width: 0;
+                }}
+                .hero-preview {{
+                    border: 1px solid rgba(255,255,255,.11);
+                    border-radius: 12px;
+                    overflow: hidden;
+                    background:
+                        linear-gradient(180deg, rgba(255,255,255,.055), transparent 42%),
+                        #080808;
+                    box-shadow: 0 28px 90px rgba(0,0,0,.34);
+                }}
+                .preview-top {{
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    padding: 13px 14px;
+                    border-bottom: 1px solid var(--line);
+                    background: rgba(255,255,255,.025);
+                    color: var(--muted);
+                    font-size: 13px;
+                    font-weight: 800;
+                }}
+                .preview-board {{
+                    display: grid;
+                    grid-template-columns: minmax(170px, .78fr) minmax(220px, 1fr);
+                    gap: 1px;
+                    background: var(--line);
+                }}
+                .preview-list,
+                .preview-detail {{
+                    background: rgba(12,12,13,.96);
+                    padding: 12px;
+                    min-width: 0;
+                }}
+                .preview-list {{
+                    display: grid;
+                    gap: 8px;
+                }}
+                .preview-lead {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 10px;
+                    background: rgba(255,255,255,.025);
+                }}
+                .preview-lead.active {{
+                    border-color: rgba(243,199,106,.58);
+                    background: rgba(243,199,106,.08);
+                }}
+                .preview-lead strong {{
+                    display: block;
+                    color: var(--ink);
+                    font-size: 13px;
+                    margin-bottom: 4px;
+                }}
+                .preview-lead span {{
+                    display: block;
+                    color: var(--muted);
+                    font-size: 12px;
+                    line-height: 1.35;
+                }}
+                .preview-detail h3 {{
+                    font-size: 18px;
+                    margin: 2px 0 10px;
+                }}
+                .preview-detail-card {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 10px;
+                    background: rgba(0,0,0,.24);
+                    margin-bottom: 9px;
+                }}
+                .preview-detail-card strong {{
+                    display: block;
+                    color: var(--ink);
+                    font-size: 12px;
+                    margin-bottom: 4px;
+                }}
+                .preview-detail-card span,
+                .preview-detail-card p {{
+                    display: block;
+                    color: var(--muted);
+                    font-size: 12px;
+                    line-height: 1.42;
+                    margin: 0;
+                }}
+                .preview-reply {{
+                    border-color: rgba(243,199,106,.34);
+                    background: rgba(243,199,106,.07);
                 }}
                 .brand-visual {{
                     position: relative;
@@ -7067,7 +7158,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     border: 1px solid var(--line);
                     border-radius: 8px;
                     padding: 18px;
-                    background: var(--surface);
+                    background: rgba(12,12,13,.86);
                 }}
                 .card.accent-card {{
                     background:
@@ -7085,7 +7176,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     border: 1px solid var(--line);
                     border-radius: 8px;
                     padding: 18px;
-                    background: var(--surface);
+                    background: rgba(12,12,13,.88);
                     display: grid;
                     gap: 10px;
                     align-content: start;
@@ -7488,11 +7579,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     line-height: 1.35;
                 }}
                 .demo-detail-panel {{
-                    border: 1px solid rgba(243,199,106,.42);
+                    border: 1px solid rgba(243,199,106,.28);
                     border-radius: 8px;
-                    background:
-                        linear-gradient(135deg, rgba(45,212,191,.075), rgba(243,199,106,.08)),
-                        var(--surface);
+                    background: var(--surface);
                     padding: 18px;
                     min-height: 380px;
                     position: sticky;
@@ -7549,8 +7638,14 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     line-height: 1.48;
                 }}
                 .demo-reply-box {{
-                    margin-top: 10px;
-                    border-color: rgba(243,199,106,.32);
+                    margin-top: 12px;
+                    border-color: rgba(243,199,106,.42);
+                    border-left: 3px solid var(--gold);
+                    background: rgba(243,199,106,.075);
+                }}
+                .demo-reply-box p {{
+                    color: var(--ink);
+                    font-size: 14px;
                 }}
                 .demo-inline-details {{
                     border: 1px solid var(--line);
@@ -7849,7 +7944,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card, .dealer-demo-board, .demo-detail-grid {{ grid-template-columns: 1fr; }}
+                    .hero, .preview-board, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card, .dealer-demo-board, .demo-detail-grid {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
@@ -7866,7 +7961,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
             <header>
                 <nav>
                     <a class="brand" href="/"><img class="mark" src="/assets/brand/nexaflow-icon.png" alt="NexaFlow logo"><span>{safe_business_name}</span></a>
-                    {sales_contact_nav}
+                    <div class="nav-actions">{merchant_login_nav}{sales_contact_nav}</div>
                 </nav>
             </header>
             <main>{body}</main>
@@ -8208,28 +8303,50 @@ def landing_page():
                     <button type="button" class="active" onclick="setProductLang('en')" id="langEn">EN</button>
                     <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
                 </div>
-                <div class="language-toggle" aria-label="Market">
-                    <button type="button" class="active" onclick="setProductMarket('sg')" id="marketSg">Singapore</button>
-                    <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
-                </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
                 <h1><span data-lang="en">All car buyer DMs in one sales queue.</span><span data-lang="zh" class="lang-hidden">所有买车私信，进一个销售队列。</span></h1>
-                <p class="lead"><span data-lang="en">NexaFlow helps dealers see who to reply first, what the buyer is stuck on, and the next message to send.</span><span data-lang="zh" class="lang-hidden">NexaFlow 帮车商看清楚：谁要先回、客户卡在哪里、下一句怎么讲。</span></p>
+                <p class="lead"><span data-lang="en">See who to reply first, what the buyer is stuck on, and what to send next.</span><span data-lang="zh" class="lang-hidden">看清楚谁要先回、客户卡在哪里、下一句怎么讲。</span></p>
                 <p class="lead"><span data-market="sg">Built for Singapore dealers that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span><span data-market="my" class="market-hidden">Built for Malaysia dealers that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span></p>
                 <div class="actions">
                     <a class="btn" href="/dealer-demo"><span data-lang="en">See Sales Demo</span><span data-lang="zh" class="lang-hidden">看销售 Demo</span></a>
                     <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create Dealer Inbox</span><span data-lang="zh" class="lang-hidden">创建车商 inbox</span></a>
-                    <a class="btn secondary" href="/merchant-login"><span data-lang="en">Dealer Login</span><span data-lang="zh" class="lang-hidden">车商登录</span></a>
                 </div>
             </div>
             <div class="hero-side">
-                <div class="brand-visual"><img src="/assets/brand/nexaflow-final.png" alt="NexaFlow business ecosystem"></div>
-                <div class="product-panel">
-                    <div class="panel-top"><span data-lang="en">How it helps today</span><span data-lang="zh" class="lang-hidden">今天可以怎么帮你</span><span class="pill good">Live</span></div>
-                    <div class="signal-list">
-                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">See who to reply first</span><span data-lang="zh" class="lang-hidden">先看谁要回</span></strong><span data-lang="en">All buyer DMs sit in one daily sales queue.</span><span data-lang="zh" class="lang-hidden">所有买家私信集中成每天的销售队列。</span></div><a href="/dealer-demo">Demo</a></div>
-                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">Know what they are stuck on</span><span data-lang="zh" class="lang-hidden">知道客户卡在哪里</span></strong><span data-lang="en">AI highlights loan, monthly payment, budget, comparison, or viewing questions.</span><span data-lang="zh" class="lang-hidden">AI 标出贷款、月供、预算、比价或看车问题。</span></div><a href="/dealer-demo">Open</a></div>
-                        <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Copy the next reply</span><span data-lang="zh" class="lang-hidden">复制下一句回复</span></strong><span data-lang="en">Sales can reply with context, then set the next follow-up.</span><span data-lang="zh" class="lang-hidden">销售带着客户背景回复，再设置下次跟进。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
+                <div class="hero-preview">
+                    <div class="preview-top"><span data-lang="en">Live sales queue preview</span><span data-lang="zh" class="lang-hidden">销售队列预览</span><span class="pill good">Demo</span></div>
+                    <div class="preview-board">
+                        <div class="preview-list">
+                            <div class="preview-lead active">
+                                <strong>Civic TikTok Buyer</strong>
+                                <span><span data-lang="en">Reply first · loan / monthly</span><span data-lang="zh" class="lang-hidden">优先回复 · 贷款 / 月供</span></span>
+                            </div>
+                            <div class="preview-lead">
+                                <strong>Vios Instagram Buyer</strong>
+                                <span><span data-lang="en">Price comparison</span><span data-lang="zh" class="lang-hidden">正在比价</span></span>
+                            </div>
+                            <div class="preview-lead">
+                                <strong>Mazda WhatsApp Viewer</strong>
+                                <span><span data-lang="en">Viewing not confirmed</span><span data-lang="zh" class="lang-hidden">看车还没确认</span></span>
+                            </div>
+                        </div>
+                        <div class="preview-detail">
+                            <span class="demo-detail-kicker">TikTok · Civic</span>
+                            <h3><span data-lang="en">Civic TikTok Buyer</span><span data-lang="zh" class="lang-hidden">Civic TikTok 买家</span></h3>
+                            <div class="preview-detail-card">
+                                <strong><span data-lang="en">Buyer wants</span><span data-lang="zh" class="lang-hidden">客户想要</span></strong>
+                                <span><span data-lang="en">2018 Honda Civic, loan check, monthly below RM900</span><span data-lang="zh" class="lang-hidden">2018 Honda Civic，查贷款，月供低过 RM900</span></span>
+                            </div>
+                            <div class="preview-detail-card">
+                                <strong><span data-lang="en">Stuck on</span><span data-lang="zh" class="lang-hidden">客户卡点</span></strong>
+                                <span><span data-lang="en">Monthly payment or loan readiness</span><span data-lang="zh" class="lang-hidden">月供或贷款条件还没确认</span></span>
+                            </div>
+                            <div class="preview-detail-card preview-reply">
+                                <strong><span data-lang="en">Next reply</span><span data-lang="zh" class="lang-hidden">下一句回复</span></strong>
+                                <p><span data-lang="en">Can I check your target monthly payment, down payment range, and whether you need loan support?</span><span data-lang="zh" class="lang-hidden">可以告诉我你舒服的月供、首付范围，以及是否需要贷款吗？</span></p>
+                            </div>
+                            <a class="btn secondary" href="/dealer-demo"><span data-lang="en">Open sample queue</span><span data-lang="zh" class="lang-hidden">打开示例队列</span></a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -8284,6 +8401,10 @@ def landing_page():
             <div>
                 <h2><span data-lang="en">Simple pricing after trial</span><span data-lang="zh" class="lang-hidden">试用后的简单价格</span></h2>
                 <p><span data-lang="en">Start with a 30-day trial. Pay only when the enquiry workflow is useful for your business.</span><span data-lang="zh" class="lang-hidden">先试用 30 天。确认询盘流程对你的生意有帮助后再付费。</span></p>
+            </div>
+            <div class="language-toggle" aria-label="Market">
+                <button type="button" class="active" onclick="setProductMarket('sg')" id="marketSg">Singapore</button>
+                <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
             </div>
         </div>
         <section class="pricing-grid">

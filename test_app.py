@@ -103,7 +103,7 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     assert "更多买家资料" in response.text
     assert "Demo notes" in response.text
     assert "Demo 说明" in response.text
-    assert "no real buyer data, access key, export, delete, or admin route is exposed here." in response.text
+    assert "Demo data only. No message is sent." in response.text
     assert "Buyer progress" in response.text
     assert "买家进度" in response.text
     assert "Create Dealer Inbox" in response.text
@@ -318,10 +318,10 @@ def test_enquiry_app_pages_load():
     assert "Simple follow-up flow for car dealers" in public_page.text
     assert "Buyer asks" in public_page.text
     assert "Dealer follows up" in public_page.text
-    assert "#2dd4bf" in public_page.text
+    assert "#45d5c7" in public_page.text
     assert "#f3c76a" in public_page.text
-    assert "radial-gradient(circle at 12% 10%" in public_page.text
-    assert "repeating-linear-gradient(122deg" in public_page.text
+    assert "linear-gradient(180deg, #070707" in public_page.text
+    assert "linear-gradient(90deg, rgba(255,255,255,.028)" in public_page.text
     assert "Open Admin" not in public_page.text
     assert "/admin/dashboard" not in public_page.text
     brand_asset = client.get("/assets/brand/nexaflow-final.png")
