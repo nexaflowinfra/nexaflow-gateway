@@ -1112,6 +1112,125 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
     assert "6591112222" not in audit_payload
 
 
+def test_merchant_can_manually_capture_social_dm_with_followup_guidance():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"manual-lead-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Manual Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+            "offer_summary": "used cars with loan support",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    missing_ack = client.post(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        json={
+            "name": "TikTok Buyer",
+            "phone": "60123456789",
+            "source": "tiktok",
+            "message": "Saw Civic on TikTok. Can loan? monthly below RM900, can view today?",
+            "processing_acknowledged": False,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert missing_ack.status_code == 400
+
+    created = client.post(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        json={
+            "name": "TikTok Buyer",
+            "phone": "60123456789",
+            "source": "tiktok",
+            "campaign": "Civic DM",
+            "message": "Saw Civic on TikTok. Can loan? monthly below RM900, can view today?",
+            "processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert created.status_code == 200
+    body = created.json()
+    assert body["business_slug"] == slug
+    assert body["source"] == "tiktok"
+    assert body["campaign"] == "Civic DM"
+    assert body["merchant_notification_status"] == "not_required"
+    assert body["stuck_point"] == "Monthly payment or loan readiness"
+    assert "monthly payment" in body["next_question"]
+    assert "2 hours" in body["follow_up_timing"]
+    assert body["whatsapp_url"].startswith("https://wa.me/60123456789")
+    assert "Merchant confirmed" in body["consent_notice"]
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=tiktok",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    saved = next(item for item in listing.json()["enquiries"] if item["id"] == body["id"])
+    assert saved["stuck_point"] == "Monthly payment or loan readiness"
+    assert "loan support" in saved["reply_draft"]
+    assert "Follow-up timing" not in saved["message"]
+
+    audit = client.get(
+        f"/admin/data-audit-events?business_slug={slug}&event_type=enquiry.created",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert audit.status_code == 200
+    events = audit.json()["events"]
+    assert any(item["actor_type"] == "merchant_manual" for item in events)
+    audit_payload = json.dumps(events)
+    assert "TikTok Buyer" not in audit_payload
+    assert "60123456789" not in audit_payload
+
+
+def test_merchant_manual_capture_blocks_secrets_and_sensitive_documents():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"manual-safe-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Manual Safe Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    secret = client.post(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        json={
+            "name": "Secret Buyer",
+            "phone": "60123456789",
+            "message": "Buyer sent password=abc123 and OTP 778899",
+            "processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert secret.status_code == 400
+    assert "passwords" in secret.text
+
+    document = client.post(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        json={
+            "name": "Document Buyer",
+            "phone": "60123456789",
+            "message": "Buyer sent bank statement and payslip for loan check",
+            "processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert document.status_code == 400
+    assert "sensitive files" in document.text
+
+
 def test_merchant_channel_connections_are_private_and_audited():
     suffix = uuid.uuid4().hex[:8]
     slug_one = f"channels-one-{suffix}"

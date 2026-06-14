@@ -217,6 +217,16 @@ class EnquiryCreateRequest(BaseModel):
     pdpa_consent: bool = False
 
 
+class MerchantManualEnquiryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    phone: str = Field(..., min_length=5, max_length=40)
+    email: str | None = Field(default=None, max_length=200)
+    message: str = Field(..., min_length=3, max_length=4000)
+    source: str = Field(default="manual", max_length=80)
+    campaign: str = Field(default="manual-capture", max_length=120)
+    processing_acknowledged: bool = False
+
+
 class BusinessProfileRequest(BaseModel):
     slug: str = Field(..., min_length=3, max_length=80)
     business_name: str = Field(..., min_length=1, max_length=160)
@@ -2646,6 +2656,32 @@ def contains_forbidden_channel_secret(*values):
     return any(marker in text for marker in secret_markers)
 
 
+def contains_sensitive_manual_enquiry_content(*values):
+    text = " ".join(str(value or "") for value in values).lower()
+    sensitive_markers = [
+        "bank statement",
+        "payslip",
+        "pay slip",
+        "salary slip",
+        "epf statement",
+        "kwsp statement",
+        "passport",
+        "nric",
+        "ic number",
+        "identity card",
+        "id card",
+        "kad pengenalan",
+        "银行卡",
+        "银行账单",
+        "银行月结单",
+        "薪资单",
+        "粮单",
+        "身份证",
+        "护照",
+    ]
+    return any(marker in text for marker in sensitive_markers)
+
+
 def upsert_channel_connection(profile, channel, req):
     catalog = channel_catalog_item(channel)
     if req.integration_mode == "official_api_requested" and catalog["official_status"] == "limited":
@@ -3586,7 +3622,7 @@ def business_guard(
 
 
 def vehicle_sales_context(message="", business_type=""):
-    text = f"{message} {business_type}".lower()
+    text = f"{message} {business_type}".replace("_", " ").lower()
     english_keywords = [
         "car",
         "vehicle",
@@ -3686,6 +3722,61 @@ def enquiry_followup_focus_label(priority: str | None):
         "warm": "needs details",
         "normal": "ask next question",
     }.get(priority or "", priority or "unknown")
+
+
+def enquiry_followup_guidance(message, business_type="", signals=None):
+    signals = signals if signals is not None else enquiry_followup_signals(message, business_type)
+    signal_keys = {item["key"] for item in signals}
+    vehicle_context = vehicle_sales_context(message, business_type)
+
+    if vehicle_context and signal_keys.intersection({"finance", "monthly_payment", "income_check"}):
+        return {
+            "stuck_point": "Monthly payment or loan readiness",
+            "next_question": "Ask their comfortable monthly payment, down payment range, and whether they need loan support.",
+            "follow_up_timing": "If they do not reply, follow up within 2 hours with one loan or monthly-payment question.",
+        }
+    if vehicle_context and "comparison" in signal_keys:
+        return {
+            "stuck_point": "Comparing price, spec, or monthly payment with another dealer",
+            "next_question": "Ask which offer, spec, year, mileage, and monthly payment they are comparing against.",
+            "follow_up_timing": "Follow up within 4 hours because comparison buyers go cold when the next step is unclear.",
+        }
+    if vehicle_context and "appointment" in signal_keys:
+        return {
+            "stuck_point": "Viewing appointment not confirmed",
+            "next_question": "Confirm viewing day, time, branch, preferred model, and whether loan support is needed.",
+            "follow_up_timing": "Follow up the same day if the viewing time is not confirmed.",
+        }
+    if vehicle_context and "vehicle_fit" in signal_keys:
+        return {
+            "stuck_point": "Still choosing the right car or spec",
+            "next_question": "Ask model, year, mileage, budget or monthly range, and must-have specs.",
+            "follow_up_timing": "Follow up within 1 business day with one matching option or one short discovery question.",
+        }
+    if vehicle_context and "budget" in signal_keys:
+        return {
+            "stuck_point": "Budget or down payment not clear",
+            "next_question": "Ask budget range, down payment comfort, monthly payment target, and loan need.",
+            "follow_up_timing": "Follow up within 1 business day with an option that fits the stated budget.",
+        }
+    if vehicle_context:
+        return {
+            "stuck_point": "Buyer has not shared enough buying background yet",
+            "next_question": "Ask model, budget or monthly range, loan need, and viewing timeline.",
+            "follow_up_timing": "Follow up within 1 business day if they do not answer the discovery question.",
+        }
+    if signal_keys:
+        first_signal = signals[0]
+        return {
+            "stuck_point": first_signal["label"],
+            "next_question": first_signal["detail"],
+            "follow_up_timing": "Follow up within 1 business day if the customer does not reply.",
+        }
+    return {
+        "stuck_point": "Need more context",
+        "next_question": "Ask one clear question about what they need, budget, timing, and preferred next step.",
+        "follow_up_timing": "Follow up within 2 business days if there is no reply.",
+    }
 
 
 def enquiry_reply_draft(name, business_type, message, classification, profile=None):
@@ -3888,6 +3979,8 @@ def list_data_audit_events(business_slug=None, event_type=None, limit=100):
 
 
 def row_to_enquiry(row):
+    follow_up_signals = enquiry_followup_signals(row["message"], row["business_type"])
+    follow_up_guidance = enquiry_followup_guidance(row["message"], row["business_type"], follow_up_signals)
     return {
         "id": row["id"],
         "business_slug": row["business_slug"],
@@ -3903,7 +3996,10 @@ def row_to_enquiry(row):
         "intent": row["intent"],
         "priority": row["priority"],
         "estimated_value": row["estimated_value"],
-        "follow_up_signals": enquiry_followup_signals(row["message"], row["business_type"]),
+        "follow_up_signals": follow_up_signals,
+        "stuck_point": follow_up_guidance["stuck_point"],
+        "next_question": follow_up_guidance["next_question"],
+        "follow_up_timing": follow_up_guidance["follow_up_timing"],
         "auto_summary": row["auto_summary"] if "auto_summary" in row.keys() else "",
         "next_action": row["next_action"] if "next_action" in row.keys() else "",
         "follow_up_recommendation": row["follow_up_recommendation"] if "follow_up_recommendation" in row.keys() else "",
@@ -4240,7 +4336,7 @@ def public_enquiry_response(enquiry):
     }
 
 
-def create_enquiry_record(req):
+def create_enquiry_record(req, actor_type="public_form", notify_merchant=True, consent_notice_override=None):
     profile = get_business_profile(req.business_slug) if req.business_slug else default_enquiry_profile()
     if profile["status"] != "active":
         raise HTTPException(status_code=403, detail="This enquiry form is not accepting new enquiries.")
@@ -4261,7 +4357,7 @@ def create_enquiry_record(req):
     reply_phone = req.phone
     whatsapp_url = whatsapp_reply_url(reply_phone, reply_draft)
     timestamp = now_iso()
-    consent_notice = (
+    consent_notice = consent_notice_override or (
         "I agree that my name, contact details, and enquiry message may be collected, used, "
         "and disclosed to the business and NexaFlow service providers for enquiry follow-up, "
         "customer support, security, and record keeping."
@@ -4317,7 +4413,7 @@ def create_enquiry_record(req):
     enquiry = row_to_enquiry(row)
     write_data_audit_event(
         "enquiry.created",
-        "public_form",
+        actor_type,
         "enquiry",
         enquiry["id"],
         business_slug=profile["slug"],
@@ -4330,7 +4426,13 @@ def create_enquiry_record(req):
             "auto_followup_set": bool(enquiry.get("follow_up_at")),
         },
     )
-    delivery = notify_merchant_new_enquiry(profile, enquiry)
+    if notify_merchant:
+        delivery = notify_merchant_new_enquiry(profile, enquiry)
+    else:
+        delivery = {
+            "status": "not_required",
+            "reason": "Merchant manually captured this enquiry in the private inbox.",
+        }
     status = delivery.get("status", "unknown")
     error = delivery.get("reason") or delivery.get("provider_error")
     with db_connection() as connection:
@@ -7880,6 +7982,37 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div class="status" id="merchantStatus"><span data-lang="en">Enter your owner inbox password to load this private dealer inbox. Do not share this password publicly.</span><span data-lang="zh" class="lang-hidden">输入老板 inbox 密码来打开这个车商私密 inbox。请不要公开分享这个密码。</span></div>
             <p class="mini-note"><span data-lang="en">Buyer data in this inbox should only be used for replies, quotations, viewing appointments, loan follow-up, support, security, and required records.</span><span data-lang="zh" class="lang-hidden">这个 inbox 里的买家资料只应用于回复、报价、预约看车、贷款跟进、客服、安全和必要记录。</span></p>
         </section>
+        <section class="form-card" id="merchantManualCapture">
+            <div class="section-head onboarding-head">
+                <div>
+                    <h2><span data-lang="en">Add buyer from DM / call</span><span data-lang="zh" class="lang-hidden">从私信 / 电话新增买家</span></h2>
+                    <p><span data-lang="en">Paste the buyer&apos;s message from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, call, or referral. NexaFlow will turn it into a follow-up card.</span><span data-lang="zh" class="lang-hidden">把 WhatsApp、Instagram、Facebook、TikTok、小红书、电话或介绍来的买家内容放进来，NexaFlow 会变成跟进卡。</span></p>
+                </div>
+            </div>
+            <div class="toolbar">
+                <label><span data-lang="en">Buyer name</span><span data-lang="zh" class="lang-hidden">买家名字</span><input id="manualLeadName" placeholder="Alex Tan"></label>
+                <label><span data-lang="en">Phone / WhatsApp</span><span data-lang="zh" class="lang-hidden">电话 / WhatsApp</span><input id="manualLeadPhone" placeholder="6012xxxxxxx"></label>
+                <label><span data-lang="en">Source</span><span data-lang="zh" class="lang-hidden">来源</span>
+                    <select id="manualLeadSource">
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="xiaohongshu">Xiaohongshu</option>
+                        <option value="manual">Call / manual</option>
+                        <option value="referral">Referral</option>
+                    </select>
+                </label>
+            </div>
+            <label><span data-lang="en">Buyer message</span><span data-lang="zh" class="lang-hidden">买家内容</span><textarea id="manualLeadMessage" placeholder="Example: Saw your Civic on TikTok. Can loan? Monthly below RM900, can view today?"></textarea></label>
+            <div class="toolbar">
+                <label><span data-lang="en">Email optional</span><span data-lang="zh" class="lang-hidden">Email（选填）</span><input id="manualLeadEmail" placeholder="buyer@example.com"></label>
+                <label><span data-lang="en">Car / campaign optional</span><span data-lang="zh" class="lang-hidden">车款 / Campaign（选填）</span><input id="manualLeadCampaign" placeholder="Civic TikTok DM"></label>
+            </div>
+            <label class="checkbox-label"><input id="manualLeadAck" type="checkbox"> <span><span data-lang="en">I confirm this buyer contacted the business and I am not pasting passwords, OTPs, identity documents, bank statements, payslips, or other sensitive files here.</span><span data-lang="zh" class="lang-hidden">我确认这位买家联系过本车行，并且这里没有粘贴密码、OTP、身份证件、银行文件、薪资单或其他敏感文件。</span></span></label>
+            <button class="btn" onclick="createManualLead()"><span data-lang="en">Add Buyer</span><span data-lang="zh" class="lang-hidden">新增买家</span></button>
+            <div class="status" id="manualLeadStatus"><span data-lang="en">Use this when buyers DM directly and do not click a link.</span><span data-lang="zh" class="lang-hidden">买家直接私信、不点击 link 的时候，用这里新增。</span></div>
+        </section>
         <section class="action-center" id="merchantActionCenter"></section>
         <section class="form-card" id="merchantDailyWork">
             <div class="section-head onboarding-head">
@@ -8069,6 +8202,45 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     throw new Error(await response.text());
                 }}
                 return response.json();
+            }}
+            async function createManualLead() {{
+                const status = document.getElementById("manualLeadStatus");
+                if (!document.getElementById("manualLeadAck").checked) {{
+                    status.textContent = inboxText("Please confirm the data protection note before adding this buyer.", "请先确认资料保护提醒，再新增买家。");
+                    return;
+                }}
+                status.textContent = inboxText("Adding buyer and preparing follow-up...", "正在新增买家并准备跟进建议...");
+                try {{
+                    const result = await merchantApi(`/apps/enquiry/api/merchant/enquiries?business_slug=${{businessSlug}}`, {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            name: document.getElementById("manualLeadName").value,
+                            phone: document.getElementById("manualLeadPhone").value,
+                            email: document.getElementById("manualLeadEmail").value,
+                            source: document.getElementById("manualLeadSource").value,
+                            campaign: document.getElementById("manualLeadCampaign").value || "manual-capture",
+                            message: document.getElementById("manualLeadMessage").value,
+                            processing_acknowledged: document.getElementById("manualLeadAck").checked
+                        }})
+                    }});
+                    document.getElementById("manualLeadName").value = "";
+                    document.getElementById("manualLeadPhone").value = "";
+                    document.getElementById("manualLeadEmail").value = "";
+                    document.getElementById("manualLeadCampaign").value = "";
+                    document.getElementById("manualLeadMessage").value = "";
+                    document.getElementById("manualLeadAck").checked = false;
+                    markChecklistStep("first_lead");
+                    status.innerHTML = `
+                        ${{langSpan("Buyer added.", "买家已新增。")}}
+                        <br>${{langSpan("Stuck point", "客户卡点")}}: ${{escapeHtml(result.stuck_point || "")}}
+                        <br>${{langSpan("Next question", "下一句")}}: ${{escapeHtml(result.next_question || "")}}
+                        <br>${{langSpan("Follow-up timing", "追踪时间")}}: ${{escapeHtml(result.follow_up_timing || "")}}
+                    `;
+                    await loadMerchantInbox();
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
             }}
             function loadChecklistState() {{
                 try {{
@@ -8404,6 +8576,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <div>
                             <strong>${{escapeHtml(chooseNextAction(item))}}</strong>
                             <small>${{escapeHtml((item.message || "").slice(0, 180))}}</small>
+                            <small><strong>${{langSpan("Stuck point", "客户卡点")}}:</strong> ${{escapeHtml(item.stuck_point || "")}}</small>
+                            <small><strong>${{langSpan("Next question", "下一句")}}:</strong> ${{escapeHtml(item.next_question || "")}}</small>
                             <div class="lead-badges">${{renderFollowUpSignals(item)}}</div>
                         </div>
                         <div class="simple-actions">
@@ -8492,7 +8666,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     </div>
                     <div class="action-card">
                         <h3>${{langSpan("Assisted capture", "辅助导入")}}</h3>
-                        <p>${{langSpan("When a platform cannot sync directly yet, copy the buyer enquiry into NexaFlow with the right source so AI can still prepare follow-up.", "如果平台暂时不能直接同步，就把买家询问复制进 NexaFlow，并标好来源，让 AI 继续准备跟进。")}}</p>
+                        <p>${{langSpan("When direct sync is not ready, use Add buyer from DM / call above. Official API sync can be requested later without storing platform passwords here.", "直接同步还没准备好时，先用上面的从私信 / 电话新增买家。之后可申请官方 API 同步，这里不会保存平台密码。")}}</p>
                         <div class="action-list">
                             ${{channels.slice(1, 5).map(([key, label, detail, zhDetail]) => `
                                 <div class="action-item"><span class="action-dot">${{bySource[key] || 0}}</span><div><strong>${{escapeHtml(label)}}</strong><span>${{langSpan(detail, zhDetail)}}</span></div></div>
@@ -8592,7 +8766,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <td>${{escapeHtml(item.message)}}${{item.auto_summary ? `<br><small>${{escapeHtml(item.auto_summary)}}</small>` : ""}}</td>
                             <td>
                                 <div class="lead-badges">${{renderFollowUpSignals(item)}}</div>
+                                <span class="next-action">${{escapeHtml(item.stuck_point || "")}}</span>
                                 <span class="next-action">${{escapeHtml(chooseNextAction(item))}}</span>
+                                <small><strong>${{langSpan("Next question", "下一句")}}:</strong> ${{escapeHtml(item.next_question || "")}}</small>
+                                <small><strong>${{langSpan("Timing", "时间")}}:</strong> ${{escapeHtml(item.follow_up_timing || "")}}</small>
                                 ${{(item.follow_up_signals || []).map(signal => `<small>${{escapeHtml(signal.detail || "")}}</small>`).join("<br>")}}
                             </td>
                             <td>${{escapeHtml(item.reply_draft)}}</td>
@@ -10686,6 +10863,62 @@ def list_merchant_enquiries(
             limit=limit,
         ),
     }
+
+
+@app.post("/apps/enquiry/api/merchant/enquiries")
+def create_merchant_manual_enquiry(
+    req: MerchantManualEnquiryCreate,
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    if not req.processing_acknowledged:
+        raise HTTPException(
+            status_code=400,
+            detail="Please confirm this buyer enquiry can be stored for follow-up before adding it.",
+        )
+    if contains_forbidden_channel_secret(req.name, req.phone, req.email, req.message, req.campaign):
+        raise HTTPException(
+            status_code=400,
+            detail="Do not paste passwords, OTPs, cookies, app secrets, or access tokens into manual buyer capture.",
+        )
+    if contains_sensitive_manual_enquiry_content(req.name, req.phone, req.email, req.message, req.campaign):
+        raise HTTPException(
+            status_code=400,
+            detail="Do not paste identity documents, bank statements, payslips, or other sensitive files into manual buyer capture.",
+        )
+    source = re.sub(r"[^a-z0-9_-]+", "-", (req.source or "manual").strip().lower()).strip("-") or "manual"
+    enquiry_req = EnquiryCreateRequest(
+        business_slug=profile["slug"],
+        business_type=profile["business_type"],
+        name=req.name,
+        phone=req.phone,
+        email=req.email,
+        message=req.message,
+        source=source,
+        campaign=req.campaign.strip() or "manual-capture",
+        referrer="merchant-manual-capture",
+        page_url=site_absolute_url(profile["inbox_url"]),
+        pdpa_consent=True,
+    )
+    consent_notice = (
+        "Merchant confirmed this buyer enquiry was received through a business conversation "
+        "and may be recorded in NexaFlow for reply, quotation, appointment, loan follow-up, "
+        "support, security, and required record keeping. Sensitive documents should not be pasted here."
+    )
+    return create_enquiry_record(
+        enquiry_req,
+        actor_type="merchant_manual",
+        notify_merchant=False,
+        consent_notice_override=consent_notice,
+    )
 
 
 @app.get("/apps/enquiry/api/merchant/enquiries/export.csv")
