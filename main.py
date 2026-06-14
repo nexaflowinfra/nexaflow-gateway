@@ -4851,6 +4851,7 @@ MERCHANT_DEMO_ENQUIRIES = [
         "phone": "demo-tiktok-001",
         "source": "tiktok",
         "campaign": "Civic TikTok DM",
+        "buyer_request": "2018 Honda Civic, loan check, monthly below RM900",
         "message": "Saw your 2018 Honda Civic on TikTok. Can loan? Monthly below RM900, can view today?",
         "status": "new",
         "internal_note": "Demo: high intent, asks loan, monthly payment, and viewing today.",
@@ -4862,6 +4863,7 @@ MERCHANT_DEMO_ENQUIRIES = [
         "phone": "demo-instagram-002",
         "source": "instagram",
         "campaign": "Vios Instagram DM",
+        "buyer_request": "Toyota Vios, best price, lowest deposit",
         "message": "Still got Toyota Vios? I saw another dealer cheaper. What is your best price and lowest deposit?",
         "status": "contacted",
         "internal_note": "Demo: buyer is comparing dealers and needs price confidence.",
@@ -4873,6 +4875,7 @@ MERCHANT_DEMO_ENQUIRIES = [
         "phone": "demo-facebook-003",
         "source": "facebook",
         "campaign": "Alza Facebook Messenger",
+        "buyer_request": "Family car, loan advice with variable income",
         "message": "Looking for family car. Need loan but income not fixed every month. Can you advise what documents first?",
         "status": "new",
         "internal_note": "Demo: loan qualification is unclear; ask income and documents before pushing appointment.",
@@ -4884,6 +4887,7 @@ MERCHANT_DEMO_ENQUIRIES = [
         "phone": "demo-whatsapp-004",
         "source": "whatsapp",
         "campaign": "Mazda WhatsApp",
+        "buyer_request": "Mazda 3 viewing, location, 7-year monthly estimate",
         "message": "Can I view the Mazda 3 tomorrow morning? Send location and total monthly for 7 years please.",
         "status": "quoted",
         "internal_note": "Demo: appointment intent is clear; confirm time and showroom location.",
@@ -4895,6 +4899,7 @@ MERCHANT_DEMO_ENQUIRIES = [
         "phone": "demo-xhs-005",
         "source": "xiaohongshu",
         "campaign": "Bezza Xiaohongshu DM",
+        "buyer_request": "Bezza around RM700 monthly, maybe next month",
         "message": "Hi, just checking. Any Bezza around RM700 monthly? Not urgent, maybe next month only.",
         "status": "new",
         "internal_note": "Demo: lower urgency; ask budget and timeline without sounding pushy.",
@@ -4906,6 +4911,7 @@ MERCHANT_DEMO_ENQUIRIES = [
         "phone": "demo-referral-006",
         "source": "referral",
         "campaign": "Trade-in referral call",
+        "buyer_request": "Trade in Myvi, upgrade to HR-V, around RM1200 monthly",
         "message": "My friend bought from you. I want to trade in my Myvi and upgrade to HR-V. Budget around RM1200 monthly, can call tonight?",
         "status": "new",
         "internal_note": "Demo: referral with trade-in and monthly payment target.",
@@ -4917,6 +4923,7 @@ MERCHANT_DEMO_ENQUIRIES = [
         "phone": "demo-direct-007",
         "source": "direct",
         "campaign": "Buyer enquiry link",
+        "buyer_request": "Honda City Saturday viewing, loan estimate",
         "message": "Thanks, I already booked the Saturday viewing slot for the City. Please prepare the loan estimate.",
         "status": "won",
         "internal_note": "Demo: booked buyer kept in the pipeline but not shown as urgent.",
@@ -5023,6 +5030,7 @@ def demo_dealer_enquiry_cards():
                 "status": sample["status"],
                 "priority": classification["priority"],
                 "intent": classification["intent"],
+                "buyer_request": sample["buyer_request"],
                 "deal_value": sample["deal_value"],
                 "follow_up_at": (today + timedelta(days=sample["follow_up_days"])).isoformat(),
                 "stuck_point": guidance["stuck_point"],
@@ -5067,8 +5075,8 @@ def dealer_demo_page_body():
 
     def demo_priority_label(value):
         return {
-            "hot": "Answer now",
-            "warm": "Needs details",
+            "hot": "Reply first",
+            "warm": "Check details",
             "normal": "Ask next",
         }.get(value or "", value or "Unknown")
 
@@ -5116,35 +5124,35 @@ def dealer_demo_page_body():
     <section class="hero compact">
         <div>
             <div class="eyebrow">Dealer Demo</div>
-            <h1>Daily buyer follow-up, without Meta setup.</h1>
-            <p class="lead">This read-only demo shows how a used car dealer can see who is stuck on loan, monthly payment, price comparison, viewing time, or missing details.</p>
+            <h1>A sales queue for used car enquiries.</h1>
+            <p class="lead">Pick a buyer, see what they want, what they are stuck on, and the next reply your sales team can send.</p>
             <div class="actions">
-                <a class="btn" href="/merchant-signup">Create Buyer Inbox</a>
-                <a class="btn secondary" href="/ai-enquiry#enquiry-form">Submit Test Enquiry</a>
+                <a class="btn" href="/merchant-signup">Create Dealer Inbox</a>
+                <a class="btn secondary" href="/ai-enquiry#enquiry-form">Add Test Buyer</a>
             </div>
         </div>
     </section>
     <section class="action-center">
         <div class="action-card">
-            <h3>Start here today</h3>
-            <p>Begin with the buyer asking about loan/monthly payment or a viewing slot. NexaFlow shows the stuck point before the salesperson replies.</p>
+            <h3>Open today&apos;s queue</h3>
+            <p>See who should be replied first, who needs a loan check, and who is waiting for a viewing confirmation.</p>
             <div class="lead-badges">
-                <span class="lead-badge hot">Needs answer · {hot_count}</span>
+                <span class="lead-badge hot">Reply first · {hot_count}</span>
                 <span class="lead-badge hot">Due today · {due_count}</span>
                 <span class="lead-badge">Demo buyers · {len(cards)}</span>
             </div>
         </div>
         <div class="action-card">
-            <h3>Sources in one list</h3>
-            <p>WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be handled in the same daily list.</p>
+            <h3>All sources, one list</h3>
+            <p>WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be worked from the same sales queue.</p>
             <div class="lead-badges">{source_badges}</div>
         </div>
     </section>
     <section class="form-card">
         <div class="section-head">
             <div>
-                <h2>Buyers to contact now</h2>
-                <p>Start with the queue, then open one buyer to see the AI follow-up detail. These are synthetic demo records only. No real buyer data, access key, export, delete, or admin route is exposed here.</p>
+                <h2>Today&apos;s buyer queue</h2>
+                <p>Start from the top, open one buyer, then copy the next reply. Demo records only; no real buyer data, access key, export, delete, or admin route is exposed here.</p>
             </div>
         </div>
         <div class="dealer-demo-board">
@@ -5178,7 +5186,7 @@ def dealer_demo_page_body():
             return labels[value] || String(value || "Unknown").replace(/_/g, " ");
         }}
         function demoPriorityLabel(value) {{
-            const labels = {{ hot: "Answer now", warm: "Needs details", normal: "Ask next" }};
+            const labels = {{ hot: "Reply first", warm: "Check details", normal: "Ask next" }};
             return labels[value] || value || "Unknown";
         }}
         function demoStatusLabel(value) {{
@@ -5217,19 +5225,19 @@ def dealer_demo_page_body():
                 <div class="lead-badges">${{renderDemoSignals(lead)}}</div>
                 <div class="demo-detail-grid">
                     <div class="demo-detail-box">
-                        <strong>Stuck point</strong>
+                        <strong>Buyer wants</strong>
+                        <span>${{escapeDemoHtml(lead.buyer_request || lead.message)}}</span>
+                    </div>
+                    <div class="demo-detail-box">
+                        <strong>Stuck on</strong>
                         <span>${{escapeDemoHtml(lead.stuck_point)}}</span>
                     </div>
                     <div class="demo-detail-box">
-                        <strong>Next question</strong>
-                        <span>${{escapeDemoHtml(lead.next_question)}}</span>
-                    </div>
-                    <div class="demo-detail-box">
-                        <strong>Next action</strong>
+                        <strong>Next move</strong>
                         <span>${{escapeDemoHtml(lead.next_action)}}</span>
                     </div>
                     <div class="demo-detail-box">
-                        <strong>Follow-up timing</strong>
+                        <strong>When to chase</strong>
                         <span>${{escapeDemoHtml(lead.follow_up_timing || lead.follow_up_recommendation)}}</span>
                     </div>
                 </div>
@@ -5238,7 +5246,7 @@ def dealer_demo_page_body():
                     <p>${{escapeDemoHtml(lead.message)}}</p>
                 </div>
                 <div class="demo-reply-box">
-                    <strong>Suggested reply</strong>
+                    <strong>Next reply</strong>
                     <p>${{escapeDemoHtml(lead.reply_draft)}}</p>
                 </div>
                 <div class="demo-panel-actions">
@@ -5263,10 +5271,10 @@ def dealer_demo_page_body():
         }}
         selectDemoLead(selectedDemoLeadId);
     </script>
-    <section class="form-card">
-        <h2>Buyer progress</h2>
+    <details class="form-card">
+        <summary>Buyer progress</summary>
         <section class="pipeline-board">{pipeline_cards}</section>
-    </section>
+    </details>
     """
 
 
@@ -8000,12 +8008,12 @@ def landing_page():
                     <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
                 </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
-                <h1><span data-lang="en">One buyer inbox. One next step for every enquiry.</span><span data-lang="zh" class="lang-hidden">一个买家 inbox，每个询盘都有下一步。</span></h1>
-                <p class="lead"><span data-lang="en">Stop losing car buyer enquiries across WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, or referrals. NexaFlow helps you collect each enquiry, spot missing details, prepare the next reply, and keep follow-up visible.</span><span data-lang="zh" class="lang-hidden">不要再让买车询问散落在 WhatsApp、Instagram、Facebook、TikTok、小红书、电话或介绍里。NexaFlow 帮你集中收询盘、补齐资料、准备下一句回复，并持续提醒跟进。</span></p>
-                <p class="lead"><span data-market="sg">Built for Singapore dealers and sales teams that need PDPA-aware enquiry capture, private records, and WhatsApp-ready follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia dealers and sales teams that need simple buyer enquiry capture, private inbox, WhatsApp follow-up, and local MYR pricing.</span></p>
+                <h1><span data-lang="en">All car buyer DMs in one sales queue.</span><span data-lang="zh" class="lang-hidden">所有买车私信，进一个销售队列。</span></h1>
+                <p class="lead"><span data-lang="en">NexaFlow helps dealers see who to reply first, what the buyer is stuck on, and the next message to send.</span><span data-lang="zh" class="lang-hidden">NexaFlow 帮车商看清楚：谁要先回、客户卡在哪里、下一句怎么讲。</span></p>
+                <p class="lead"><span data-market="sg">Built for Singapore dealers that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span><span data-market="my" class="market-hidden">Built for Malaysia dealers that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span></p>
                 <div class="actions">
-                    <a class="btn" href="/merchant-signup"><span data-lang="en">Create Buyer Inbox</span><span data-lang="zh" class="lang-hidden">创建买家 inbox</span></a>
-                    <a class="btn secondary" href="/dealer-demo"><span data-lang="en">See Demo</span><span data-lang="zh" class="lang-hidden">看 Demo</span></a>
+                    <a class="btn" href="/dealer-demo"><span data-lang="en">See Sales Demo</span><span data-lang="zh" class="lang-hidden">看销售 Demo</span></a>
+                    <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create Dealer Inbox</span><span data-lang="zh" class="lang-hidden">创建车商 inbox</span></a>
                     <a class="btn secondary" href="/merchant-login"><span data-lang="en">Dealer Login</span><span data-lang="zh" class="lang-hidden">车商登录</span></a>
                 </div>
             </div>
@@ -8014,9 +8022,9 @@ def landing_page():
                 <div class="product-panel">
                     <div class="panel-top"><span data-lang="en">How it helps today</span><span data-lang="zh" class="lang-hidden">今天可以怎么帮你</span><span class="pill good">Live</span></div>
                     <div class="signal-list">
-                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">Create your buyer inbox</span><span data-lang="zh" class="lang-hidden">创建你的买家 inbox</span></strong><span data-lang="en">Use it for WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or a website.</span><span data-lang="zh" class="lang-hidden">可以用来集中 WhatsApp、Instagram、Facebook、TikTok、小红书、Google 商家资料或网站询盘。</span></div><a href="/merchant-signup"><span data-lang="en">Create</span><span data-lang="zh" class="lang-hidden">开通</span></a></div>
-                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></strong><span data-lang="en">AI helps extract source, request, budget, appointment timing, notes, and what is still missing.</span><span data-lang="zh" class="lang-hidden">AI 帮你整理来源、需求、预算、预约时间、备注，以及还缺什么资料。</span></div><a href="/dealer-demo">Demo</a></div>
-                        <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Follow up with the next question</span><span data-lang="zh" class="lang-hidden">用下一句问题跟进</span></strong><span data-lang="en">Open the inbox, use the reply draft, update the status, and set the next follow-up.</span><span data-lang="zh" class="lang-hidden">打开 inbox，用回复草稿、更新状态，并设置下一次跟进。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
+                        <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">See who to reply first</span><span data-lang="zh" class="lang-hidden">先看谁要回</span></strong><span data-lang="en">All buyer DMs sit in one daily sales queue.</span><span data-lang="zh" class="lang-hidden">所有买家私信集中成每天的销售队列。</span></div><a href="/dealer-demo">Demo</a></div>
+                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">Know what they are stuck on</span><span data-lang="zh" class="lang-hidden">知道客户卡在哪里</span></strong><span data-lang="en">AI highlights loan, monthly payment, budget, comparison, or viewing questions.</span><span data-lang="zh" class="lang-hidden">AI 标出贷款、月供、预算、比价或看车问题。</span></div><a href="/dealer-demo">Open</a></div>
+                        <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Copy the next reply</span><span data-lang="zh" class="lang-hidden">复制下一句回复</span></strong><span data-lang="en">Sales can reply with context, then set the next follow-up.</span><span data-lang="zh" class="lang-hidden">销售带着客户背景回复，再设置下次跟进。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
                     </div>
                 </div>
             </div>
@@ -8024,46 +8032,46 @@ def landing_page():
 
         <div class="section-head" id="services">
             <div>
-                <h2><span data-lang="en">What NexaFlow helps you manage</span><span data-lang="zh" class="lang-hidden">NexaFlow 帮你管理什么</span></h2>
-                <p><span data-lang="en">A focused buyer inbox for dealers that receive enquiries from social apps, WhatsApp, calls, and referrals. Start with one link, then keep every follow-up visible.</span><span data-lang="zh" class="lang-hidden">给从社媒、WhatsApp、电话和介绍收到买家询问的车商使用。先从一个链接开始，再把每次跟进清楚记录下来。</span></p>
+                <h2><span data-lang="en">What your sales team sees every day</span><span data-lang="zh" class="lang-hidden">销售每天看到什么</span></h2>
+                <p><span data-lang="en">A simple queue for dealers that need fewer missed DMs and clearer follow-up.</span><span data-lang="zh" class="lang-hidden">给车商用的简单队列：少漏私信，也知道下一步怎么跟。</span></p>
             </div>
         </div>
         <section class="grid">
             <div class="card">
-                <h3><span data-lang="en">Unified enquiry inbox</span><span data-lang="zh" class="lang-hidden">统一询盘 inbox</span></h3>
-                <p><span data-lang="en">Buyers submit name, contact details, source, car request, and privacy acknowledgement through one simple link.</span><span data-lang="zh" class="lang-hidden">买家通过一个简单链接提交姓名、联系方式、来源、想看的车和隐私确认。</span></p>
+                <h3><span data-lang="en">All DMs in one queue</span><span data-lang="zh" class="lang-hidden">所有私信进一个队列</span></h3>
+                <p><span data-lang="en">WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals can be worked from one place.</span><span data-lang="zh" class="lang-hidden">WhatsApp、Instagram、Facebook、TikTok、小红书、电话和介绍来的客户，都在一个地方处理。</span></p>
                 <a class="btn" href="/merchant-signup"><span data-lang="en">Create My Buyer Inbox</span><span data-lang="zh" class="lang-hidden">创建我的买家 inbox</span></a>
             </div>
             <div class="card">
-                <h3><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></h3>
-                <p><span data-lang="en">NexaFlow summarizes what the buyer asked, what is missing, and what your team should ask next.</span><span data-lang="zh" class="lang-hidden">NexaFlow 总结买家问了什么、还缺什么资料，以及下一句应该问什么。</span></p>
+                <h3><span data-lang="en">Know what is missing</span><span data-lang="zh" class="lang-hidden">知道还缺什么</span></h3>
+                <p><span data-lang="en">AI shows whether the buyer is stuck on loan, monthly payment, budget, price comparison, or viewing time.</span><span data-lang="zh" class="lang-hidden">AI 告诉你客户是卡在贷款、月供、预算、比价，还是看车时间。</span></p>
                 <a class="btn secondary" href="/dealer-demo"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
             </div>
             <div class="card">
-                <h3><span data-lang="en">Next Message Helper</span><span data-lang="zh" class="lang-hidden">下一句回复助手</span></h3>
-                <p><span data-lang="en">The private inbox keeps message, status, notes, reply draft, and next follow-up date in one place.</span><span data-lang="zh" class="lang-hidden">私密 inbox 集中保存客户留言、状态、备注、回复草稿和下次跟进日期。</span></p>
+                <h3><span data-lang="en">Next reply ready</span><span data-lang="zh" class="lang-hidden">下一句回复准备好</span></h3>
+                <p><span data-lang="en">Sales get a clear next message, then mark replied, follow up later, or book a viewing.</span><span data-lang="zh" class="lang-hidden">销售拿到下一句回复，再标记已回、之后跟进，或安排看车。</span></p>
                 <a class="btn secondary" href="/merchant-login"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></a>
             </div>
         </section>
 
         <div class="section-head">
             <div>
-                <h2><span data-lang="en">Bring enquiries in from every channel</span><span data-lang="zh" class="lang-hidden">不同渠道的询盘，都可以收进来</span></h2>
-                <p><span data-lang="en">Connect supported channels directly. For platforms with limited private-message access, use assisted capture by link, copy, screenshot, or source tracking.</span><span data-lang="zh" class="lang-hidden">支持的渠道可以直接连接；如果平台私信权限有限，可以用链接、复制文字、截图或来源追踪来辅助导入。</span></p>
+                <h2><span data-lang="en">Bring buyer messages into the queue</span><span data-lang="zh" class="lang-hidden">把买家消息带进销售队列</span></h2>
+                <p><span data-lang="en">Supported channels can sync directly. For platforms with limited private-message access, sales can paste, screenshot, or tag the source.</span><span data-lang="zh" class="lang-hidden">支持的渠道可以直接同步；私信权限有限的平台，可以由销售复制、截图或标记来源。</span></p>
             </div>
         </div>
         <section class="grid">
             <div class="card accent-card">
-                <h3><span data-lang="en">Automatic sync</span><span data-lang="zh" class="lang-hidden">自动同步</span></h3>
-                <p><span data-lang="en">Use official APIs and approved account access where available, such as WhatsApp Business, Instagram, or Facebook messaging paths.</span><span data-lang="zh" class="lang-hidden">在官方 API 和账号权限允许的情况下，连接 WhatsApp Business、Instagram 或 Facebook 消息渠道。</span></p>
+                <h3><span data-lang="en">Direct sync where supported</span><span data-lang="zh" class="lang-hidden">支持的平台直接同步</span></h3>
+                <p><span data-lang="en">Start with official WhatsApp Business, Instagram, or Facebook messaging paths when account access is approved.</span><span data-lang="zh" class="lang-hidden">账号权限通过后，可先从官方 WhatsApp Business、Instagram 或 Facebook 消息渠道开始。</span></p>
             </div>
             <div class="card">
-                <h3><span data-lang="en">Assisted capture</span><span data-lang="zh" class="lang-hidden">辅助导入</span></h3>
-                <p><span data-lang="en">For TikTok, Xiaohongshu, calls, and referrals, paste text, upload screenshots, or share a tagged enquiry link so AI can extract customer details.</span><span data-lang="zh" class="lang-hidden">TikTok、小红书、电话和介绍来的客户，可以复制文字、上传截图或分享带来源的询盘链接，让 AI 整理客户资料。</span></p>
+                <h3><span data-lang="en">Paste or screenshot when needed</span><span data-lang="zh" class="lang-hidden">需要时复制或截图</span></h3>
+                <p><span data-lang="en">For TikTok, Xiaohongshu, calls, and referrals, paste the message or source note so AI can make a follow-up card.</span><span data-lang="zh" class="lang-hidden">TikTok、小红书、电话和介绍来的客户，可以复制内容或来源备注，让 AI 变成跟进卡。</span></p>
             </div>
             <div class="card">
-                <h3><span data-lang="en">Source tracking</span><span data-lang="zh" class="lang-hidden">来源追踪</span></h3>
-                <p><span data-lang="en">When direct sending is not supported, keep the source handle, notes, reply draft, and next follow-up in NexaFlow while replying in the original app.</span><span data-lang="zh" class="lang-hidden">当平台不支持直接发送时，在 NexaFlow 记录来源账号、备注、回复草稿和下次跟进，再回到原平台回复。</span></p>
+                <h3><span data-lang="en">Reply in the right app</span><span data-lang="zh" class="lang-hidden">回到原平台回复</span></h3>
+                <p><span data-lang="en">NexaFlow keeps the source, stuck point, next reply, and reminder while sales reply in WhatsApp or the original app.</span><span data-lang="zh" class="lang-hidden">NexaFlow 记录来源、卡点、下一句回复和提醒；销售再回 WhatsApp 或原平台回复。</span></p>
             </div>
         </section>
 
@@ -8102,14 +8110,14 @@ def landing_page():
 
         <div class="section-head">
             <div>
-                <h2><span data-lang="en">Three simple steps</span><span data-lang="zh" class="lang-hidden">三个简单步骤</span></h2>
-                <p><span data-lang="en">Built for busy owners and sales teams who need a practical daily workflow, not another complicated system.</span><span data-lang="zh" class="lang-hidden">为忙碌老板和销售团队设计，重点是每天能用，不是再多一个复杂系统。</span></p>
+                <h2><span data-lang="en">The daily flow</span><span data-lang="zh" class="lang-hidden">每天使用流程</span></h2>
+                <p><span data-lang="en">No complicated CRM routine. Sales just opens the queue and handles the next buyer.</span><span data-lang="zh" class="lang-hidden">不用复杂 CRM 流程。销售打开队列，处理下一位买家。</span></p>
             </div>
         </div>
         <section class="steps">
-            <div class="step"><div><strong><span data-lang="en">Share one enquiry link</span><span data-lang="zh" class="lang-hidden">分享一个询盘链接</span></strong><p><span data-lang="en">Put it on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or your website.</span><span data-lang="zh" class="lang-hidden">放在 WhatsApp、Instagram、Facebook、TikTok、小红书、Google 商家资料或网站。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></strong><p><span data-lang="en">Customer source, request, notes, missing details, and reply draft appear in your private inbox.</span><span data-lang="zh" class="lang-hidden">客户来源、需求、备注、缺少资料和回复草稿都会进入你的私密 inbox。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Follow up with the next question</span><span data-lang="zh" class="lang-hidden">用下一句问题跟进</span></strong><p><span data-lang="en">Open WhatsApp or the original platform, reply with context, then set the next follow-up date.</span><span data-lang="zh" class="lang-hidden">打开 WhatsApp 或原平台，带着客户背景回复，然后设置下次跟进日期。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Open today&apos;s queue</span><span data-lang="zh" class="lang-hidden">打开今天队列</span></strong><p><span data-lang="en">See the buyers who need attention first.</span><span data-lang="zh" class="lang-hidden">先看今天最需要处理的买家。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Check the AI note</span><span data-lang="zh" class="lang-hidden">看 AI 提醒</span></strong><p><span data-lang="en">Know what car they want, what they are stuck on, and what to ask next.</span><span data-lang="zh" class="lang-hidden">知道客户想看什么车、卡在哪里、下一句问什么。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Reply or set reminder</span><span data-lang="zh" class="lang-hidden">回复或设提醒</span></strong><p><span data-lang="en">Copy the next reply, then mark replied, remind later, or book a viewing.</span><span data-lang="zh" class="lang-hidden">复制下一句回复，然后标记已回、之后提醒，或安排看车。</span></p></div></div>
         </section>
 
         <div class="section-head">

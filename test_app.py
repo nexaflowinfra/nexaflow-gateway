@@ -41,15 +41,17 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
-    assert "One buyer inbox. One next step for every enquiry." in response.text
-    assert "一个买家 inbox" in response.text
-    assert "What NexaFlow helps you manage" in response.text
-    assert "Unified enquiry inbox" in response.text
-    assert "Capture missing details" in response.text
-    assert "Next Message Helper" in response.text
-    assert "Bring enquiries in from every channel" in response.text
-    assert "Assisted capture" in response.text
-    assert "Follow up with the next question" in response.text
+    assert "All car buyer DMs in one sales queue." in response.text
+    assert "所有买车私信，进一个销售队列。" in response.text
+    assert "who to reply first" in response.text
+    assert "what the buyer is stuck on" in response.text
+    assert "What your sales team sees every day" in response.text
+    assert "All DMs in one queue" in response.text
+    assert "Know what is missing" in response.text
+    assert "Next reply ready" in response.text
+    assert "Bring buyer messages into the queue" in response.text
+    assert "Paste or screenshot when needed" in response.text
+    assert "Reply or set reminder" in response.text
     assert "Simple pricing after trial" in response.text
     assert "30-day trial" in response.text
     assert "SGD 49" in response.text
@@ -82,16 +84,17 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     monkeypatch.delenv("META_APP_SECRET", raising=False)
     response = client.get("/dealer-demo")
     assert response.status_code == 200
-    assert "Daily buyer follow-up, without Meta setup." in response.text
+    assert "A sales queue for used car enquiries." in response.text
     assert "TikTok Civic Buyer" in response.text
     assert "Referral Trade-in Buyer" in response.text
     assert "demoLeadDetail" in response.text
     assert "demo-queue-card" in response.text
-    assert "Stuck point" in response.text
-    assert "Suggested reply" in response.text
-    assert "No real buyer data, access key, export, delete, or admin route is exposed here." in response.text
+    assert "Buyer wants" in response.text
+    assert "Stuck on" in response.text
+    assert "Next reply" in response.text
+    assert "no real buyer data, access key, export, delete, or admin route is exposed here." in response.text
     assert "Buyer progress" in response.text
-    assert "Create Buyer Inbox" in response.text
+    assert "Create Dealer Inbox" in response.text
     assert "/admin/dashboard" not in response.text
     assert "business_access_key" not in response.text
     assert "nexaflow_business_key_" not in response.text
