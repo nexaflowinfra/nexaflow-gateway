@@ -905,6 +905,7 @@ def init_db():
                 channel TEXT NOT NULL,
                 connection_id INTEGER,
                 external_message_id TEXT,
+                enquiry_id INTEGER,
                 customer_display_name TEXT,
                 customer_handle TEXT,
                 direction TEXT NOT NULL,
@@ -915,6 +916,7 @@ def init_db():
             )
             """
         )
+        ensure_column(connection, "channel_messages", "enquiry_id", "INTEGER")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS data_audit_events (
@@ -937,6 +939,7 @@ def init_db():
         connection.execute("CREATE INDEX IF NOT EXISTS idx_trial_requests_status_created ON trial_requests (status, created_at)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_connections_business ON channel_connections (business_slug, channel)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_messages_business_created ON channel_messages (business_slug, created_at)")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_channel_messages_external_unique ON channel_messages (channel, external_message_id) WHERE external_message_id IS NOT NULL AND external_message_id != ''")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_data_audit_business_created ON data_audit_events (business_slug, created_at)")
 
 
@@ -1755,6 +1758,21 @@ def verify_stripe_signature(raw_body, signature_header, endpoint_secret):
     ).hexdigest()
 
     return any(hmac.compare_digest(expected, signature) for signature in signatures)
+
+
+def verify_meta_signature(raw_body, signature_header, app_secret):
+    if not app_secret or not signature_header:
+        return False
+    prefix = "sha256="
+    if not signature_header.startswith(prefix):
+        return False
+    signature = signature_header[len(prefix):]
+    expected = hmac.new(
+        app_secret.encode("utf-8"),
+        raw_body,
+        sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
 
 
 def stripe_plan_from_payment_link(payment_link):
@@ -2772,6 +2790,248 @@ def upsert_channel_connection(profile, channel, req):
         "security_requirements": catalog["security_requirements"],
         "data_note": catalog["data_note"],
     }
+
+
+def meta_message_text(message):
+    if not isinstance(message, dict):
+        return ""
+    text_value = message.get("text")
+    if isinstance(text_value, dict) and text_value.get("body"):
+        return text_value["body"]
+    if text_value:
+        return str(text_value)
+    if message.get("button", {}).get("text"):
+        return message["button"]["text"]
+    if message.get("interactive", {}).get("button_reply", {}).get("title"):
+        return message["interactive"]["button_reply"]["title"]
+    if message.get("interactive", {}).get("list_reply", {}).get("title"):
+        return message["interactive"]["list_reply"]["title"]
+    if message.get("attachments"):
+        return "[Attachment received]"
+    message_type = message.get("type") or ""
+    if message_type and message_type != "text":
+        return f"[{message_type} message received]"
+    return ""
+
+
+def meta_timestamp_to_iso(value):
+    try:
+        timestamp = int(value)
+    except (TypeError, ValueError):
+        return now_iso()
+    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
+
+
+def extract_meta_inbound_messages(payload):
+    events = []
+    payload_object = payload.get("object")
+    for entry in payload.get("entry", []):
+        entry_id = str(entry.get("id") or "")
+        if payload_object == "whatsapp_business_account":
+            for change in entry.get("changes", []):
+                value = change.get("value") or {}
+                metadata = value.get("metadata") or {}
+                account_id = str(metadata.get("phone_number_id") or metadata.get("display_phone_number") or "")
+                contact_names = {
+                    str(contact.get("wa_id") or ""): (contact.get("profile") or {}).get("name") or ""
+                    for contact in value.get("contacts", [])
+                }
+                for message in value.get("messages", []):
+                    text = meta_message_text(message)
+                    if not text:
+                        continue
+                    customer_handle = str(message.get("from") or "")
+                    events.append(
+                        {
+                            "channel": "whatsapp",
+                            "account_id": account_id,
+                            "external_message_id": str(message.get("id") or f"whatsapp:{account_id}:{customer_handle}:{message.get('timestamp') or now_iso()}"),
+                            "customer_display_name": contact_names.get(customer_handle) or customer_handle or "WhatsApp buyer",
+                            "customer_handle": customer_handle,
+                            "message": text,
+                            "received_at": meta_timestamp_to_iso(message.get("timestamp")),
+                            "create_whatsapp_reply": True,
+                        }
+                    )
+        elif payload_object in {"page", "instagram"}:
+            channel = "instagram" if payload_object == "instagram" else "facebook"
+            for item in entry.get("messaging", []):
+                message = item.get("message") or {}
+                if message.get("is_echo"):
+                    continue
+                text = meta_message_text(message)
+                if not text:
+                    continue
+                recipient = item.get("recipient") or {}
+                sender = item.get("sender") or {}
+                account_id = str(recipient.get("id") or entry_id)
+                customer_handle = str(sender.get("id") or "")
+                timestamp = item.get("timestamp")
+                received_at = meta_timestamp_to_iso(str(int(timestamp / 1000)) if timestamp else None)
+                events.append(
+                    {
+                        "channel": channel,
+                        "account_id": account_id,
+                        "external_message_id": str(message.get("mid") or f"{channel}:{account_id}:{customer_handle}:{timestamp or now_iso()}"),
+                        "customer_display_name": customer_handle or f"{channel.title()} buyer",
+                        "customer_handle": customer_handle,
+                        "message": text,
+                        "received_at": received_at,
+                        "create_whatsapp_reply": False,
+                    }
+                )
+    return events
+
+
+def channel_connection_for_external_account(channel, external_account_id):
+    if not external_account_id:
+        return None, None
+    with db_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT * FROM channel_connections
+            WHERE channel = ? AND external_account_id = ?
+                AND data_processing_acknowledged = 1
+                AND status != 'paused'
+                AND integration_mode = 'official_api_requested'
+            """,
+            (channel, external_account_id),
+        ).fetchall()
+    if len(rows) != 1:
+        return None, None
+    channel_connection = row_to_channel_connection(rows[0])
+    profile = get_business_profile(channel_connection["business_slug"])
+    if profile["status"] != "active":
+        return None, None
+    return channel_connection, profile
+
+
+def channel_message_exists(channel, external_message_id):
+    if not external_message_id:
+        return False
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT id FROM channel_messages WHERE channel = ? AND external_message_id = ?",
+            (channel, external_message_id),
+        ).fetchone()
+    return row is not None
+
+
+def record_channel_message(connection_info, profile, event, enquiry):
+    try:
+        retention_until = (
+            datetime.now(timezone.utc) + timedelta(days=int(profile.get("data_retention_days") or 365))
+        ).date().isoformat()
+    except (TypeError, ValueError):
+        retention_until = ""
+    timestamp = now_iso()
+    with db_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT OR IGNORE INTO channel_messages (
+                business_slug, channel, connection_id, external_message_id, enquiry_id,
+                customer_display_name, customer_handle, direction, message_preview,
+                received_at, retention_until, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'inbound', ?, ?, ?, ?)
+            """,
+            (
+                profile["slug"],
+                event["channel"],
+                connection_info["id"],
+                event["external_message_id"],
+                enquiry["id"],
+                event["customer_display_name"],
+                event["customer_handle"],
+                event["message"][:300],
+                event["received_at"],
+                retention_until,
+                timestamp,
+            ),
+        )
+        connection.execute(
+            "UPDATE channel_connections SET last_sync_at = ?, updated_at = ? WHERE id = ?",
+            (timestamp, timestamp, connection_info["id"]),
+        )
+        write_data_audit_event(
+            "channel.message_received",
+            "meta_webhook",
+            "channel_message",
+            cursor.lastrowid,
+            business_slug=profile["slug"],
+            metadata={
+                "channel": event["channel"],
+                "external_message_id": event["external_message_id"],
+                "enquiry_id": enquiry["id"],
+            },
+            connection=connection,
+        )
+
+
+def create_enquiry_from_meta_event(connection_info, profile, event):
+    if channel_message_exists(event["channel"], event["external_message_id"]):
+        return {"status": "duplicate", "external_message_id": event["external_message_id"]}
+    phone_or_handle = event["customer_handle"] if event["channel"] == "whatsapp" else f"{event['channel']}:{event['customer_handle'] or event['external_message_id']}"
+    enquiry_req = EnquiryCreateRequest(
+        business_slug=profile["slug"],
+        business_type=profile["business_type"],
+        name=event["customer_display_name"] or f"{event['channel'].title()} buyer",
+        phone=phone_or_handle[:40],
+        email=None,
+        message=event["message"],
+        source=event["channel"],
+        campaign="meta-webhook",
+        referrer=f"meta:{event['account_id']}",
+        page_url="",
+        pdpa_consent=True,
+    )
+    consent_notice = (
+        f"Inbound {event['channel']} message received through a merchant-connected official Meta channel. "
+        "The merchant authorized NexaFlow to process this buyer message for reply, quotation, appointment, "
+        "loan follow-up, support, security, audit, and retention controls."
+    )
+    enquiry = create_enquiry_record(
+        enquiry_req,
+        actor_type="meta_webhook",
+        notify_merchant=True,
+        consent_notice_override=consent_notice,
+        create_whatsapp_reply=event["create_whatsapp_reply"],
+    )
+    record_channel_message(connection_info, profile, event, enquiry)
+    return {"status": "created", "enquiry_id": enquiry["id"], "external_message_id": event["external_message_id"]}
+
+
+def process_meta_webhook_payload(payload):
+    events = extract_meta_inbound_messages(payload)
+    result = {
+        "received": len(events),
+        "created": 0,
+        "duplicates": 0,
+        "unmapped": 0,
+        "ignored": 0,
+        "items": [],
+    }
+    for event in events:
+        connection_info, profile = channel_connection_for_external_account(event["channel"], event["account_id"])
+        if not connection_info:
+            result["unmapped"] += 1
+            result["items"].append(
+                {
+                    "status": "unmapped",
+                    "channel": event["channel"],
+                    "account_id": event["account_id"],
+                    "external_message_id": event["external_message_id"],
+                }
+            )
+            continue
+        item = create_enquiry_from_meta_event(connection_info, profile, event)
+        result["items"].append(item)
+        if item["status"] == "created":
+            result["created"] += 1
+        elif item["status"] == "duplicate":
+            result["duplicates"] += 1
+        else:
+            result["ignored"] += 1
+    return result
 
 
 def get_business_profile(slug):
@@ -4336,7 +4596,13 @@ def public_enquiry_response(enquiry):
     }
 
 
-def create_enquiry_record(req, actor_type="public_form", notify_merchant=True, consent_notice_override=None):
+def create_enquiry_record(
+    req,
+    actor_type="public_form",
+    notify_merchant=True,
+    consent_notice_override=None,
+    create_whatsapp_reply=True,
+):
     profile = get_business_profile(req.business_slug) if req.business_slug else default_enquiry_profile()
     if profile["status"] != "active":
         raise HTTPException(status_code=403, detail="This enquiry form is not accepting new enquiries.")
@@ -4354,7 +4620,7 @@ def create_enquiry_record(req, actor_type="public_form", notify_merchant=True, c
     reply_draft = enquiry_reply_draft(req.name, business_type, req.message, classification, profile)
     # The inbox WhatsApp action is for the merchant to reply to the buyer.
     # Dealer/profile WhatsApp is used for merchant notifications and setup, not this follow-up link.
-    reply_phone = req.phone
+    reply_phone = req.phone if create_whatsapp_reply else ""
     whatsapp_url = whatsapp_reply_url(reply_phone, reply_draft)
     timestamp = now_iso()
     consent_notice = consent_notice_override or (
@@ -10498,6 +10764,38 @@ def payment_webhook(
         raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
     return process_payment_event(req)
+
+
+@app.get("/webhooks/meta")
+def meta_webhook_verify(
+    hub_mode: str | None = Query(default=None, alias="hub.mode"),
+    hub_verify_token: str | None = Query(default=None, alias="hub.verify_token"),
+    hub_challenge: str = Query(default="", alias="hub.challenge"),
+):
+    expected_token = os.getenv("META_WEBHOOK_VERIFY_TOKEN", "")
+    if not expected_token:
+        raise HTTPException(status_code=503, detail="Server missing META_WEBHOOK_VERIFY_TOKEN")
+    if hub_mode == "subscribe" and hmac.compare_digest(hub_verify_token or "", expected_token):
+        return Response(hub_challenge, media_type="text/plain")
+    raise HTTPException(status_code=403, detail="Invalid Meta webhook verify token")
+
+
+@app.post("/webhooks/meta")
+async def meta_webhook(
+    request: Request,
+    x_hub_signature_256: str | None = Header(default=None),
+):
+    app_secret = os.getenv("META_APP_SECRET", "")
+    if not app_secret:
+        raise HTTPException(status_code=503, detail="Server missing META_APP_SECRET")
+    raw_body = await request.body()
+    if not verify_meta_signature(raw_body, x_hub_signature_256, app_secret):
+        raise HTTPException(status_code=401, detail="Invalid Meta webhook signature")
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
+    return process_meta_webhook_payload(payload)
 
 
 @app.post("/webhooks/stripe")

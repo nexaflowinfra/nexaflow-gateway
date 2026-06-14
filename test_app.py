@@ -9,6 +9,8 @@ os.environ.setdefault("ADMIN_KEY", "test-admin")
 os.environ.setdefault("API_KEY_PEPPER", "test-pepper")
 os.environ.setdefault("PAYMENT_WEBHOOK_SECRET", "test-webhook-secret")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "test-stripe-secret")
+os.environ.setdefault("META_WEBHOOK_VERIFY_TOKEN", "test-meta-verify-token")
+os.environ.setdefault("META_APP_SECRET", "test-meta-app-secret")
 os.environ["RESEND_API_KEY"] = ""
 os.environ["FROM_EMAIL"] = ""
 
@@ -3106,6 +3108,201 @@ def stripe_signature(payload, secret):
     signed_payload = f"{timestamp}.{payload}".encode("utf-8")
     digest = hmac.new(secret.encode("utf-8"), signed_payload, "sha256").hexdigest()
     return f"t={timestamp},v1={digest}"
+
+
+def meta_signature(payload, secret="test-meta-app-secret"):
+    digest = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), "sha256").hexdigest()
+    return f"sha256={digest}"
+
+
+def test_meta_webhook_verify_and_whatsapp_message_creates_enquiry_once():
+    verify = client.get(
+        "/webhooks/meta",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "test-meta-verify-token",
+            "hub.challenge": "challenge-123",
+        },
+    )
+    assert verify.status_code == 200
+    assert verify.text == "challenge-123"
+
+    bad_verify = client.get(
+        "/webhooks/meta",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "wrong-token",
+            "hub.challenge": "challenge-123",
+        },
+    )
+    assert bad_verify.status_code == 403
+
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"meta-wa-{suffix}"
+    phone_number_id = f"phone-number-id-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Meta WhatsApp Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+            "offer_summary": "used car sales and loan support",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    connection = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "Dealer WABA",
+            "external_account_id": phone_number_id,
+            "data_processing_acknowledged": True,
+            "notes": "Official Cloud API webhook",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert connection.status_code == 200
+
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "waba-1",
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": phone_number_id},
+                            "contacts": [{"wa_id": "60123456789", "profile": {"name": "Alex Buyer"}}],
+                            "messages": [
+                                {
+                                        "id": f"wamid.test-{suffix}",
+                                    "from": "60123456789",
+                                    "timestamp": "1718000000",
+                                    "type": "text",
+                                    "text": {"body": "Can loan? monthly below RM900, can view today?"},
+                                }
+                            ],
+                        }
+                    }
+                ],
+            }
+        ],
+    }
+    raw = json.dumps(payload, separators=(",", ":"))
+    bad_post = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": "sha256=bad", "Content-Type": "application/json"},
+    )
+    assert bad_post.status_code == 401
+
+    first = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert first.status_code == 200
+    assert first.json()["created"] == 1
+    assert first.json()["duplicates"] == 0
+
+    second = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert second.status_code == 200
+    assert second.json()["created"] == 0
+    assert second.json()["duplicates"] == 1
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=whatsapp",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    saved = next(item for item in listing.json()["enquiries"] if "RM900" in item["message"])
+    assert saved["name"] == "Alex Buyer"
+    assert saved["phone"] == "60123456789"
+    assert saved["source"] == "whatsapp"
+    assert saved["whatsapp_url"].startswith("https://wa.me/60123456789")
+    assert saved["stuck_point"] == "Monthly payment or loan readiness"
+    assert "official Meta channel" in saved["consent_notice"]
+
+
+def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"meta-fb-{suffix}"
+    page_id = f"page-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Meta Facebook Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    connection = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/facebook?business_slug={slug}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "Dealer Facebook Page",
+            "external_account_id": page_id,
+            "data_processing_acknowledged": True,
+            "notes": "Official Messenger webhook",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert connection.status_code == 200
+
+    payload = {
+        "object": "page",
+        "entry": [
+            {
+                "id": page_id,
+                "time": 1718000000000,
+                "messaging": [
+                    {
+                        "sender": {"id": "psid-456"},
+                            "recipient": {"id": page_id},
+                        "timestamp": 1718000000000,
+                        "message": {
+                            "mid": f"m-facebook-{suffix}",
+                            "text": "Is the Civic still available? Can view tomorrow?",
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    raw = json.dumps(payload, separators=(",", ":"))
+    response = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert response.status_code == 200
+    assert response.json()["created"] == 1
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=facebook",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    saved = next(item for item in listing.json()["enquiries"] if "Civic" in item["message"])
+    assert saved["source"] == "facebook"
+    assert saved["phone"].startswith("facebook:")
+    assert not saved["whatsapp_url"]
+    assert saved["stuck_point"] == "Viewing appointment not confirmed"
 
 
 def test_stripe_webhook_rejects_bad_signature():
