@@ -91,6 +91,11 @@ def test_merchant_signup_page_and_api_create_workspace():
     page = client.get("/merchant-signup")
     assert page.status_code == 200
     assert "Create your buyer inbox" in page.text
+    assert "setSignupLang" in page.text
+    assert "nexaflow_signup_lang" in page.text
+    assert "创建你的买家 inbox" in page.text
+    assert "车行 / 展厅名称" in page.text
+    assert "不需要社媒密码" in page.text
     assert "createMerchantWorkspace" in page.text
     assert "No social media password needed." in page.text
     assert "Optional setup" in page.text
@@ -464,6 +469,14 @@ def test_business_profile_create_and_public_form_loads():
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
     assert "Today&apos;s Buyer Follow-up" in inbox.text
+    assert "setInboxLang" in inbox.text
+    assert "nexaflow_inbox_lang" in inbox.text
+    assert "今日买家跟进" in inbox.text
+    assert "现在要跟进的买家" in inbox.text
+    assert "下载买家列表" in inbox.text
+    assert "资料保留天数" in inbox.text
+    assert "贷款 / 供车" in inbox.text
+    assert "月供" in inbox.text
     assert "Buyers to contact now" in inbox.text
     assert "merchantDailyLeads" in inbox.text
     assert "saveMerchantSettings" in inbox.text
@@ -500,6 +513,11 @@ def test_business_profile_create_and_public_form_loads():
     channels = client.get(f"/channels/{slug}")
     assert channels.status_code == 200
     assert "Social Source Setup" in channels.text
+    assert "setChannelsLang" in channels.text
+    assert "nexaflow_channels_lang" in channels.text
+    assert "询问来源设置" in channels.text
+    assert "不要在这里粘贴平台密码" in channels.text
+    assert "申请自动同步" in channels.text
     assert "Never paste platform passwords" in channels.text
     assert "Request auto sync" in channels.text
     assert "Assisted capture" in channels.text
