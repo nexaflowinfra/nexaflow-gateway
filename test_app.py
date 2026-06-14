@@ -102,6 +102,7 @@ def test_merchant_signup_page_and_api_create_workspace():
     assert "车行 / 展厅名称" in page.text
     assert "不需要社媒密码" in page.text
     assert "createMerchantWorkspace" in page.text
+    assert "signupErrorMessage" in page.text
     assert "No social media password needed." in page.text
     assert "Optional setup" in page.text
     assert page.text.index("Create your buyer inbox") < page.text.index("Optional setup")
@@ -139,6 +140,24 @@ def test_merchant_signup_page_and_api_create_workspace():
     )
     assert inbox_api.status_code == 200
     assert inbox_api.json()["business"]["slug"] == slug
+
+    no_email_slug = f"dealer-signup-no-email-{suffix}"
+    no_email = client.post(
+        "/apps/enquiry/api/merchant/signup",
+        json={
+            "business_name": "Dealer Signup No Email",
+            "whatsapp_phone": "60123456780",
+            "contact_email": "",
+            "business_type": "used_car_dealer",
+            "market": "my",
+            "preferred_slug": no_email_slug,
+            "monthly_enquiries": "under_50",
+            "pdpa_consent": True,
+        },
+    )
+    assert no_email.status_code == 200
+    assert no_email.json()["profile"]["slug"] == no_email_slug
+    assert no_email.json()["profile"]["contact_email"] is None
 
     conflict = client.post(
         "/apps/enquiry/api/merchant/signup",

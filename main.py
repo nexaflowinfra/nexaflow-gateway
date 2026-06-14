@@ -261,7 +261,7 @@ class BusinessProfileSettingsUpdate(BaseModel):
 class MerchantSignupRequest(BaseModel):
     business_name: str = Field(..., min_length=1, max_length=160)
     whatsapp_phone: str = Field(..., min_length=5, max_length=40)
-    contact_email: str = Field(..., min_length=3, max_length=200)
+    contact_email: str | None = Field(default="", max_length=200)
     business_type: str = Field(default="used_car_dealer", max_length=80)
     market: str = Field(default="my", pattern="^(my|sg|other)$")
     preferred_slug: str | None = Field(default=None, max_length=80)
@@ -7752,6 +7752,31 @@ def merchant_signup_page():
             function signupValue(id) {
                 return document.getElementById(id).value.trim();
             }
+            function signupErrorMessage(result) {
+                const fallback = signupText("Could not create buyer inbox.", "无法创建买家 inbox。");
+                const detail = result && result.detail;
+                if (!detail) {
+                    return fallback;
+                }
+                if (typeof detail === "string") {
+                    return detail;
+                }
+                if (Array.isArray(detail)) {
+                    return detail.map(item => {
+                        const loc = Array.isArray(item.loc) ? item.loc.filter(part => part !== "body").join(".") : "";
+                        const message = item.msg || JSON.stringify(item);
+                        return loc ? `${loc}: ${message}` : message;
+                    }).join(" ");
+                }
+                if (detail.msg) {
+                    return detail.msg;
+                }
+                try {
+                    return JSON.stringify(detail);
+                } catch (error) {
+                    return fallback;
+                }
+            }
             async function createMerchantWorkspace() {
                 const status = document.getElementById("signupStatus");
                 const businessName = signupValue("signupBusinessName");
@@ -7790,7 +7815,7 @@ def merchant_signup_page():
                     });
                     const result = await response.json();
                     if (!response.ok) {
-                        throw new Error(result.detail || signupText("Could not create buyer inbox.", "无法创建买家 inbox。"));
+                        throw new Error(signupErrorMessage(result));
                     }
                     const slug = result.profile.slug;
                     localStorage.setItem(`nexaflow_business_key_${slug}`, result.business_access_key);
