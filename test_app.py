@@ -92,6 +92,8 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     assert "Buyer wants" in response.text
     assert "Stuck on" in response.text
     assert "Next reply" in response.text
+    assert "More buyer details" in response.text
+    assert "Demo notes" in response.text
     assert "no real buyer data, access key, export, delete, or admin route is exposed here." in response.text
     assert "Buyer progress" in response.text
     assert "Create Dealer Inbox" in response.text

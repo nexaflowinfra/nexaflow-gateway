@@ -5106,9 +5106,8 @@ def dealer_demo_page_body():
                 <strong>{escape_html(card["name"])}</strong>
                 <span class="lead-badge {"hot" if card["priority"] == "hot" or card["follow_up_at"] <= today_iso else ""}">{escape_html(demo_priority_label(card["priority"]))}</span>
             </span>
-            <span class="demo-queue-meta">{escape_html(demo_source_label(card["source"]))} · {escape_html(card["campaign"])} · {escape_html(demo_status_label(card["status"]))}</span>
+            <span class="demo-queue-meta">{escape_html(demo_source_label(card["source"]))} · {escape_html(demo_status_label(card["status"]))}</span>
             <span class="demo-queue-focus">{escape_html(card["stuck_point"])}</span>
-            <span class="demo-queue-next">{escape_html(card["next_action"])}</span>
         </button>
         """
         for index, card in enumerate(display_cards)
@@ -5130,22 +5129,6 @@ def dealer_demo_page_body():
                 <a class="btn" href="/merchant-signup">Create Dealer Inbox</a>
                 <a class="btn secondary" href="/ai-enquiry#enquiry-form">Add Test Buyer</a>
             </div>
-        </div>
-    </section>
-    <section class="action-center">
-        <div class="action-card">
-            <h3>Open today&apos;s queue</h3>
-            <p>See who should be replied first, who needs a loan check, and who is waiting for a viewing confirmation.</p>
-            <div class="lead-badges">
-                <span class="lead-badge hot">Reply first · {hot_count}</span>
-                <span class="lead-badge hot">Due today · {due_count}</span>
-                <span class="lead-badge">Demo buyers · {len(cards)}</span>
-            </div>
-        </div>
-        <div class="action-card">
-            <h3>All sources, one list</h3>
-            <p>WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be worked from the same sales queue.</p>
-            <div class="lead-badges">{source_badges}</div>
         </div>
     </section>
     <section class="form-card">
@@ -5222,7 +5205,6 @@ def dealer_demo_page_body():
                     </div>
                     <span class="lead-badge ${{lead.priority === "hot" ? "hot" : ""}}">${{escapeDemoHtml(demoPriorityLabel(lead.priority))}}</span>
                 </div>
-                <div class="lead-badges">${{renderDemoSignals(lead)}}</div>
                 <div class="demo-detail-grid">
                     <div class="demo-detail-box">
                         <strong>Buyer wants</strong>
@@ -5232,18 +5214,6 @@ def dealer_demo_page_body():
                         <strong>Stuck on</strong>
                         <span>${{escapeDemoHtml(lead.stuck_point)}}</span>
                     </div>
-                    <div class="demo-detail-box">
-                        <strong>Next move</strong>
-                        <span>${{escapeDemoHtml(lead.next_action)}}</span>
-                    </div>
-                    <div class="demo-detail-box">
-                        <strong>When to chase</strong>
-                        <span>${{escapeDemoHtml(lead.follow_up_timing || lead.follow_up_recommendation)}}</span>
-                    </div>
-                </div>
-                <div class="demo-message-box">
-                    <strong>Buyer message</strong>
-                    <p>${{escapeDemoHtml(lead.message)}}</p>
                 </div>
                 <div class="demo-reply-box">
                     <strong>Next reply</strong>
@@ -5253,6 +5223,24 @@ def dealer_demo_page_body():
                     <button type="button" class="btn secondary" onclick="copyDemoReply()">Copy reply</button>
                     <span id="demoPanelStatus">Demo only: no message is sent.</span>
                 </div>
+                <details class="demo-inline-details">
+                    <summary>More buyer details</summary>
+                    <div class="lead-badges">${{renderDemoSignals(lead)}}</div>
+                    <div class="demo-detail-grid demo-extra-grid">
+                        <div class="demo-detail-box">
+                            <strong>Next move</strong>
+                            <span>${{escapeDemoHtml(lead.next_action)}}</span>
+                        </div>
+                        <div class="demo-detail-box">
+                            <strong>When to chase</strong>
+                            <span>${{escapeDemoHtml(lead.follow_up_timing || lead.follow_up_recommendation)}}</span>
+                        </div>
+                    </div>
+                    <div class="demo-message-box">
+                        <strong>Buyer message</strong>
+                        <p>${{escapeDemoHtml(lead.message)}}</p>
+                    </div>
+                </details>
             `;
         }}
         function copyDemoReply() {{
@@ -5271,6 +5259,25 @@ def dealer_demo_page_body():
         }}
         selectDemoLead(selectedDemoLeadId);
     </script>
+    <details class="form-card">
+        <summary>Demo notes</summary>
+        <section class="action-center">
+            <div class="action-card">
+                <h3>Open today&apos;s queue</h3>
+                <p>See who should be replied first, who needs a loan check, and who is waiting for a viewing confirmation.</p>
+                <div class="lead-badges">
+                    <span class="lead-badge hot">Reply first · {hot_count}</span>
+                    <span class="lead-badge hot">Due today · {due_count}</span>
+                    <span class="lead-badge">Demo buyers · {len(cards)}</span>
+                </div>
+            </div>
+            <div class="action-card">
+                <h3>All sources, one list</h3>
+                <p>WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be worked from the same sales queue.</p>
+                <div class="lead-badges">{source_badges}</div>
+            </div>
+        </section>
+    </details>
     <details class="form-card">
         <summary>Buyer progress</summary>
         <section class="pipeline-board">{pipeline_cards}</section>
@@ -7292,8 +7299,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     font-size: 15px;
                     line-height: 1.25;
                 }}
-                .demo-queue-meta,
-                .demo-queue-next {{
+                .demo-queue-meta {{
                     color: var(--muted);
                     font-size: 12px;
                     line-height: 1.4;
@@ -7311,7 +7317,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                         linear-gradient(135deg, rgba(45,212,191,.075), rgba(243,199,106,.08)),
                         var(--surface);
                     padding: 18px;
-                    min-height: 520px;
+                    min-height: 380px;
                     position: sticky;
                     top: 88px;
                     min-width: 0;
@@ -7369,6 +7375,25 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     margin-top: 10px;
                     border-color: rgba(243,199,106,.32);
                 }}
+                .demo-inline-details {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background: rgba(0,0,0,.16);
+                    padding: 12px;
+                    margin-top: 12px;
+                }}
+                .demo-inline-details summary {{
+                    cursor: pointer;
+                    color: var(--ink);
+                    font-size: 13px;
+                    font-weight: 900;
+                }}
+                .demo-inline-details[open] summary {{
+                    margin-bottom: 10px;
+                }}
+                .demo-extra-grid {{
+                    margin-bottom: 10px;
+                }}
                 .demo-panel-actions {{
                     display: flex;
                     flex-wrap: wrap;
@@ -7392,6 +7417,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     font-weight: 800;
                 }}
                 details.form-card summary + * {{ margin-top: 16px; }}
+                details.form-card .action-center {{
+                    margin-bottom: 0;
+                }}
                 .share-links {{
                     display: grid;
                     grid-template-columns: repeat(3, minmax(0, 1fr));
