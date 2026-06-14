@@ -94,6 +94,9 @@ def test_merchant_signup_page_and_api_create_workspace():
     assert "setSignupLang" in page.text
     assert "nexaflow_signup_lang" in page.text
     assert "创建你的买家 inbox" in page.text
+    assert "WhatsApp number (required)" in page.text
+    assert "WhatsApp 号码（必填）" in page.text
+    assert "WhatsApp number is required." in page.text
     assert "车行 / 展厅名称" in page.text
     assert "不需要社媒密码" in page.text
     assert "createMerchantWorkspace" in page.text

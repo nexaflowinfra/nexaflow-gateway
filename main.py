@@ -7163,8 +7163,8 @@ def merchant_signup_page():
         </section>
         <section class="form-card">
             <div class="toolbar">
-                <label><span data-lang="en">Dealer / showroom name</span><span data-lang="zh" class="lang-hidden">车行 / 展厅名称</span><input id="signupBusinessName" autocomplete="organization" placeholder="ABC Auto"></label>
-                <label><span data-lang="en">WhatsApp number</span><span data-lang="zh" class="lang-hidden">WhatsApp 号码</span><input id="signupWhatsapp" autocomplete="tel" placeholder="6012xxxxxxx"></label>
+                <label><span data-lang="en">Dealer / showroom name (required)</span><span data-lang="zh" class="lang-hidden">车行 / 展厅名称（必填）</span><input id="signupBusinessName" autocomplete="organization" placeholder="ABC Auto" required></label>
+                <label><span data-lang="en">WhatsApp number (required)</span><span data-lang="zh" class="lang-hidden">WhatsApp 号码（必填）</span><input id="signupWhatsapp" autocomplete="tel" placeholder="6012xxxxxxx" required></label>
                 <label><span data-lang="en">Owner email</span><span data-lang="zh" class="lang-hidden">老板 Email</span><input id="signupEmail" type="email" autocomplete="email" placeholder="owner@example.com"></label>
             </div>
             <details>
@@ -7250,11 +7250,25 @@ def merchant_signup_page():
             }
             async function createMerchantWorkspace() {
                 const status = document.getElementById("signupStatus");
+                const businessName = signupValue("signupBusinessName");
+                const whatsappPhone = signupValue("signupWhatsapp");
+                if (!businessName) {
+                    status.textContent = signupText("Dealer / showroom name is required.", "请填写车行 / 展厅名称。");
+                    return;
+                }
+                if (!whatsappPhone) {
+                    status.textContent = signupText("WhatsApp number is required.", "请填写 WhatsApp 号码。");
+                    return;
+                }
+                if (!document.getElementById("signupConsent").checked) {
+                    status.textContent = signupText("Please agree to the Privacy Policy before creating the inbox.", "创建 inbox 前，请先同意隐私政策。");
+                    return;
+                }
                 status.textContent = signupText("Creating buyer inbox...", "正在创建买家 inbox...");
                 const payload = {
-                    business_name: signupValue("signupBusinessName"),
+                    business_name: businessName,
                     contact_email: signupValue("signupEmail"),
-                    whatsapp_phone: signupValue("signupWhatsapp"),
+                    whatsapp_phone: whatsappPhone,
                     preferred_slug: normalizeSignupSlug(signupValue("signupSlug")),
                     market: signupValue("signupMarket"),
                     monthly_enquiries: signupValue("signupMonthly"),
