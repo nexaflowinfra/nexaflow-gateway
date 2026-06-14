@@ -3087,7 +3087,7 @@ def merchant_onboarding_email(profile, access_key):
 Your NexaFlow Enquiry setup is ready.
 
 What this does:
-NexaFlow helps your dealer team collect buyer enquiries, identify hot buyers, prepare WhatsApp follow-up drafts, and remind you who needs follow-up.
+NexaFlow helps your dealer team collect buyer enquiries, spot what each buyer is stuck on, prepare WhatsApp follow-up drafts, and remind you who needs follow-up.
 
 Buyer enquiry form:
 {form_url}
@@ -3680,6 +3680,14 @@ def classify_enquiry(message, business_type=""):
     }
 
 
+def enquiry_followup_focus_label(priority: str | None):
+    return {
+        "hot": "answer now",
+        "warm": "needs details",
+        "normal": "ask next question",
+    }.get(priority or "", priority or "unknown")
+
+
 def enquiry_reply_draft(name, business_type, message, classification, profile=None):
     profile = profile or default_enquiry_profile()
     service_label = (profile.get("offer_summary") or business_type.replace("_", " ").strip() or "service").strip()
@@ -3710,7 +3718,7 @@ def enquiry_reply_draft(name, business_type, message, classification, profile=No
     else:
         next_step = "Can you share a few more details so we can recommend the best next step?"
 
-    urgency = " We can prioritize this because it looks time-sensitive." if classification["priority"] == "hot" else ""
+    urgency = " This looks time-sensitive, so we will answer the immediate stuck point first." if classification["priority"] == "hot" else ""
     return (
         f"Hi {name}, thanks for contacting {business_name} about {service_label}.{urgency} "
         f"{next_step}{hours} We will reply in a {tone} way shortly."
@@ -3732,9 +3740,9 @@ def enquiry_workflow_summary(name, message, classification, profile=None):
         "general": "general enquiry",
     }.get(classification["intent"], "general enquiry")
     priority_label = {
-        "hot": "urgent / high priority",
-        "warm": "medium priority",
-        "normal": "normal priority",
+        "hot": "time-sensitive follow-up",
+        "warm": "needs-details follow-up",
+        "normal": "next-question follow-up",
     }.get(classification["priority"], classification["priority"])
 
     auto_summary = (
@@ -3927,8 +3935,8 @@ Lead:
 {enquiry.get('email') or ''}
 
 Intent: {enquiry['intent']}
-Priority: {enquiry['priority']}
-Estimated value: {enquiry['estimated_value']}
+Follow-up focus: {enquiry_followup_focus_label(enquiry['priority'])}
+Follow-up signal: {enquiry['estimated_value']}
 
 Auto-organized summary:
 {enquiry.get('auto_summary') or 'Not available'}
@@ -3962,7 +3970,7 @@ def notify_merchant_new_enquiry(profile, enquiry):
 
     return send_resend_email(
         profile["contact_email"],
-        f"New {enquiry['priority']} enquiry: {enquiry['name']}",
+        f"New enquiry - {enquiry_followup_focus_label(enquiry['priority'])}: {enquiry['name']}",
         merchant_enquiry_notification_email(profile, enquiry),
     )
 
@@ -3978,14 +3986,14 @@ def merchant_followup_digest_email(profile, enquiries):
     ]
     for index, enquiry in enumerate(enquiries, start=1):
         value = enquiry.get("deal_value")
-        value_line = f"Estimated value: {value}" if value else "Estimated value: not set"
+        value_line = f"Recorded sale value: {value}" if value else "Recorded sale value: not set"
         whatsapp_line = f"WhatsApp: {enquiry['whatsapp_url']}" if enquiry.get("whatsapp_url") else "WhatsApp: not available"
         note_line = f"Note: {enquiry['internal_note']}" if enquiry.get("internal_note") else "Note: none"
         lines.extend(
             [
                 f"{index}. {enquiry['name']} ({enquiry['phone']})",
                 f"Follow-up date: {enquiry.get('follow_up_at') or 'not set'}",
-                f"Intent: {enquiry['intent']} | Priority: {enquiry['priority']} | Status: {enquiry['status']}",
+                f"Intent: {enquiry['intent']} | Follow-up focus: {enquiry_followup_focus_label(enquiry['priority'])} | Status: {enquiry['status']}",
                 value_line,
                 note_line,
                 whatsapp_line,
@@ -6684,7 +6692,7 @@ def terms_page():
             (
                 "Customer Enquiries and Personal Data",
                 [
-                    "Customer enquiry forms may collect names, phone numbers, email addresses, messages, consent records, intent labels, priority labels, reply drafts, internal notes, follow-up dates, and estimated lead values.",
+                    "Customer enquiry forms may collect names, phone numbers, email addresses, messages, consent records, intent labels, follow-up focus labels, reply drafts, internal notes, follow-up dates, and follow-up signal values.",
                     "Merchants may use enquiry data only for the stated enquiry follow-up, service, support, security, and record-keeping purposes. Customer data must not be sold as a marketing list or used for unrelated purposes unless the merchant has a lawful basis and required consent.",
                     "NexaFlow provides technical safeguards such as consent capture, business access keys, private merchant inboxes, CSV export controls, and public response minimisation. Merchants remain responsible for their own handling of customer data after access or export.",
                     "Merchants should promptly notify NexaFlow if a business access key, exported file, mailbox, or connected system is exposed or compromised.",
@@ -6693,7 +6701,7 @@ def terms_page():
             (
                 "AI Outputs and Automation",
                 [
-                    "AI features may classify enquiries, estimate priority, generate reply drafts, route model requests, or assist with business workflows. AI outputs can be inaccurate, incomplete, delayed, biased, or unsuitable for a particular situation.",
+                    "AI features may classify enquiries, suggest follow-up focus, generate reply drafts, route model requests, or assist with business workflows. AI outputs can be inaccurate, incomplete, delayed, biased, or unsuitable for a particular situation.",
                     "NexaFlow does not guarantee that any enquiry will convert into a sale, that a lead is genuine, that a suggested reply is correct, or that a workflow will produce a specific business result.",
                     "Do not rely on the service as the sole basis for legal, financial, medical, safety-critical, employment, credit, insurance, immigration, or other high-risk decisions.",
                 ],
@@ -6792,7 +6800,7 @@ def privacy_page():
                     [
                         "Account identifiers, billing email, plan, subscription status, and API key prefix.",
                         "Usage metadata such as timestamps, provider, model, token counts, credit spend, costs, and request previews.",
-                        "Enquiry product data such as lead name, phone, email, enquiry message, intent, priority, reply draft, follow-up date, deal value, internal merchant notes, consent timestamp, and consent notice.",
+                        "Enquiry product data such as lead name, phone, email, enquiry message, intent, follow-up focus, reply draft, follow-up date, deal value, internal merchant notes, consent timestamp, and consent notice.",
                         "Operational records such as webhook deliveries, customer notifications, backups, and admin actions.",
                     ]
                 ],
@@ -7378,17 +7386,17 @@ def enquiry_app_page():
                     <div class="panel-top"><span data-lang="en">Today</span><span data-lang="zh" class="lang-hidden">今日询盘</span><span class="pill good">WhatsApp-ready</span></div>
                     <div class="signal-list">
                         <div class="signal-row">
-                            <span class="pill hot">Hot</span>
+                            <span class="pill hot">Answer now</span>
                             <div><strong><span data-lang="en">Quotation request</span><span data-lang="zh" class="lang-hidden">报价询问</span></strong><span data-lang="en">Urgent price request for this week.</span><span data-lang="zh" class="lang-hidden">客户想本周获得报价。</span></div>
                             <span data-lang="en">Reply draft</span><span data-lang="zh" class="lang-hidden">回复草稿</span>
                         </div>
                         <div class="signal-row">
-                            <span class="pill">Warm</span>
+                            <span class="pill">Need details</span>
                             <div><strong><span data-lang="en">Booking request</span><span data-lang="zh" class="lang-hidden">预约询问</span></strong><span data-lang="en">Customer asked for available slots.</span><span data-lang="zh" class="lang-hidden">客户想知道可预约时间。</span></div>
                             <span data-lang="en">Follow up</span><span data-lang="zh" class="lang-hidden">跟进</span>
                         </div>
                         <div class="signal-row">
-                            <span class="pill">Normal</span>
+                            <span class="pill">Ask next</span>
                             <div><strong><span data-lang="en">General enquiry</span><span data-lang="zh" class="lang-hidden">普通询问</span></strong><span data-lang="en">Customer asked for service details.</span><span data-lang="zh" class="lang-hidden">客户想了解服务详情。</span></div>
                             <span data-lang="en">Check</span><span data-lang="zh" class="lang-hidden">查看</span>
                         </div>
@@ -7462,7 +7470,7 @@ def enquiry_app_page():
                     <li><span data-lang="en">Everything in Starter</span><span data-lang="zh" class="lang-hidden">包含 Starter 全部功能</span></li>
                     <li><span data-lang="en">Up to 500 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 500 个询问</span></li>
                     <li><span data-lang="en">Follow-up digest</span><span data-lang="zh" class="lang-hidden">跟进提醒摘要</span></li>
-                    <li><span data-lang="en">Priority setup support</span><span data-lang="zh" class="lang-hidden">优先设置协助</span></li>
+                    <li><span data-lang="en">Follow-up workflow setup</span><span data-lang="zh" class="lang-hidden">跟进流程设置协助</span></li>
                 </ul>
             </div>
             <div class="price-card">
@@ -7539,6 +7547,10 @@ def enquiry_app_page():
                     "'": "&#039;"
                 }[char]));
             }
+            function focusLabel(value) {
+                const labels = { hot: "Answer now", warm: "Needs details", normal: "Ask next question" };
+                return labels[value] || value || "Unknown";
+            }
             async function submitEnquiry() {
                 const status = document.getElementById("enquiryStatus");
                 if (!document.getElementById("pdpaConsent").checked) {
@@ -7566,7 +7578,7 @@ def enquiry_app_page():
                     const result = await response.json();
                     status.innerHTML = `
                         Created enquiry #${result.id}<br>
-                        Intent: ${escapeHtml(result.intent)} | Priority: ${escapeHtml(result.priority)}<br>
+                        Need: ${escapeHtml(result.intent)} | Follow-up focus: ${escapeHtml(focusLabel(result.priority))}<br>
                         Next: the dealer opens the private inbox, uses the WhatsApp follow-up direction, and updates the buyer status.
                     `;
                 } catch (error) {
@@ -7790,6 +7802,10 @@ def public_enquiry_form_page(business_slug: str):
                     "'": "&#039;"
                 }}[char]));
             }}
+            function focusLabel(value) {{
+                const labels = {{ hot: "Answer now", warm: "Needs details", normal: "Ask next question" }};
+                return labels[value] || value || "Unknown";
+            }}
             async function submitEnquiry() {{
                 const status = document.getElementById("enquiryStatus");
                 const params = new URLSearchParams(window.location.search);
@@ -7824,7 +7840,7 @@ def public_enquiry_form_page(business_slug: str):
                         throw new Error(await response.text());
                     }}
                     const result = await response.json();
-                    status.innerHTML = `Enquiry sent. Reference #${{result.id}}. Priority: ${{escapeHtml(result.priority)}}`;
+                    status.innerHTML = `Enquiry sent. Reference #${{result.id}}. Follow-up focus: ${{escapeHtml(focusLabel(result.priority))}}`;
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -7922,7 +7938,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 </div>
                 <div class="toolbar">
                     <label><input id="settingsAutoFollowup" type="checkbox"> <span data-lang="en">Auto-schedule follow-up</span><span data-lang="zh" class="lang-hidden">自动安排跟进</span></label>
-                    <label><span data-lang="en">Hot Buyer Follow-up Hours</span><span data-lang="zh" class="lang-hidden">热买家几小时后跟进</span><input id="settingsHotFollowupHours" type="number" min="0" max="72" step="1"></label>
+                    <label><span data-lang="en">Time-sensitive Follow-up Hours</span><span data-lang="zh" class="lang-hidden">急件买家几小时后跟进</span><input id="settingsHotFollowupHours" type="number" min="0" max="72" step="1"></label>
                     <label><span data-lang="en">Standard Follow-up Days</span><span data-lang="zh" class="lang-hidden">普通买家几天后跟进</span><input id="settingsStandardFollowupDays" type="number" min="1" max="30" step="1"></label>
                     <label><span data-lang="en">Data Retention Days</span><span data-lang="zh" class="lang-hidden">资料保留天数</span><input id="settingsDataRetentionDays" type="number" min="30" max="2555" step="1"></label>
                 </div>
@@ -7951,12 +7967,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <option value="spam">Spam</option>
                     </select>
                 </label>
-                <label><span data-lang="en">Urgency</span><span data-lang="zh" class="lang-hidden">紧急度</span>
+                <label><span data-lang="en">Follow-up focus</span><span data-lang="zh" class="lang-hidden">跟进重点</span>
                     <select id="filterPriority">
-                        <option value="">All priorities / 全部紧急度</option>
-                        <option value="hot">Hot</option>
-                        <option value="warm">Warm</option>
-                        <option value="normal">Normal</option>
+                        <option value="">All follow-up focuses / 全部跟进重点</option>
+                        <option value="hot">Answer now / 现在回复</option>
+                        <option value="warm">Needs details / 需要资料</option>
+                        <option value="normal">Ask next question / 问下一题</option>
                     </select>
                 </label>
             </div>
@@ -8004,7 +8020,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <button class="btn secondary" onclick="exportMerchantCsv()"><span data-lang="en">Download Buyer List</span><span data-lang="zh" class="lang-hidden">下载买家列表</span></button>
             <table>
                 <thead>
-                    <tr><th><span data-lang="en">Time</span><span data-lang="zh" class="lang-hidden">时间</span></th><th><span data-lang="en">Buyer</span><span data-lang="zh" class="lang-hidden">买家</span></th><th><span data-lang="en">Source</span><span data-lang="zh" class="lang-hidden">来源</span></th><th><span data-lang="en">Intent</span><span data-lang="zh" class="lang-hidden">需求</span></th><th><span data-lang="en">Priority</span><span data-lang="zh" class="lang-hidden">优先级</span></th><th><span data-lang="en">Message</span><span data-lang="zh" class="lang-hidden">留言</span></th><th><span data-lang="en">Next move</span><span data-lang="zh" class="lang-hidden">下一步</span></th><th><span data-lang="en">Reply draft</span><span data-lang="zh" class="lang-hidden">回复草稿</span></th><th><span data-lang="en">Follow-up</span><span data-lang="zh" class="lang-hidden">跟进</span></th><th><span data-lang="en">Deal value</span><span data-lang="zh" class="lang-hidden">预计成交额</span></th><th><span data-lang="en">Note</span><span data-lang="zh" class="lang-hidden">备注</span></th><th><span data-lang="en">Status</span><span data-lang="zh" class="lang-hidden">状态</span></th><th><span data-lang="en">Action</span><span data-lang="zh" class="lang-hidden">操作</span></th></tr>
+                    <tr><th><span data-lang="en">Time</span><span data-lang="zh" class="lang-hidden">时间</span></th><th><span data-lang="en">Buyer</span><span data-lang="zh" class="lang-hidden">买家</span></th><th><span data-lang="en">Source</span><span data-lang="zh" class="lang-hidden">来源</span></th><th><span data-lang="en">Intent</span><span data-lang="zh" class="lang-hidden">需求</span></th><th><span data-lang="en">Follow-up focus</span><span data-lang="zh" class="lang-hidden">跟进重点</span></th><th><span data-lang="en">Message</span><span data-lang="zh" class="lang-hidden">留言</span></th><th><span data-lang="en">Next move</span><span data-lang="zh" class="lang-hidden">下一步</span></th><th><span data-lang="en">Reply draft</span><span data-lang="zh" class="lang-hidden">回复草稿</span></th><th><span data-lang="en">Follow-up</span><span data-lang="zh" class="lang-hidden">跟进</span></th><th><span data-lang="en">Recorded sale value</span><span data-lang="zh" class="lang-hidden">记录成交额</span></th><th><span data-lang="en">Note</span><span data-lang="zh" class="lang-hidden">备注</span></th><th><span data-lang="en">Status</span><span data-lang="zh" class="lang-hidden">状态</span></th><th><span data-lang="en">Action</span><span data-lang="zh" class="lang-hidden">操作</span></th></tr>
                 </thead>
                 <tbody id="merchantRows"></tbody>
             </table>
@@ -8310,8 +8326,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 return inboxLang() === "zh" ? (zhLabels[value] || value || "未知") : (labels[value] || value || "Unknown");
             }}
             function priorityLabel(value) {{
-                const labels = {{ hot: "Hot", warm: "Warm", normal: "Normal" }};
-                const zhLabels = {{ hot: "热买家", warm: "可跟进", normal: "普通" }};
+                const labels = {{ hot: "Answer now", warm: "Needs details", normal: "Ask next question" }};
+                const zhLabels = {{ hot: "现在回复", warm: "需要资料", normal: "问下一题" }};
                 return inboxLang() === "zh" ? (zhLabels[value] || value || "未知") : (labels[value] || value || "Unknown");
             }}
             function signalLabel(signal) {{
@@ -8412,7 +8428,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const firstAction = due > 0
                     ? ["Follow up due buyers", `${{due}} buyer(s) need attention today.`, "跟进到期买家", `今天有 ${{due}} 位买家要处理。`]
                     : hot > 0
-                        ? ["Reply to hot buyers", `${{hot}} hot buyer(s) should be contacted first.`, "先回复热买家", `${{hot}} 位热买家应该优先联系。`]
+                        ? ["Answer buyers with stuck points", `${{hot}} buyer(s) need a reply or next question now.`, "先处理卡住的买家", `${{hot}} 位买家现在需要回复或下一题。`]
                         : newCount > 0
                             ? ["Reply to new buyers", `${{newCount}} new buyer(s) are waiting for first reply.`, "回复新买家", `${{newCount}} 位新买家正在等第一句回复。`]
                             : ["Review active buyers", "No urgent enquiries. Check quoted buyers and mark the next step.", "查看进行中的买家", "目前没有紧急询问。检查已报价买家，并标记下一步。"];
@@ -8433,7 +8449,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <p>${{escapeHtml(onboarding.percent ?? 0)}}% ${{inboxText("ready", "已准备")}} · ${{escapeHtml(onboarding.next_action || inboxText("Complete setup before promotion.", "推广前先完成设置。"))}}</p>
                         <div class="lead-badges">
                             <span class="lead-badge ${{due ? "hot" : ""}}">${{langSpan("Due today", "今天到期")}} · ${{due}}</span>
-                            <span class="lead-badge ${{hot ? "hot" : ""}}">${{langSpan("Hot", "热买家")}} · ${{hot}}</span>
+                            <span class="lead-badge ${{hot ? "hot" : ""}}">${{langSpan("Needs answer", "需要回复")}} · ${{hot}}</span>
                             <span class="lead-badge">${{langSpan("New", "新买家")}} · ${{newCount}}</span>
                             <span class="lead-badge">${{langSpan("Quoted", "已报价")}} · ${{quoted}}</span>
                         </div>
@@ -8554,9 +8570,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     const stats = data.stats || {{}};
                     document.getElementById("merchantStats").innerHTML = `
                         <section class="card"><h3>${{langSpan("Total buyers", "总买家")}}</h3><div class="price">${{stats.total || 0}}</div></section>
-                        <section class="card"><h3>${{langSpan("Hot buyers", "热买家")}}</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
+                        <section class="card"><h3>${{langSpan("Need answer now", "现在需要回复")}}</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
                         <section class="card"><h3>${{langSpan("Top Source", "最多来源")}}</h3><div class="price">${{escapeHtml(Object.entries(stats.by_source || {{}}).sort((a, b) => b[1] - a[1])[0]?.[0] || "none")}}</div></section>
-                        <section class="card"><h3>${{langSpan("Estimated sale value", "预计成交额")}}</h3><div class="price">${{formatMoney(stats.pipeline_value)}}</div></section>
+                        <section class="card"><h3>${{langSpan("Recorded sale value", "记录成交额")}}</h3><div class="price">${{formatMoney(stats.pipeline_value)}}</div></section>
                         <section class="card"><h3>${{langSpan("Due today", "今天到期")}}</h3><div class="price">${{stats.due_followups || 0}}</div></section>
                     `;
                     renderActionCenter(data);
@@ -8572,7 +8588,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <td>${{escapeHtml(item.name)}}<br>${{escapeHtml(item.phone)}}<br>${{escapeHtml(item.email || "")}}</td>
                             <td>${{escapeHtml(sourceLabel(item.source || "unknown"))}}${{item.campaign ? `<br>${{escapeHtml(item.campaign)}}` : ""}}${{item.referrer ? `<br><small>${{escapeHtml(item.referrer.slice(0, 80))}}</small>` : ""}}</td>
                             <td>${{escapeHtml(item.intent)}}</td>
-                            <td>${{escapeHtml(item.priority)}}</td>
+                            <td>${{escapeHtml(priorityLabel(item.priority))}}</td>
                             <td>${{escapeHtml(item.message)}}${{item.auto_summary ? `<br><small>${{escapeHtml(item.auto_summary)}}</small>` : ""}}</td>
                             <td>
                                 <div class="lead-badges">${{renderFollowUpSignals(item)}}</div>
@@ -8989,7 +9005,7 @@ def enquiry_admin_page():
         <section class="grid" id="inboxStats"></section>
         <table>
             <thead>
-                <tr><th>Time</th><th>Merchant</th><th>Lead</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Draft</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Time</th><th>Merchant</th><th>Lead</th><th>Source</th><th>Intent</th><th>Follow-up focus</th><th>Message</th><th>Draft</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody id="enquiryRows"></tbody>
         </table>
@@ -9002,6 +9018,9 @@ def enquiry_admin_page():
                     '"': "&quot;",
                     "'": "&#039;"
                 }[char]));
+            }
+            function enquiryFocusLabel(value) {
+                return ({ hot: "Answer now", warm: "Needs details", normal: "Ask next question" })[value] || value || "unknown";
             }
             async function adminApi(path, options = {}) {
                 const adminKey = document.getElementById("adminKey").value;
@@ -9242,7 +9261,7 @@ def enquiry_admin_page():
                                     </div>
                                     <div class="lead-badges">
                                         <span class="lead-badge">${escapeHtml(statusLabel(item.status))}</span>
-                                        <span class="lead-badge ${priorityClass(item.follow_up_priority)}">${escapeHtml(item.follow_up_priority)} priority</span>
+                                        <span class="lead-badge ${priorityClass(item.follow_up_priority)}">${escapeHtml(item.follow_up_priority)} follow-up</span>
                                     </div>
                                 </div>
                                 <div class="trial-contact">
@@ -9315,7 +9334,7 @@ def enquiry_admin_page():
                     const stats = data.stats || {};
                     document.getElementById("inboxStats").innerHTML = `
                         <section class="card"><h3>Total</h3><div class="price">${stats.total || 0}</div></section>
-                        <section class="card"><h3>Hot</h3><div class="price">${(stats.by_priority || {}).hot || 0}</div></section>
+                        <section class="card"><h3>Need answer now</h3><div class="price">${(stats.by_priority || {}).hot || 0}</div></section>
                         <section class="card"><h3>New</h3><div class="price">${(stats.by_status || {}).new || 0}</div></section>
                         <section class="card"><h3>Top Source</h3><div class="price">${escapeHtml(Object.entries(stats.by_source || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "none")}</div></section>
                     `;
@@ -9326,7 +9345,7 @@ def enquiry_admin_page():
                             <td>${escapeHtml(item.name)}<br>${escapeHtml(item.phone)}<br>${escapeHtml(item.email || "")}</td>
                             <td>${escapeHtml(item.source || "unknown")}${item.campaign ? `<br>${escapeHtml(item.campaign)}` : ""}${item.referrer ? `<br><small>${escapeHtml(item.referrer.slice(0, 80))}</small>` : ""}</td>
                             <td>${escapeHtml(item.intent)}</td>
-                            <td>${escapeHtml(item.priority)}</td>
+                            <td>${escapeHtml(enquiryFocusLabel(item.priority))}</td>
                             <td>${escapeHtml(item.message)}</td>
                             <td>${escapeHtml(item.reply_draft)}</td>
                             <td>${escapeHtml(item.status)}</td>

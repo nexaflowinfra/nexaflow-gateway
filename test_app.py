@@ -500,7 +500,7 @@ def test_business_profile_create_and_public_form_loads():
     assert "Main buyer link" in inbox.text
     assert "Copy Buyer Link" in inbox.text
     assert "Buyer progress" in inbox.text
-    assert "Estimated sale value" in inbox.text
+    assert "Recorded sale value" in inbox.text
     assert "filterPriority" in inbox.text
     assert "filterSource" in inbox.text
     assert "filterFollowUp" in inbox.text
