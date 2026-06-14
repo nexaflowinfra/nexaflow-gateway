@@ -85,13 +85,23 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     assert "Daily buyer follow-up, without Meta setup." in response.text
     assert "TikTok Civic Buyer" in response.text
     assert "Referral Trade-in Buyer" in response.text
+    assert "demoLeadDetail" in response.text
+    assert "demo-queue-card" in response.text
+    assert "Stuck point" in response.text
+    assert "Suggested reply" in response.text
+    assert "No real buyer data, access key, export, delete, or admin route is exposed here." in response.text
     assert "Buyer progress" in response.text
     assert "Create Buyer Inbox" in response.text
     assert "/admin/dashboard" not in response.text
     assert "business_access_key" not in response.text
     assert "nexaflow_business_key_" not in response.text
+    assert "X-Admin-Key" not in response.text
     assert "/webhooks/meta" not in response.text
     assert "Download Buyer List" not in response.text
+    assert "exportMerchantCsv" not in response.text
+    assert "deleteMerchantLead" not in response.text
+    assert "setMerchantStatus" not in response.text
+    assert "/apps/enquiry/api/merchant/enquiries/export.csv" not in response.text
 
 
 def test_merchant_login_page_loads():

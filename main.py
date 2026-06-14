@@ -5030,6 +5030,8 @@ def demo_dealer_enquiry_cards():
                 "follow_up_timing": guidance["follow_up_timing"],
                 "reply_draft": enquiry_reply_draft(sample["name"], profile["business_type"], sample["message"], classification, profile),
                 "next_action": workflow["next_action"],
+                "auto_summary": workflow["auto_summary"],
+                "follow_up_recommendation": workflow["follow_up_recommendation"],
                 "signals": signals,
             }
         )
@@ -5040,7 +5042,8 @@ def dealer_demo_page_body():
     cards = demo_dealer_enquiry_cards()
     actionable = [card for card in cards if card["status"] not in {"won", "lost", "spam"}]
     hot_count = sum(1 for card in actionable if card["priority"] == "hot")
-    due_count = sum(1 for card in actionable if card["follow_up_at"] <= datetime.now(timezone.utc).date().isoformat())
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    due_count = sum(1 for card in actionable if card["follow_up_at"] <= today_iso)
     pipeline = {}
     sources = {}
     for card in cards:
@@ -5060,32 +5063,53 @@ def dealer_demo_page_body():
         """
         for status, count in sorted(pipeline.items())
     )
+    display_cards = actionable[:6]
+
+    def demo_priority_label(value):
+        return {
+            "hot": "Answer now",
+            "warm": "Needs details",
+            "normal": "Ask next",
+        }.get(value or "", value or "Unknown")
+
+    def demo_status_label(value):
+        return {
+            "new": "New",
+            "contacted": "Contacted",
+            "quoted": "Quoted",
+            "won": "Booked",
+        }.get(value or "", (value or "Unknown").title())
+
+    def demo_source_label(value):
+        return {
+            "tiktok": "TikTok",
+            "instagram": "Instagram",
+            "facebook": "Facebook",
+            "whatsapp": "WhatsApp",
+            "xiaohongshu": "Xiaohongshu",
+            "referral": "Referral",
+            "direct": "Direct",
+        }.get(value or "", (value or "Unknown").replace("_", " ").title())
+
     lead_cards = "".join(
         f"""
-        <div class="simple-lead-card">
-            <div>
+        <button type="button" class="demo-queue-card {"active" if index == 0 else ""}" data-demo-id="{card["id"]}" onclick="selectDemoLead({card["id"]})">
+            <span class="demo-queue-top">
                 <strong>{escape_html(card["name"])}</strong>
-                <small>{escape_html(card["source"].title())} · {escape_html(card["campaign"])}</small>
-                <div class="lead-badges">
-                    <span class="lead-badge {"hot" if card["priority"] == "hot" else ""}">{escape_html(card["priority"])}</span>
-                    <span class="lead-badge">{escape_html(card["status"])}</span>
-                    <span class="lead-badge">{escape_html(card["intent"])}</span>
-                </div>
-            </div>
-            <div>
-                <strong>{escape_html(card["next_action"])}</strong>
-                <small>{escape_html(card["message"])}</small>
-                <small><strong>Stuck point:</strong> {escape_html(card["stuck_point"])}</small>
-                <small><strong>Next question:</strong> {escape_html(card["next_question"])}</small>
-                <small><strong>Timing:</strong> {escape_html(card["follow_up_timing"])}</small>
-            </div>
-            <div>
-                <small><strong>Suggested reply</strong></small>
-                <small>{escape_html(card["reply_draft"])}</small>
-            </div>
-        </div>
+                <span class="lead-badge {"hot" if card["priority"] == "hot" or card["follow_up_at"] <= today_iso else ""}">{escape_html(demo_priority_label(card["priority"]))}</span>
+            </span>
+            <span class="demo-queue-meta">{escape_html(demo_source_label(card["source"]))} · {escape_html(card["campaign"])} · {escape_html(demo_status_label(card["status"]))}</span>
+            <span class="demo-queue-focus">{escape_html(card["stuck_point"])}</span>
+            <span class="demo-queue-next">{escape_html(card["next_action"])}</span>
+        </button>
         """
-        for card in actionable[:6]
+        for index, card in enumerate(display_cards)
+    )
+    demo_cards_json = (
+        json.dumps(display_cards)
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
     )
 
     return f"""
@@ -5120,11 +5144,125 @@ def dealer_demo_page_body():
         <div class="section-head">
             <div>
                 <h2>Buyers to contact now</h2>
-                <p>These are synthetic demo records only. No real buyer data, access key, export, delete, or admin route is exposed here.</p>
+                <p>Start with the queue, then open one buyer to see the AI follow-up detail. These are synthetic demo records only. No real buyer data, access key, export, delete, or admin route is exposed here.</p>
             </div>
         </div>
-        <div class="simple-lead-list">{lead_cards}</div>
+        <div class="dealer-demo-board">
+            <div class="demo-queue" aria-label="Demo buyer queue">{lead_cards}</div>
+            <aside class="demo-detail-panel" id="demoLeadDetail" aria-live="polite"></aside>
+        </div>
     </section>
+    <script>
+        const dealerDemoLeads = {demo_cards_json};
+        let selectedDemoLeadId = dealerDemoLeads.length ? dealerDemoLeads[0].id : null;
+
+        function escapeDemoHtml(value) {{
+            return String(value ?? "").replace(/[&<>"']/g, char => ({{
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            }}[char]));
+        }}
+        function demoSourceLabel(value) {{
+            const labels = {{
+                tiktok: "TikTok",
+                instagram: "Instagram",
+                facebook: "Facebook",
+                whatsapp: "WhatsApp",
+                xiaohongshu: "Xiaohongshu",
+                referral: "Referral",
+                direct: "Direct"
+            }};
+            return labels[value] || String(value || "Unknown").replace(/_/g, " ");
+        }}
+        function demoPriorityLabel(value) {{
+            const labels = {{ hot: "Answer now", warm: "Needs details", normal: "Ask next" }};
+            return labels[value] || value || "Unknown";
+        }}
+        function demoStatusLabel(value) {{
+            const labels = {{ new: "New", contacted: "Contacted", quoted: "Quoted", won: "Booked" }};
+            return labels[value] || value || "Unknown";
+        }}
+        function renderDemoSignals(lead) {{
+            const urgent = new Set(["finance", "monthly_payment", "budget", "comparison", "appointment", "time_sensitive"]);
+            const signals = Array.isArray(lead.signals) && lead.signals.length
+                ? lead.signals.slice(0, 5)
+                : [{{ key: "discovery", label: "Needs discovery" }}];
+            return signals.map(signal => `
+                <span class="lead-badge ${{urgent.has(signal.key) ? "hot" : ""}}" title="${{escapeDemoHtml(signal.detail || "")}}">
+                    ${{escapeDemoHtml(signal.label || signal.key)}}
+                </span>
+            `).join("");
+        }}
+        function selectDemoLead(id) {{
+            const lead = dealerDemoLeads.find(item => item.id === id) || dealerDemoLeads[0];
+            if (!lead) {{
+                return;
+            }}
+            selectedDemoLeadId = lead.id;
+            document.querySelectorAll(".demo-queue-card").forEach(card => {{
+                card.classList.toggle("active", Number(card.dataset.demoId) === lead.id);
+            }});
+            const panel = document.getElementById("demoLeadDetail");
+            panel.innerHTML = `
+                <div class="demo-detail-head">
+                    <div>
+                        <span class="demo-detail-kicker">${{escapeDemoHtml(demoSourceLabel(lead.source))}} · ${{escapeDemoHtml(lead.campaign)}}</span>
+                        <h3>${{escapeDemoHtml(lead.name)}}</h3>
+                    </div>
+                    <span class="lead-badge ${{lead.priority === "hot" ? "hot" : ""}}">${{escapeDemoHtml(demoPriorityLabel(lead.priority))}}</span>
+                </div>
+                <div class="lead-badges">${{renderDemoSignals(lead)}}</div>
+                <div class="demo-detail-grid">
+                    <div class="demo-detail-box">
+                        <strong>Stuck point</strong>
+                        <span>${{escapeDemoHtml(lead.stuck_point)}}</span>
+                    </div>
+                    <div class="demo-detail-box">
+                        <strong>Next question</strong>
+                        <span>${{escapeDemoHtml(lead.next_question)}}</span>
+                    </div>
+                    <div class="demo-detail-box">
+                        <strong>Next action</strong>
+                        <span>${{escapeDemoHtml(lead.next_action)}}</span>
+                    </div>
+                    <div class="demo-detail-box">
+                        <strong>Follow-up timing</strong>
+                        <span>${{escapeDemoHtml(lead.follow_up_timing || lead.follow_up_recommendation)}}</span>
+                    </div>
+                </div>
+                <div class="demo-message-box">
+                    <strong>Buyer message</strong>
+                    <p>${{escapeDemoHtml(lead.message)}}</p>
+                </div>
+                <div class="demo-reply-box">
+                    <strong>Suggested reply</strong>
+                    <p>${{escapeDemoHtml(lead.reply_draft)}}</p>
+                </div>
+                <div class="demo-panel-actions">
+                    <button type="button" class="btn secondary" onclick="copyDemoReply()">Copy reply</button>
+                    <span id="demoPanelStatus">Demo only: no message is sent.</span>
+                </div>
+            `;
+        }}
+        function copyDemoReply() {{
+            const lead = dealerDemoLeads.find(item => item.id === selectedDemoLeadId);
+            const status = document.getElementById("demoPanelStatus");
+            if (!lead || !status) {{
+                return;
+            }}
+            if (navigator.clipboard && lead.reply_draft) {{
+                navigator.clipboard.writeText(lead.reply_draft)
+                    .then(() => {{ status.textContent = "Reply copied for demo."; }})
+                    .catch(() => {{ status.textContent = "Copy manually from the suggested reply."; }});
+            }} else {{
+                status.textContent = "Copy manually from the suggested reply.";
+            }}
+        }}
+        selectDemoLead(selectedDemoLeadId);
+    </script>
     <section class="form-card">
         <h2>Buyer progress</h2>
         <section class="pipeline-board">{pipeline_cards}</section>
@@ -7100,6 +7238,140 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     display: block;
                     line-height: 1.45;
                 }}
+                .dealer-demo-board {{
+                    display: grid;
+                    grid-template-columns: minmax(300px, .86fr) minmax(360px, 1.14fr);
+                    gap: 14px;
+                    align-items: start;
+                }}
+                .demo-queue {{
+                    display: grid;
+                    gap: 10px;
+                    min-width: 0;
+                }}
+                .demo-queue-card {{
+                    width: 100%;
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background: var(--surface);
+                    color: var(--ink);
+                    padding: 14px;
+                    display: grid;
+                    gap: 8px;
+                    text-align: left;
+                    cursor: pointer;
+                    transition: border-color .16s ease, background .16s ease, transform .16s ease;
+                    min-width: 0;
+                }}
+                .demo-queue-card:hover,
+                .demo-queue-card.active {{
+                    border-color: rgba(243,199,106,.7);
+                    background:
+                        linear-gradient(135deg, rgba(243,199,106,.10), rgba(45,212,191,.05)),
+                        var(--surface);
+                }}
+                .demo-queue-card:hover {{
+                    transform: translateY(-1px);
+                }}
+                .demo-queue-top {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 10px;
+                }}
+                .demo-queue-top strong {{
+                    color: var(--ink);
+                    font-size: 15px;
+                    line-height: 1.25;
+                }}
+                .demo-queue-meta,
+                .demo-queue-next {{
+                    color: var(--muted);
+                    font-size: 12px;
+                    line-height: 1.4;
+                }}
+                .demo-queue-focus {{
+                    color: var(--brand-strong);
+                    font-size: 13px;
+                    font-weight: 800;
+                    line-height: 1.35;
+                }}
+                .demo-detail-panel {{
+                    border: 1px solid rgba(243,199,106,.42);
+                    border-radius: 8px;
+                    background:
+                        linear-gradient(135deg, rgba(45,212,191,.075), rgba(243,199,106,.08)),
+                        var(--surface);
+                    padding: 18px;
+                    min-height: 520px;
+                    position: sticky;
+                    top: 88px;
+                    min-width: 0;
+                }}
+                .demo-detail-head {{
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 12px;
+                    align-items: flex-start;
+                    margin-bottom: 8px;
+                }}
+                .demo-detail-head h3 {{
+                    margin: 4px 0 0;
+                    font-size: 24px;
+                }}
+                .demo-detail-kicker {{
+                    color: var(--muted);
+                    font-size: 12px;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 0;
+                }}
+                .demo-detail-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 10px;
+                    margin: 14px 0;
+                }}
+                .demo-detail-box,
+                .demo-message-box,
+                .demo-reply-box {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background: rgba(0,0,0,.22);
+                    padding: 12px;
+                    min-width: 0;
+                }}
+                .demo-detail-box strong,
+                .demo-message-box strong,
+                .demo-reply-box strong {{
+                    display: block;
+                    color: var(--ink);
+                    margin-bottom: 6px;
+                    font-size: 13px;
+                }}
+                .demo-detail-box span,
+                .demo-message-box p,
+                .demo-reply-box p {{
+                    margin: 0;
+                    color: var(--muted);
+                    font-size: 13px;
+                    line-height: 1.48;
+                }}
+                .demo-reply-box {{
+                    margin-top: 10px;
+                    border-color: rgba(243,199,106,.32);
+                }}
+                .demo-panel-actions {{
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                    align-items: center;
+                    margin-top: 12px;
+                }}
+                .demo-panel-actions span {{
+                    color: var(--muted);
+                    font-size: 12px;
+                }}
                 .simple-actions {{
                     display: flex;
                     flex-wrap: wrap;
@@ -7364,13 +7636,14 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card {{ grid-template-columns: 1fr; }}
+                    .hero, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card, .dealer-demo-board, .demo-detail-grid {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
                     .setup-package-head {{ display: grid; }}
                     .trial-request-head {{ display: grid; }}
                     .trial-followup {{ border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 14px; }}
+                    .demo-detail-panel {{ position: static; min-height: 0; }}
                     .form-card, .action-card, .share-link-box {{ width: 100%; }}
                     .floating-whatsapp {{ right: 14px; bottom: 14px; min-height: 44px; padding: 10px 14px; }}
                 }}
