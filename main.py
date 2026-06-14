@@ -7152,78 +7152,96 @@ def merchant_signup_page():
         """
         <section class="hero compact">
             <div>
-                <div class="eyebrow">Buyer Inbox</div>
-                <h1>Create your buyer inbox</h1>
-                <p class="lead">Collect car buyer enquiries and know who to WhatsApp next. No social media password needed.</p>
+                <div class="language-toggle" aria-label="Language">
+                    <button type="button" class="active" onclick="setSignupLang('en')" id="signupLangEn">EN</button>
+                    <button type="button" onclick="setSignupLang('zh')" id="signupLangZh">中文</button>
+                </div>
+                <div class="eyebrow"><span data-lang="en">Buyer Inbox</span><span data-lang="zh" class="lang-hidden">买家 Inbox</span></div>
+                <h1><span data-lang="en">Create your buyer inbox</span><span data-lang="zh" class="lang-hidden">创建你的买家 inbox</span></h1>
+                <p class="lead"><span data-lang="en">Collect car buyer enquiries and know who to WhatsApp next. No social media password needed.</span><span data-lang="zh" class="lang-hidden">集中买车询问，并知道下一位该 WhatsApp 谁。不需要社媒密码。</span></p>
             </div>
         </section>
         <section class="form-card">
             <div class="toolbar">
-                <label>Dealer / showroom name<input id="signupBusinessName" autocomplete="organization" placeholder="ABC Auto"></label>
-                <label>WhatsApp number<input id="signupWhatsapp" autocomplete="tel" placeholder="6012xxxxxxx"></label>
-                <label>Owner email<input id="signupEmail" type="email" autocomplete="email" placeholder="owner@example.com"></label>
+                <label><span data-lang="en">Dealer / showroom name</span><span data-lang="zh" class="lang-hidden">车行 / 展厅名称</span><input id="signupBusinessName" autocomplete="organization" placeholder="ABC Auto"></label>
+                <label><span data-lang="en">WhatsApp number</span><span data-lang="zh" class="lang-hidden">WhatsApp 号码</span><input id="signupWhatsapp" autocomplete="tel" placeholder="6012xxxxxxx"></label>
+                <label><span data-lang="en">Owner email</span><span data-lang="zh" class="lang-hidden">老板 Email</span><input id="signupEmail" type="email" autocomplete="email" placeholder="owner@example.com"></label>
             </div>
             <details>
-                <summary>Optional setup</summary>
+                <summary><span data-lang="en">Optional setup</span><span data-lang="zh" class="lang-hidden">可选设置</span></summary>
                 <div class="toolbar">
-                    <label>Your link name<input id="signupSlug" autocomplete="off" placeholder="abc-auto"></label>
-                    <label>Market
+                    <label><span data-lang="en">Your link name</span><span data-lang="zh" class="lang-hidden">你的链接名称</span><input id="signupSlug" autocomplete="off" placeholder="abc-auto"></label>
+                    <label><span data-lang="en">Market</span><span data-lang="zh" class="lang-hidden">市场</span>
                         <select id="signupMarket">
                             <option value="my">Malaysia</option>
                             <option value="sg">Singapore</option>
-                            <option value="other">Other</option>
+                            <option value="other">Other / 其他</option>
                         </select>
                     </label>
                 </div>
                 <div class="toolbar">
-                    <label>Monthly buyer enquiries
+                    <label><span data-lang="en">Monthly buyer enquiries</span><span data-lang="zh" class="lang-hidden">每月买家询问</span>
                         <select id="signupMonthly">
-                            <option value="under_50">Under 50</option>
+                            <option value="under_50">Under 50 / 少过 50</option>
                             <option value="50_200">50 - 200</option>
                             <option value="200_plus">200+</option>
                         </select>
                     </label>
-                    <label>Dealer type
+                    <label><span data-lang="en">Dealer type</span><span data-lang="zh" class="lang-hidden">车商类型</span>
                         <select id="signupBusinessType">
-                            <option value="used_car_dealer">Used car dealer</option>
-                            <option value="auto_dealer">Auto dealer</option>
-                            <option value="service_merchant">Service merchant</option>
-                            <option value="general">General</option>
+                            <option value="used_car_dealer">Used car dealer / 二手车商</option>
+                            <option value="auto_dealer">Auto dealer / 汽车销售</option>
+                            <option value="service_merchant">Service merchant / 服务商家</option>
+                            <option value="general">General / 普通商家</option>
                         </select>
                     </label>
                 </div>
             </details>
-            <label class="checkbox-label"><input id="signupConsent" type="checkbox"> <span>I agree that NexaFlow may create this buyer inbox and process buyer enquiry data for follow-up, security, support, and record keeping under the Privacy Policy.</span></label>
+            <label class="checkbox-label"><input id="signupConsent" type="checkbox"> <span><span data-lang="en">I agree that NexaFlow may create this buyer inbox and process buyer enquiry data for follow-up, security, support, and record keeping under the Privacy Policy.</span><span data-lang="zh" class="lang-hidden">我同意 NexaFlow 创建这个买家 inbox，并根据隐私政策处理买家询盘资料，用于跟进、安全、客服和必要记录。</span></span></label>
             <div class="actions">
-                <button class="btn" onclick="createMerchantWorkspace()">Create Dealer Inbox</button>
-                <a class="btn secondary" href="/merchant-login">I already have an inbox</a>
+                <button class="btn" onclick="createMerchantWorkspace()"><span data-lang="en">Create Dealer Inbox</span><span data-lang="zh" class="lang-hidden">创建车商 Inbox</span></button>
+                <a class="btn secondary" href="/merchant-login"><span data-lang="en">I already have an inbox</span><span data-lang="zh" class="lang-hidden">我已经有 inbox</span></a>
             </div>
-            <div class="status" id="signupStatus">No social media password needed.</div>
+            <div class="status" id="signupStatus"><span data-lang="en">No social media password needed.</span><span data-lang="zh" class="lang-hidden">不需要社媒密码。</span></div>
         </section>
         <section class="form-card" id="workspaceResult" style="display:none">
-            <h2>Your buyer inbox is ready</h2>
-            <p>Save this inbox password now. NexaFlow stores only a protected hash and cannot show it again.</p>
+            <h2><span data-lang="en">Your buyer inbox is ready</span><span data-lang="zh" class="lang-hidden">你的买家 inbox 已准备好</span></h2>
+            <p><span data-lang="en">Save this inbox password now. NexaFlow stores only a protected hash and cannot show it again.</span><span data-lang="zh" class="lang-hidden">请现在保存这个 inbox 密码。NexaFlow 只保存保护后的 hash，之后不会再次显示。</span></p>
             <div class="setup-panel">
-                <div class="setup-step"><strong>Dealer inbox</strong><span id="createdWorkspace">-</span></div>
-                <div class="setup-step"><strong>Inbox password</strong><span><code id="createdPassword">-</code></span></div>
-                <div class="setup-step"><strong>Security</strong><span id="createdSecurity">Never paste platform passwords, OTPs, cookies, or tokens.</span></div>
-                <div class="setup-step"><strong>Next</strong><span>Open inbox, submit one test buyer enquiry, then set sources.</span></div>
+                <div class="setup-step"><strong><span data-lang="en">Dealer inbox</span><span data-lang="zh" class="lang-hidden">车商 inbox</span></strong><span id="createdWorkspace">-</span></div>
+                <div class="setup-step"><strong><span data-lang="en">Inbox password</span><span data-lang="zh" class="lang-hidden">Inbox 密码</span></strong><span><code id="createdPassword">-</code></span></div>
+                <div class="setup-step"><strong><span data-lang="en">Security</span><span data-lang="zh" class="lang-hidden">安全</span></strong><span id="createdSecurity"><span data-lang="en">Never paste platform passwords, OTPs, cookies, or tokens.</span><span data-lang="zh" class="lang-hidden">不要粘贴平台密码、OTP、cookies 或 tokens。</span></span></div>
+                <div class="setup-step"><strong><span data-lang="en">Next</span><span data-lang="zh" class="lang-hidden">下一步</span></strong><span><span data-lang="en">Open inbox, submit one test buyer enquiry, then set sources.</span><span data-lang="zh" class="lang-hidden">打开 inbox，提交一个测试买家询盘，然后设置来源。</span></span></div>
             </div>
             <div class="actions">
-                <a class="btn" id="createdInbox" href="/merchant-login">Open Inbox</a>
-                <a class="btn secondary" id="createdChannels" href="/merchant-login">Set up WhatsApp / Facebook</a>
-                <a class="btn secondary" id="createdForm" href="/ai-enquiry">Send Test Enquiry</a>
+                <a class="btn" id="createdInbox" href="/merchant-login"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></a>
+                <a class="btn secondary" id="createdChannels" href="/merchant-login"><span data-lang="en">Set up WhatsApp / Facebook</span><span data-lang="zh" class="lang-hidden">设置 WhatsApp / Facebook</span></a>
+                <a class="btn secondary" id="createdForm" href="/ai-enquiry"><span data-lang="en">Send Test Enquiry</span><span data-lang="zh" class="lang-hidden">发送测试询盘</span></a>
             </div>
         </section>
         <details class="form-card">
-            <summary>Security and setup notes</summary>
+            <summary><span data-lang="en">Security and setup notes</span><span data-lang="zh" class="lang-hidden">安全与设置说明</span></summary>
             <section class="grid">
-                <div class="card"><h3>Private dealer inbox</h3><p>Each dealer gets a separate inbox, password, buyer list, and social source setup.</p></div>
-                <div class="card"><h3>No password sharing</h3><p>NexaFlow should use platform authorization or assisted capture, not shared staff passwords.</p></div>
-                <div class="card"><h3>Start simple</h3><p>The first daily view shows which buyer needs follow-up now, then hides advanced settings until needed.</p></div>
+                <div class="card"><h3><span data-lang="en">Private dealer inbox</span><span data-lang="zh" class="lang-hidden">车商私密 inbox</span></h3><p><span data-lang="en">Each dealer gets a separate inbox, password, buyer list, and social source setup.</span><span data-lang="zh" class="lang-hidden">每个车商都有独立 inbox、密码、买家列表和社媒来源设置。</span></p></div>
+                <div class="card"><h3><span data-lang="en">No password sharing</span><span data-lang="zh" class="lang-hidden">不共享密码</span></h3><p><span data-lang="en">NexaFlow should use platform authorization or assisted capture, not shared staff passwords.</span><span data-lang="zh" class="lang-hidden">NexaFlow 应使用平台授权或辅助导入，不要求员工共享社媒密码。</span></p></div>
+                <div class="card"><h3><span data-lang="en">Start simple</span><span data-lang="zh" class="lang-hidden">先保持简单</span></h3><p><span data-lang="en">The first daily view shows which buyer needs follow-up now, then hides advanced settings until needed.</span><span data-lang="zh" class="lang-hidden">每天先看哪些买家现在要跟进；高级设置先收起来，需要时再打开。</span></p></div>
             </section>
         </details>
         <script>
+            function setSignupLang(lang) {
+                document.querySelectorAll("[data-lang]").forEach(item => {
+                    item.classList.toggle("lang-hidden", item.dataset.lang !== lang);
+                });
+                document.getElementById("signupLangEn").classList.toggle("active", lang === "en");
+                document.getElementById("signupLangZh").classList.toggle("active", lang === "zh");
+                localStorage.setItem("nexaflow_signup_lang", lang);
+            }
+            function signupLang() {
+                return localStorage.getItem("nexaflow_signup_lang") || "en";
+            }
+            function signupText(en, zh) {
+                return signupLang() === "zh" ? zh : en;
+            }
             function normalizeSignupSlug(value) {
                 return String(value || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
             }
@@ -7232,7 +7250,7 @@ def merchant_signup_page():
             }
             async function createMerchantWorkspace() {
                 const status = document.getElementById("signupStatus");
-                status.textContent = "Creating buyer inbox...";
+                status.textContent = signupText("Creating buyer inbox...", "正在创建买家 inbox...");
                 const payload = {
                     business_name: signupValue("signupBusinessName"),
                     contact_email: signupValue("signupEmail"),
@@ -7254,7 +7272,7 @@ def merchant_signup_page():
                     });
                     const result = await response.json();
                     if (!response.ok) {
-                        throw new Error(result.detail || "Could not create buyer inbox.");
+                        throw new Error(result.detail || signupText("Could not create buyer inbox.", "无法创建买家 inbox。"));
                     }
                     const slug = result.profile.slug;
                     localStorage.setItem(`nexaflow_business_key_${slug}`, result.business_access_key);
@@ -7265,11 +7283,12 @@ def merchant_signup_page():
                     document.getElementById("createdChannels").href = result.channels_url;
                     document.getElementById("createdForm").href = result.form_url;
                     document.getElementById("workspaceResult").style.display = "block";
-                    status.textContent = "Dealer inbox created. Your owner inbox password was saved in this browser.";
+                    status.textContent = signupText("Dealer inbox created. Your inbox password was saved in this browser.", "买家 inbox 已创建。Inbox 密码已保存在这个浏览器。");
                 } catch (error) {
                     status.textContent = error.message;
                 }
             }
+            setSignupLang(localStorage.getItem("nexaflow_signup_lang") || "en");
         </script>
         """,
         show_sales_contact=True,
@@ -7811,55 +7830,59 @@ def merchant_enquiry_inbox_page(business_slug: str):
         f"""
         <section class="hero compact">
             <div>
-                <div class="eyebrow">Dealer inbox</div>
-                <h1>Today&apos;s Buyer Follow-up</h1>
-                <p class="lead">Open once a day, see which buyer needs a reply, monthly payment check, loan question, or viewing follow-up.</p>
+                <div class="language-toggle" aria-label="Language">
+                    <button type="button" class="active" onclick="setInboxLang('en')" id="inboxLangEn">EN</button>
+                    <button type="button" onclick="setInboxLang('zh')" id="inboxLangZh">中文</button>
+                </div>
+                <div class="eyebrow"><span data-lang="en">Dealer inbox</span><span data-lang="zh" class="lang-hidden">车商 Inbox</span></div>
+                <h1><span data-lang="en">Today&apos;s Buyer Follow-up</span><span data-lang="zh" class="lang-hidden">今日买家跟进</span></h1>
+                <p class="lead"><span data-lang="en">Open once a day, see which buyer needs a reply, monthly payment check, loan question, or viewing follow-up.</span><span data-lang="zh" class="lang-hidden">每天打开一次，先看谁要回复、谁要确认月供、谁要问贷款，或谁要约看车。</span></p>
             </div>
         </section>
         <section class="form-card">
             <div class="toolbar">
-                <label>Inbox password<input id="businessKey" type="password" placeholder="biz_..."></label>
-                <button class="btn" onclick="loadMerchantInbox()">Open Buyer List</button>
-                <a class="btn secondary" href="/channels/{slug}">Set Social Sources</a>
+                <label><span data-lang="en">Inbox password</span><span data-lang="zh" class="lang-hidden">Inbox 密码</span><input id="businessKey" type="password" placeholder="biz_..."></label>
+                <button class="btn" onclick="loadMerchantInbox()"><span data-lang="en">Open Buyer List</span><span data-lang="zh" class="lang-hidden">打开买家列表</span></button>
+                <a class="btn secondary" href="/channels/{slug}"><span data-lang="en">Set Social Sources</span><span data-lang="zh" class="lang-hidden">设置询问来源</span></a>
             </div>
-            <div class="status" id="merchantStatus">Enter your owner inbox password to load this private dealer inbox. Do not share this password publicly.</div>
-            <p class="mini-note">Buyer data in this inbox should only be used for replies, quotations, viewing appointments, loan follow-up, support, security, and required records.</p>
+            <div class="status" id="merchantStatus"><span data-lang="en">Enter your owner inbox password to load this private dealer inbox. Do not share this password publicly.</span><span data-lang="zh" class="lang-hidden">输入老板 inbox 密码来打开这个车商私密 inbox。请不要公开分享这个密码。</span></div>
+            <p class="mini-note"><span data-lang="en">Buyer data in this inbox should only be used for replies, quotations, viewing appointments, loan follow-up, support, security, and required records.</span><span data-lang="zh" class="lang-hidden">这个 inbox 里的买家资料只应用于回复、报价、预约看车、贷款跟进、客服、安全和必要记录。</span></p>
         </section>
         <section class="action-center" id="merchantActionCenter"></section>
         <section class="form-card" id="merchantDailyWork">
             <div class="section-head onboarding-head">
                 <div>
-                    <h2>Buyers to contact now</h2>
-                    <p>Start from the top. Each card shows the buyer, what they are likely stuck on, and the next move.</p>
+                    <h2><span data-lang="en">Buyers to contact now</span><span data-lang="zh" class="lang-hidden">现在要跟进的买家</span></h2>
+                    <p><span data-lang="en">Start from the top. Each card shows the buyer, what they are likely stuck on, and the next move.</span><span data-lang="zh" class="lang-hidden">从最上面开始。每张卡会显示买家卡在哪里，以及下一步要做什么。</span></p>
                 </div>
             </div>
             <div class="simple-lead-list" id="merchantDailyLeads"></div>
         </section>
         <details class="form-card">
-            <summary>Advanced tools: social sources, buyer link, setup, and settings</summary>
+            <summary><span data-lang="en">Advanced tools: social sources, buyer link, setup, and settings</span><span data-lang="zh" class="lang-hidden">进阶工具：来源、买家 link、设置和系统设定</span></summary>
             <section class="grid" id="merchantStats"></section>
             <section class="action-center" id="merchantChannelCenter"></section>
             <section class="form-card" id="merchantQuickShare">
                 <div class="section-head onboarding-head">
                     <div>
-                        <h2>Share your buyer enquiry link</h2>
-                        <p>Use one link when a buyer asks about price, monthly payment, loan, car stock, or viewing time.</p>
+                        <h2><span data-lang="en">Share your buyer enquiry link</span><span data-lang="zh" class="lang-hidden">分享买家询问 link</span></h2>
+                        <p><span data-lang="en">Use one link when a buyer asks about price, monthly payment, loan, car stock, or viewing time.</span><span data-lang="zh" class="lang-hidden">买家问价钱、月供、贷款、库存或看车时间时，就发这个 link。</span></p>
                     </div>
                 </div>
                 <div id="merchantShareLinks"></div>
             </section>
             <details class="form-card">
-                <summary>Dealer setup checklist</summary>
-                <p>Complete these once before sending the enquiry link to real buyers.</p>
-                <button class="btn secondary" onclick="resetMerchantChecklist()">Reset</button>
+                <summary><span data-lang="en">Dealer setup checklist</span><span data-lang="zh" class="lang-hidden">车商设置清单</span></summary>
+                <p><span data-lang="en">Complete these once before sending the enquiry link to real buyers.</span><span data-lang="zh" class="lang-hidden">正式发给真实买家前，先完成这些设置。</span></p>
+                <button class="btn secondary" onclick="resetMerchantChecklist()"><span data-lang="en">Reset</span><span data-lang="zh" class="lang-hidden">重置</span></button>
                 <div class="checklist" id="merchantChecklist"></div>
             </details>
             <details class="form-card">
-                <summary>Dealer settings</summary>
-                <p>Update these only when your WhatsApp, email, showroom summary, or opening hours change.</p>
+                <summary><span data-lang="en">Dealer settings</span><span data-lang="zh" class="lang-hidden">车商设置</span></summary>
+                <p><span data-lang="en">Update these only when your WhatsApp, email, showroom summary, or opening hours change.</span><span data-lang="zh" class="lang-hidden">只有 WhatsApp、Email、车行简介或营业时间变动时，才需要更新这里。</span></p>
                 <div class="toolbar">
-                    <label>Dealer Name<input id="settingsBusinessName" placeholder="Your showroom"></label>
-                    <label>Dealer Type
+                    <label><span data-lang="en">Dealer Name</span><span data-lang="zh" class="lang-hidden">车行名称</span><input id="settingsBusinessName" placeholder="Your showroom"></label>
+                    <label><span data-lang="en">Dealer Type</span><span data-lang="zh" class="lang-hidden">车商类型</span>
                         <select id="settingsBusinessType">
                             <option value="used_car_dealer">Used Car Dealer</option>
                             <option value="auto_dealer">Auto Dealer</option>
@@ -7873,48 +7896,48 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     </label>
                 </div>
                 <div class="toolbar">
-                    <label>WhatsApp Phone<input id="settingsWhatsapp" placeholder="+65 9123 4567"></label>
-                    <label>Notification Email<input id="settingsEmail" placeholder="owner@example.com"></label>
+                    <label><span data-lang="en">WhatsApp Phone</span><span data-lang="zh" class="lang-hidden">WhatsApp 电话</span><input id="settingsWhatsapp" placeholder="+65 9123 4567"></label>
+                    <label><span data-lang="en">Notification Email</span><span data-lang="zh" class="lang-hidden">通知 Email</span><input id="settingsEmail" placeholder="owner@example.com"></label>
                 </div>
-                <label>Showroom Summary<textarea id="settingsOffer" placeholder="Tell buyers what cars, loan support, or viewing options you provide."></textarea></label>
+                <label><span data-lang="en">Showroom Summary</span><span data-lang="zh" class="lang-hidden">车行简介</span><textarea id="settingsOffer" placeholder="Tell buyers what cars, loan support, or viewing options you provide."></textarea></label>
                 <div class="toolbar">
-                    <label>Reply Tone<input id="settingsTone" placeholder="friendly and professional"></label>
-                    <label>Opening Hours<input id="settingsHours" placeholder="Mon-Sat, 9am-6pm"></label>
+                    <label><span data-lang="en">Reply Tone</span><span data-lang="zh" class="lang-hidden">回复语气</span><input id="settingsTone" placeholder="friendly and professional"></label>
+                    <label><span data-lang="en">Opening Hours</span><span data-lang="zh" class="lang-hidden">营业时间</span><input id="settingsHours" placeholder="Mon-Sat, 9am-6pm"></label>
                 </div>
                 <div class="toolbar">
-                    <label><input id="settingsAutoFollowup" type="checkbox"> Auto-schedule follow-up</label>
-                    <label>Hot Buyer Follow-up Hours<input id="settingsHotFollowupHours" type="number" min="0" max="72" step="1"></label>
-                    <label>Standard Follow-up Days<input id="settingsStandardFollowupDays" type="number" min="1" max="30" step="1"></label>
-                    <label>Data Retention Days<input id="settingsDataRetentionDays" type="number" min="30" max="2555" step="1"></label>
+                    <label><input id="settingsAutoFollowup" type="checkbox"> <span data-lang="en">Auto-schedule follow-up</span><span data-lang="zh" class="lang-hidden">自动安排跟进</span></label>
+                    <label><span data-lang="en">Hot Buyer Follow-up Hours</span><span data-lang="zh" class="lang-hidden">热买家几小时后跟进</span><input id="settingsHotFollowupHours" type="number" min="0" max="72" step="1"></label>
+                    <label><span data-lang="en">Standard Follow-up Days</span><span data-lang="zh" class="lang-hidden">普通买家几天后跟进</span><input id="settingsStandardFollowupDays" type="number" min="1" max="30" step="1"></label>
+                    <label><span data-lang="en">Data Retention Days</span><span data-lang="zh" class="lang-hidden">资料保留天数</span><input id="settingsDataRetentionDays" type="number" min="30" max="2555" step="1"></label>
                 </div>
-                <button class="btn" onclick="saveMerchantSettings()">Save Settings</button>
-                <div class="status" id="settingsStatus">Load buyers first, then update your dealer settings here.</div>
+                <button class="btn" onclick="saveMerchantSettings()"><span data-lang="en">Save Settings</span><span data-lang="zh" class="lang-hidden">保存设置</span></button>
+                <div class="status" id="settingsStatus"><span data-lang="en">Load buyers first, then update your dealer settings here.</span><span data-lang="zh" class="lang-hidden">先加载买家列表，再在这里更新车商设置。</span></div>
             </details>
         </details>
         <details class="form-card">
-            <summary>Full buyer list and filters</summary>
+            <summary><span data-lang="en">Full buyer list and filters</span><span data-lang="zh" class="lang-hidden">完整买家列表和筛选</span></summary>
             <div class="section-head">
                 <div>
-                    <h2>Buyer progress</h2>
-                    <p>Prioritize buyers asking about monthly payment, loan, comparison, or viewing, then mark the next step.</p>
+                    <h2><span data-lang="en">Buyer progress</span><span data-lang="zh" class="lang-hidden">买家进度</span></h2>
+                    <p><span data-lang="en">Prioritize buyers asking about monthly payment, loan, comparison, or viewing, then mark the next step.</span><span data-lang="zh" class="lang-hidden">优先处理问月供、贷款、比价或看车的买家，然后标记下一步。</span></p>
                 </div>
             </div>
             <section class="pipeline-board" id="merchantPipelineBoard"></section>
             <div class="toolbar">
-                <label>Status
+                <label><span data-lang="en">Status</span><span data-lang="zh" class="lang-hidden">状态</span>
                     <select id="filterStatus">
-                        <option value="">All statuses</option>
-                        <option value="new">New</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="quoted">Quoted</option>
-                        <option value="won">Booked / Sold</option>
-                        <option value="lost">Not Proceeding</option>
+                        <option value="">All statuses / 全部状态</option>
+                        <option value="new">New / 新买家</option>
+                        <option value="contacted">Contacted / 已联系</option>
+                        <option value="quoted">Quoted / 已报价</option>
+                        <option value="won">Booked / Sold / 已预约或成交</option>
+                        <option value="lost">Not Proceeding / 不继续</option>
                         <option value="spam">Spam</option>
                     </select>
                 </label>
-                <label>Urgency
+                <label><span data-lang="en">Urgency</span><span data-lang="zh" class="lang-hidden">紧急度</span>
                     <select id="filterPriority">
-                        <option value="">All priorities</option>
+                        <option value="">All priorities / 全部紧急度</option>
                         <option value="hot">Hot</option>
                         <option value="warm">Warm</option>
                         <option value="normal">Normal</option>
@@ -7922,50 +7945,50 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 </label>
             </div>
             <div class="toolbar">
-                <label>Buyer need
+                <label><span data-lang="en">Buyer need</span><span data-lang="zh" class="lang-hidden">买家需求</span>
                     <select id="filterIntent">
-                        <option value="">All intents</option>
-                        <option value="quotation">Quotation</option>
-                        <option value="booking">Booking</option>
-                        <option value="inventory">Inventory</option>
-                        <option value="general">General</option>
+                        <option value="">All intents / 全部需求</option>
+                        <option value="quotation">Quotation / 报价</option>
+                        <option value="booking">Booking / 预约</option>
+                        <option value="inventory">Inventory / 库存</option>
+                        <option value="general">General / 普通问题</option>
                     </select>
                 </label>
-                <label>Source
+                <label><span data-lang="en">Source</span><span data-lang="zh" class="lang-hidden">来源</span>
                     <select id="filterSource">
-                        <option value="">All sources</option>
+                        <option value="">All sources / 全部来源</option>
                         <option value="whatsapp">WhatsApp</option>
                         <option value="instagram">Instagram</option>
                         <option value="facebook">Facebook</option>
                         <option value="tiktok">TikTok</option>
                         <option value="xiaohongshu">Xiaohongshu</option>
-                        <option value="direct">Direct link</option>
-                        <option value="public-form">Public form</option>
+                        <option value="direct">Direct link / 直接 link</option>
+                        <option value="public-form">Public form / 公开表格</option>
                         <option value="google-business">Google Business Profile</option>
                         <option value="website-widget">Website widget</option>
                         <option value="web">Website</option>
                         <option value="demo">Demo</option>
-                        <option value="manual">Manual / call</option>
+                        <option value="manual">Manual / call / 手动或电话</option>
                     </select>
                 </label>
-                <label>Follow-up
+                <label><span data-lang="en">Follow-up</span><span data-lang="zh" class="lang-hidden">跟进</span>
                     <select id="filterFollowUp">
-                        <option value="">All follow-ups</option>
-                        <option value="due">Due now</option>
-                        <option value="scheduled">Scheduled</option>
-                        <option value="none">No follow-up</option>
+                        <option value="">All follow-ups / 全部跟进</option>
+                        <option value="due">Due now / 现在到期</option>
+                        <option value="scheduled">Scheduled / 已安排</option>
+                        <option value="none">No follow-up / 未安排</option>
                     </select>
                 </label>
             </div>
             <div class="toolbar">
-                <label>Search<input id="filterSearch" placeholder="Name, phone, message, note"></label>
+                <label><span data-lang="en">Search</span><span data-lang="zh" class="lang-hidden">搜索</span><input id="filterSearch" placeholder="Name, phone, message, note"></label>
             </div>
-            <button class="btn" onclick="loadMerchantInbox()">Apply Filters</button>
-            <button class="btn secondary" onclick="clearMerchantFilters()">Clear</button>
-            <button class="btn secondary" onclick="exportMerchantCsv()">Download Buyer List</button>
+            <button class="btn" onclick="loadMerchantInbox()"><span data-lang="en">Apply Filters</span><span data-lang="zh" class="lang-hidden">套用筛选</span></button>
+            <button class="btn secondary" onclick="clearMerchantFilters()"><span data-lang="en">Clear</span><span data-lang="zh" class="lang-hidden">清除</span></button>
+            <button class="btn secondary" onclick="exportMerchantCsv()"><span data-lang="en">Download Buyer List</span><span data-lang="zh" class="lang-hidden">下载买家列表</span></button>
             <table>
                 <thead>
-                    <tr><th>Time</th><th>Buyer</th><th>Source</th><th>Intent</th><th>Priority</th><th>Message</th><th>Next move</th><th>Reply draft</th><th>Follow-up</th><th>Deal value</th><th>Note</th><th>Status</th><th>Action</th></tr>
+                    <tr><th><span data-lang="en">Time</span><span data-lang="zh" class="lang-hidden">时间</span></th><th><span data-lang="en">Buyer</span><span data-lang="zh" class="lang-hidden">买家</span></th><th><span data-lang="en">Source</span><span data-lang="zh" class="lang-hidden">来源</span></th><th><span data-lang="en">Intent</span><span data-lang="zh" class="lang-hidden">需求</span></th><th><span data-lang="en">Priority</span><span data-lang="zh" class="lang-hidden">优先级</span></th><th><span data-lang="en">Message</span><span data-lang="zh" class="lang-hidden">留言</span></th><th><span data-lang="en">Next move</span><span data-lang="zh" class="lang-hidden">下一步</span></th><th><span data-lang="en">Reply draft</span><span data-lang="zh" class="lang-hidden">回复草稿</span></th><th><span data-lang="en">Follow-up</span><span data-lang="zh" class="lang-hidden">跟进</span></th><th><span data-lang="en">Deal value</span><span data-lang="zh" class="lang-hidden">预计成交额</span></th><th><span data-lang="en">Note</span><span data-lang="zh" class="lang-hidden">备注</span></th><th><span data-lang="en">Status</span><span data-lang="zh" class="lang-hidden">状态</span></th><th><span data-lang="en">Action</span><span data-lang="zh" class="lang-hidden">操作</span></th></tr>
                 </thead>
                 <tbody id="merchantRows"></tbody>
             </table>
@@ -7973,12 +7996,27 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <script>
             const businessSlug = "{slug}";
             const checklistStorageKey = `nexaflow_trial_checklist_${{businessSlug}}`;
+            const inboxLangStorageKey = "nexaflow_inbox_lang";
             const checklistSteps = [
-                ["loaded", "Load inbox", "Paste your inbox password and load this private buyer inbox."],
-                ["copied_link", "Copy buyer link", "Share this link on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, or Google Business Profile."],
-                ["settings", "Review settings", "Confirm dealer name, WhatsApp number, showroom summary, and opening hours."],
-                ["first_lead", "Receive first buyer", "Submit one test buyer enquiry before sending the link to real buyers."]
+                ["loaded", "Load inbox", "Paste your inbox password and load this private buyer inbox.", "打开 inbox", "输入 inbox 密码，打开这个私密买家 inbox。"],
+                ["copied_link", "Copy buyer link", "Share this link on WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, or Google Business Profile.", "复制买家 link", "把这个 link 放到 WhatsApp、Instagram、Facebook、TikTok、小红书或 Google 商家资料。"],
+                ["settings", "Review settings", "Confirm dealer name, WhatsApp number, showroom summary, and opening hours.", "检查设置", "确认车行名称、WhatsApp 号码、车行简介和营业时间。"],
+                ["first_lead", "Receive first buyer", "Submit one test buyer enquiry before sending the link to real buyers.", "收到第一位买家", "正式发给真实买家前，先提交一笔测试询问。"]
             ];
+            function inboxLang() {{
+                return localStorage.getItem(inboxLangStorageKey) || "en";
+            }}
+            function inboxText(en, zh) {{
+                return inboxLang() === "zh" ? zh : en;
+            }}
+            function setInboxLang(lang) {{
+                document.querySelectorAll("[data-lang]").forEach(item => {{
+                    item.classList.toggle("lang-hidden", item.dataset.lang !== lang);
+                }});
+                document.getElementById("inboxLangEn").classList.toggle("active", lang === "en");
+                document.getElementById("inboxLangZh").classList.toggle("active", lang === "zh");
+                localStorage.setItem(inboxLangStorageKey, lang);
+            }}
             function escapeHtml(value) {{
                 return String(value ?? "").replace(/[&<>"']/g, char => ({{
                     "&": "&amp;",
@@ -7987,6 +8025,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     '"': "&quot;",
                     "'": "&#039;"
                 }}[char]));
+            }}
+            function langSpan(en, zh) {{
+                return `<span data-lang="en">${{escapeHtml(en)}}</span><span data-lang="zh" class="lang-hidden">${{escapeHtml(zh)}}</span>`;
             }}
             async function merchantApi(path, options = {{}}) {{
                 const businessKey = document.getElementById("businessKey").value;
@@ -8019,13 +8060,14 @@ def merchant_enquiry_inbox_page(business_slug: str):
             }}
             function renderMerchantChecklist() {{
                 const state = loadChecklistState();
-                document.getElementById("merchantChecklist").innerHTML = checklistSteps.map(([key, title, detail], index) => `
+                document.getElementById("merchantChecklist").innerHTML = checklistSteps.map(([key, title, detail, zhTitle, zhDetail], index) => `
                     <div class="check-item ${{state[key] ? "done" : ""}}">
                         <div class="check-status">${{state[key] ? "✓" : index + 1}}</div>
-                        <strong>${{escapeHtml(title)}}</strong>
-                        <span>${{escapeHtml(detail)}}</span>
+                        <strong>${{langSpan(title, zhTitle)}}</strong>
+                        <span>${{langSpan(detail, zhDetail)}}</span>
                     </div>
                 `).join("");
+                setInboxLang(inboxLang());
             }}
             async function merchantDownload(path) {{
                 const businessKey = document.getElementById("businessKey").value;
@@ -8054,10 +8096,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
             async function copyMerchantText(value, label) {{
                 try {{
                     await navigator.clipboard.writeText(value);
-                    document.getElementById("merchantStatus").textContent = `${{label}} copied.`;
+                    document.getElementById("merchantStatus").textContent = inboxText(`${{label}} copied.`, `${{label}} 已复制。`);
                     if (label.includes("Buyer enquiry")) markChecklistStep("copied_link");
                 }} catch (error) {{
-                    document.getElementById("merchantStatus").textContent = `Copy failed. Select and copy this manually: ${{value}}`;
+                    document.getElementById("merchantStatus").textContent = inboxText(`Copy failed. Select and copy this manually: ${{value}}`, `复制失败。请手动选择并复制：${{value}}`);
                 }}
             }}
             async function copyMerchantElement(id, label) {{
@@ -8069,61 +8111,63 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const inboxUrl = payload.inbox_url || absoluteUrl(`/inbox/${{businessSlug}}`);
                 const embedCode = payload.embed_code || "";
                 const shareRows = [
-                    ["merchantShareDirect", "Buyer enquiry link", links.direct?.url],
-                    ["merchantShareWhatsapp", "WhatsApp share link", links.whatsapp?.url],
-                    ["merchantShareInstagram", "Instagram bio / DM link", links.instagram?.url],
-                    ["merchantShareFacebook", "Facebook post / group link", links.facebook?.url],
-                    ["merchantShareGoogle", "Google Business Profile link", links.google_business?.url],
-                ].filter(([, , value]) => value);
+                    ["merchantShareDirect", "Buyer enquiry link", "买家询问 link", links.direct?.url],
+                    ["merchantShareWhatsapp", "WhatsApp share link", "WhatsApp 分享 link", links.whatsapp?.url],
+                    ["merchantShareInstagram", "Instagram bio / DM link", "Instagram 简介 / 私信 link", links.instagram?.url],
+                    ["merchantShareFacebook", "Facebook post / group link", "Facebook 贴文 / 群组 link", links.facebook?.url],
+                    ["merchantShareGoogle", "Google Business Profile link", "Google 商家资料 link", links.google_business?.url],
+                ].filter(([, , , value]) => value);
                 document.getElementById("merchantShareLinks").innerHTML = `
                     <div class="action-center">
                         <div class="action-card">
-                            <h3>Main buyer link</h3>
-                            <p>Send this to buyers when they ask for price, monthly payment, loan, stock, or viewing time.</p>
+                            <h3>${{langSpan("Main buyer link", "主要买家 link")}}</h3>
+                            <p>${{langSpan("Send this to buyers when they ask for price, monthly payment, loan, stock, or viewing time.", "买家问价钱、月供、贷款、库存或看车时间时，就发这个 link。")}}</p>
                             <code id="merchantShareDirectPrimary">${{escapeHtml(links.direct?.url || "")}}</code>
                             <div class="toolbar">
-                                <button class="btn" onclick="copyMerchantElement('merchantShareDirectPrimary', 'Buyer enquiry link')">Copy Buyer Link</button>
-                                <button class="btn secondary" onclick="copyMerchantElement('merchantShareCaption', 'Caption')">Copy Caption</button>
+                                <button class="btn" onclick="copyMerchantElement('merchantShareDirectPrimary', 'Buyer enquiry link')">${{langSpan("Copy Buyer Link", "复制买家 link")}}</button>
+                                <button class="btn secondary" onclick="copyMerchantElement('merchantShareCaption', 'Caption')">${{langSpan("Copy Caption", "复制文案")}}</button>
                             </div>
                         </div>
                         <div class="action-card">
-                            <h3>Suggested caption</h3>
-                            <p>Use this in WhatsApp status, Facebook post, Instagram bio, or buyer chat.</p>
+                            <h3>${{langSpan("Suggested caption", "建议文案")}}</h3>
+                            <p>${{langSpan("Use this in WhatsApp status, Facebook post, Instagram bio, or buyer chat.", "可以放在 WhatsApp status、Facebook 贴文、Instagram 简介或买家聊天里。")}}</p>
                             <code id="merchantShareCaption">${{escapeHtml(payload.copy?.short_caption || "")}}</code>
                         </div>
                     </div>
                     <div class="share-links">
-                        ${{shareRows.map(([id, label, value]) => `
+                        ${{shareRows.map(([id, label, zhLabel, value]) => `
                             <div class="share-link-box">
-                                <strong>${{escapeHtml(label)}}</strong>
+                                <strong>${{langSpan(label, zhLabel)}}</strong>
                                 <code id="${{id}}">${{escapeHtml(value)}}</code>
-                                <button class="btn secondary" onclick="copyMerchantElement('${{id}}', '${{escapeHtml(label)}}')">Copy Link</button>
+                                <button class="btn secondary" onclick="copyMerchantElement('${{id}}', '${{escapeHtml(label)}}')">${{langSpan("Copy Link", "复制 Link")}}</button>
                             </div>
                         `).join("")}}
                         <div class="share-link-box">
-                            <strong>Private buyer inbox link</strong>
+                            <strong>${{langSpan("Private buyer inbox link", "私密买家 inbox link")}}</strong>
                             <code id="merchantInboxUrl">${{escapeHtml(inboxUrl)}}</code>
-                            <button class="btn secondary" onclick="copyMerchantElement('merchantInboxUrl', 'Inbox link')">Copy Link</button>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantInboxUrl', 'Inbox link')">${{langSpan("Copy Link", "复制 Link")}}</button>
                         </div>
                         <div class="share-link-box">
-                            <strong>Website widget code</strong>
+                            <strong>${{langSpan("Website widget code", "网站 widget 代码")}}</strong>
                             <code id="merchantEmbedCode">${{escapeHtml(embedCode)}}</code>
-                            <button class="btn secondary" onclick="copyMerchantElement('merchantEmbedCode', 'Embed code')">Copy Code</button>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantEmbedCode', 'Embed code')">${{langSpan("Copy Code", "复制代码")}}</button>
                         </div>
                     </div>
                 `;
+                setInboxLang(inboxLang());
             }}
             async function loadMerchantShareLinks() {{
                 try {{
                     const data = await merchantApi(`/apps/enquiry/api/merchant/share-links?business_slug=${{businessSlug}}&campaign=merchant-share`);
                     renderShareLinks(data);
                 }} catch (error) {{
-                    document.getElementById("merchantShareLinks").innerHTML = `<div class="status">Share links could not load: ${{escapeHtml(error.message)}}</div>`;
+                    document.getElementById("merchantShareLinks").innerHTML = `<div class="status">${{langSpan("Share links could not load:", "分享 link 暂时无法加载：")}} ${{escapeHtml(error.message)}}</div>`;
+                    setInboxLang(inboxLang());
                 }}
             }}
             async function saveMerchantSettings() {{
                 const status = document.getElementById("settingsStatus");
-                status.textContent = "Saving business settings...";
+                status.textContent = inboxText("Saving business settings...", "正在保存车商设置...");
                 try {{
                     const profile = await merchantApi(`/apps/enquiry/api/merchant/profile?business_slug=${{businessSlug}}`, {{
                         method: "PATCH",
@@ -8143,7 +8187,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         }})
                     }});
                     fillMerchantSettings(profile);
-                    status.textContent = "Saved. Your public enquiry page and WhatsApp follow-up are updated.";
+                    status.textContent = inboxText("Saved. Your public enquiry page and WhatsApp follow-up are updated.", "已保存。公开询问页和 WhatsApp 跟进设置已更新。");
                     markChecklistStep("settings");
                     await loadMerchantInbox();
                 }} catch (error) {{
@@ -8152,8 +8196,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
             }}
             async function exportMerchantCsv() {{
                 const status = document.getElementById("merchantStatus");
-                if (!confirm("This download contains customer personal data. Use it only for replies, quotations, appointments, service follow-up, support, security, or required records. Keep the file secure and delete it when no longer needed.")) return;
-                status.textContent = "Preparing CSV export...";
+                if (!confirm(inboxText("This download contains customer personal data. Use it only for replies, quotations, appointments, service follow-up, support, security, or required records. Keep the file secure and delete it when no longer needed.", "这个下载文件包含买家个人资料。只可用于回复、报价、预约、跟进、客服、安全或必要记录。请妥善保管，不需要时删除。"))) return;
+                status.textContent = inboxText("Preparing CSV export...", "正在准备 CSV 导出...");
                 try {{
                     const blob = await merchantDownload(`/apps/enquiry/api/merchant/enquiries/export.csv?${{merchantQuery(500)}}`);
                     const url = URL.createObjectURL(blob);
@@ -8164,7 +8208,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     link.click();
                     link.remove();
                     URL.revokeObjectURL(url);
-                    status.textContent = "CSV export ready.";
+                    status.textContent = inboxText("CSV export ready.", "CSV 已准备好。");
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -8198,17 +8242,26 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 return Number(value || 0).toLocaleString(undefined, {{ maximumFractionDigits: 0 }});
             }}
             function statusLabel(value) {{
-                return {{
+                const labels = {{
                     new: "New",
                     contacted: "Contacted",
                     quoted: "Quoted",
                     won: "Booked / Sold",
                     lost: "Not Proceeding",
                     spam: "Spam"
-                }}[value] || value || "Unknown";
+                }};
+                const zhLabels = {{
+                    new: "新买家",
+                    contacted: "已联系",
+                    quoted: "已报价",
+                    won: "已预约 / 成交",
+                    lost: "不继续",
+                    spam: "Spam"
+                }};
+                return inboxLang() === "zh" ? (zhLabels[value] || value || "未知") : (labels[value] || value || "Unknown");
             }}
             function sourceLabel(value) {{
-                return {{
+                const labels = {{
                     whatsapp: "WhatsApp",
                     instagram: "Instagram",
                     facebook: "Facebook",
@@ -8222,27 +8275,60 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     demo: "Demo",
                     manual: "Manual / call",
                     referral: "Referral"
-                }}[value] || value || "Unknown";
+                }};
+                const zhLabels = {{
+                    whatsapp: "WhatsApp",
+                    instagram: "Instagram",
+                    facebook: "Facebook",
+                    tiktok: "TikTok",
+                    xiaohongshu: "Xiaohongshu",
+                    direct: "直接 link",
+                    "public-form": "公开表格",
+                    "google-business": "Google 商家资料",
+                    "website-widget": "网站 widget",
+                    web: "网站",
+                    demo: "Demo",
+                    manual: "手动 / 电话",
+                    referral: "介绍"
+                }};
+                return inboxLang() === "zh" ? (zhLabels[value] || value || "未知") : (labels[value] || value || "Unknown");
+            }}
+            function priorityLabel(value) {{
+                const labels = {{ hot: "Hot", warm: "Warm", normal: "Normal" }};
+                const zhLabels = {{ hot: "热买家", warm: "可跟进", normal: "普通" }};
+                return inboxLang() === "zh" ? (zhLabels[value] || value || "未知") : (labels[value] || value || "Unknown");
+            }}
+            function signalLabel(signal) {{
+                const labels = {{
+                    finance: "贷款 / 供车",
+                    monthly_payment: "月供",
+                    budget: "预算 / 头期",
+                    price_comparison: "比价",
+                    appointment: "看车 / 预约",
+                    vehicle_fit: "车型匹配",
+                    time_sensitive: "急件"
+                }};
+                return inboxLang() === "zh" ? (labels[signal.key] || signal.label) : signal.label;
             }}
             function renderFollowUpSignals(item) {{
                 const signals = item.follow_up_signals || [];
                 if (!signals.length) {{
-                    return `<span class="lead-badge">Need model / budget</span>`;
+                    return `<span class="lead-badge">${{langSpan("Need model / budget", "需要车型 / 预算")}}</span>`;
                 }}
                 return signals.map(signal => `
                     <span class="lead-badge ${{["finance", "monthly_payment", "appointment", "time_sensitive"].includes(signal.key) ? "hot" : ""}}" title="${{escapeHtml(signal.detail || "")}}">
-                        ${{escapeHtml(signal.label)}}
+                        ${{escapeHtml(signalLabel(signal))}}
                     </span>
                 `).join("");
             }}
             function chooseNextAction(item) {{
                 if (item.next_action) return item.next_action;
-                if (item.status === "new" && item.priority === "hot") return "Reply now and mark Contacted";
-                if (item.status === "new") return "Send first WhatsApp reply";
-                if (item.status === "contacted") return "Set follow-up date or mark Quoted";
-                if (item.status === "quoted") return "Follow up and mark Booked or Not Proceeding";
-                if (item.follow_up_at) return "Review scheduled follow-up";
-                return "Add note and next follow-up";
+                if (item.status === "new" && item.priority === "hot") return inboxText("Reply now and mark Contacted", "现在回复，并标记已联系");
+                if (item.status === "new") return inboxText("Send first WhatsApp reply", "先发第一句 WhatsApp");
+                if (item.status === "contacted") return inboxText("Set follow-up date or mark Quoted", "设置跟进日期，或标记已报价");
+                if (item.status === "quoted") return inboxText("Follow up and mark Booked or Not Proceeding", "继续跟进，并标记预约/成交或不继续");
+                if (item.follow_up_at) return inboxText("Review scheduled follow-up", "查看已安排的跟进");
+                return inboxText("Add note and next follow-up", "添加备注和下一次跟进");
             }}
             function isDueFollowUp(item) {{
                 if (!item.follow_up_at || ["won", "lost", "spam"].includes(item.status)) return false;
@@ -8267,8 +8353,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const target = document.getElementById("merchantDailyLeads");
                 if (!actionable.length) {{
                     target.innerHTML = `
-                        <div class="status">No buyers need action right now. New enquiries and due follow-ups will appear here first.</div>
+                        <div class="status">${{langSpan("No buyers need action right now. New enquiries and due follow-ups will appear here first.", "现在没有需要处理的买家。新的询问和到期跟进会优先出现在这里。")}}</div>
                     `;
+                    setInboxLang(inboxLang());
                     return;
                 }}
                 target.innerHTML = actionable.map(item => `
@@ -8277,7 +8364,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <strong>${{escapeHtml(item.name)}}</strong>
                             <small>${{escapeHtml(item.phone)}}${{item.email ? ` · ${{escapeHtml(item.email)}}` : ""}}</small>
                             <div class="lead-badges">
-                                <span class="lead-badge ${{item.priority === "hot" || isDueFollowUp(item) ? "hot" : ""}}">${{isDueFollowUp(item) ? "Due now" : escapeHtml(item.priority)}}</span>
+                                <span class="lead-badge ${{item.priority === "hot" || isDueFollowUp(item) ? "hot" : ""}}">${{isDueFollowUp(item) ? inboxText("Due now", "现在到期") : escapeHtml(priorityLabel(item.priority))}}</span>
                                 <span class="lead-badge">${{escapeHtml(sourceLabel(item.source || "unknown"))}}</span>
                                 <span class="lead-badge">${{escapeHtml(statusLabel(item.status))}}</span>
                             </div>
@@ -8289,111 +8376,116 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         </div>
                         <div class="simple-actions">
                             ${{item.whatsapp_url ? `<a class="btn" target="_blank" href="${{escapeHtml(item.whatsapp_url)}}">WhatsApp</a>` : ""}}
-                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">Contacted</button>
-                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">Quoted</button>
-                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">Booked</button>
+                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">${{langSpan("Contacted", "已联系")}}</button>
+                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">${{langSpan("Quoted", "已报价")}}</button>
+                            <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">${{langSpan("Booked", "已预约")}}</button>
                         </div>
                     </div>
                 `).join("");
+                setInboxLang(inboxLang());
             }}
             function renderActionCenter(data) {{
                 const stats = data.stats || {{}};
                 const leads = data.enquiries || [];
                 const onboarding = data.onboarding || {{}};
-                const onboardingChecks = onboarding.checks || [];
                 const due = stats.due_followups || 0;
                 const hot = (stats.by_priority || {{}}).hot || 0;
                 const newCount = (stats.by_status || {{}}).new || 0;
                 const quoted = (stats.by_status || {{}}).quoted || 0;
                 const topLead = leads.find(isDueFollowUp) || leads.find(item => item.priority === "hot" && item.status !== "won" && item.status !== "lost") || leads.find(item => item.status === "new");
                 const firstAction = due > 0
-                    ? ["Follow up due buyers", `${{due}} buyer(s) need attention today.`]
+                    ? ["Follow up due buyers", `${{due}} buyer(s) need attention today.`, "跟进到期买家", `今天有 ${{due}} 位买家要处理。`]
                     : hot > 0
-                        ? ["Reply to hot buyers", `${{hot}} hot buyer(s) should be contacted first.`]
+                        ? ["Reply to hot buyers", `${{hot}} hot buyer(s) should be contacted first.`, "先回复热买家", `${{hot}} 位热买家应该优先联系。`]
                         : newCount > 0
-                            ? ["Reply to new buyers", `${{newCount}} new buyer(s) are waiting for first reply.`]
-                            : ["Review active buyers", "No urgent enquiries. Check quoted buyers and mark the next step."];
+                            ? ["Reply to new buyers", `${{newCount}} new buyer(s) are waiting for first reply.`, "回复新买家", `${{newCount}} 位新买家正在等第一句回复。`]
+                            : ["Review active buyers", "No urgent enquiries. Check quoted buyers and mark the next step.", "查看进行中的买家", "目前没有紧急询问。检查已报价买家，并标记下一步。"];
+                const topLeadLineEn = topLead ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.` : "Share your buyer link and wait for new enquiries.";
+                const topLeadLineZh = topLead ? `先从 ${{escapeHtml(topLead.name)}} 开始：${{escapeHtml(chooseNextAction(topLead))}}。` : "分享买家 link，等待新的询问进来。";
                 document.getElementById("merchantActionCenter").innerHTML = `
                     <div class="action-card">
-                        <h3>Today&apos;s buyer follow-up</h3>
-                        <p>${{escapeHtml(firstAction[1])}}</p>
+                        <h3><span data-lang="en">Today&apos;s buyer follow-up</span><span data-lang="zh" class="lang-hidden">今日买家跟进</span></h3>
+                        <p>${{langSpan(firstAction[1], firstAction[3])}}</p>
                         <div class="action-list">
-                            <div class="action-item"><span class="action-dot">1</span><div><strong>${{escapeHtml(firstAction[0])}}</strong><span>${{topLead ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.` : "Share your buyer link and wait for new enquiries."}}</span></div></div>
-                            <div class="action-item"><span class="action-dot">2</span><div><strong>Reply on WhatsApp</strong><span>Use the suggested next message, then mark the buyer as Contacted or Quoted.</span></div></div>
-                            <div class="action-item"><span class="action-dot">3</span><div><strong>Set next follow-up</strong><span>Add a date so the buyer does not disappear inside chat history.</span></div></div>
+                            <div class="action-item"><span class="action-dot">1</span><div><strong>${{langSpan(firstAction[0], firstAction[2])}}</strong><span>${{langSpan(topLeadLineEn, topLeadLineZh)}}</span></div></div>
+                            <div class="action-item"><span class="action-dot">2</span><div><strong>${{langSpan("Reply on WhatsApp", "在 WhatsApp 回复")}}</strong><span>${{langSpan("Use the suggested next message, then mark the buyer as Contacted or Quoted.", "使用建议下一句，然后把买家标记为已联系或已报价。")}}</span></div></div>
+                            <div class="action-item"><span class="action-dot">3</span><div><strong>${{langSpan("Set next follow-up", "设置下一次跟进")}}</strong><span>${{langSpan("Add a date so the buyer does not disappear inside chat history.", "加一个日期，避免买家消失在聊天记录里。")}}</span></div></div>
                         </div>
                     </div>
                     <div class="action-card">
-                        <h3>Today&apos;s numbers</h3>
-                        <p>${{escapeHtml(onboarding.percent ?? 0)}}% ready · ${{escapeHtml(onboarding.next_action || "Complete setup before promotion.")}}</p>
+                        <h3><span data-lang="en">Today&apos;s numbers</span><span data-lang="zh" class="lang-hidden">今日数字</span></h3>
+                        <p>${{escapeHtml(onboarding.percent ?? 0)}}% ${{inboxText("ready", "已准备")}} · ${{escapeHtml(onboarding.next_action || inboxText("Complete setup before promotion.", "推广前先完成设置。"))}}</p>
                         <div class="lead-badges">
-                            <span class="lead-badge ${{due ? "hot" : ""}}">Due today · ${{due}}</span>
-                            <span class="lead-badge ${{hot ? "hot" : ""}}">Hot · ${{hot}}</span>
-                            <span class="lead-badge">New · ${{newCount}}</span>
-                            <span class="lead-badge">Quoted · ${{quoted}}</span>
+                            <span class="lead-badge ${{due ? "hot" : ""}}">${{langSpan("Due today", "今天到期")}} · ${{due}}</span>
+                            <span class="lead-badge ${{hot ? "hot" : ""}}">${{langSpan("Hot", "热买家")}} · ${{hot}}</span>
+                            <span class="lead-badge">${{langSpan("New", "新买家")}} · ${{newCount}}</span>
+                            <span class="lead-badge">${{langSpan("Quoted", "已报价")}} · ${{quoted}}</span>
                         </div>
-                        <span class="next-action">Use this page as the daily follow-up list.</span>
+                        <span class="next-action">${{langSpan("Use this page as the daily follow-up list.", "把这个页面当成每天的跟进清单。")}}</span>
                     </div>
                     <div class="action-card">
-                        <h3>Shortcuts</h3>
-                        <p>Most dealers only need these actions during the day.</p>
+                        <h3>${{langSpan("Shortcuts", "快捷动作")}}</h3>
+                        <p>${{langSpan("Most dealers only need these actions during the day.", "多数车商每天只需要这几个动作。")}}</p>
                         <div class="lead-badges">
-                            <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">New buyers</button>
-                            <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">Due today</button>
-                            <button class="btn secondary" onclick="copyMerchantElement('merchantShareDirect', 'Buyer enquiry link')">Copy buyer link</button>
+                            <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">${{langSpan("New buyers", "新买家")}}</button>
+                            <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">${{langSpan("Due today", "今天到期")}}</button>
+                            <button class="btn secondary" onclick="copyMerchantElement('merchantShareDirect', 'Buyer enquiry link')">${{langSpan("Copy buyer link", "复制买家 link")}}</button>
                         </div>
                     </div>
                 `;
+                setInboxLang(inboxLang());
             }}
             function renderChannelCenter(stats) {{
                 const bySource = (stats || {{}}).by_source || {{}};
                 const channels = [
-                    ["whatsapp", "WhatsApp", "Automatic or assisted capture from buyer chat."],
-                    ["instagram", "Instagram", "Use bio link, DM link, or manual assisted capture."],
-                    ["facebook", "Facebook", "Track Marketplace, page, group, or Messenger enquiries."],
-                    ["tiktok", "TikTok", "Use profile link or assisted capture for video comments and DMs."],
-                    ["xiaohongshu", "Xiaohongshu", "Use link-in-bio or assisted capture for notes and DMs."],
-                    ["direct", "Direct link", "Track buyers who came through the shared enquiry link."],
-                    ["google-business", "Google Business Profile", "Track enquiries from your Google Business Profile link."],
-                    ["website-widget", "Website widget", "Track enquiries that came from the embedded website widget."],
-                    ["manual", "Calls / referrals", "Add phone, walk-in, or referral leads without losing follow-up."]
+                    ["whatsapp", "WhatsApp", "Automatic or assisted capture from buyer chat.", "从买家聊天自动或辅助导入。"],
+                    ["instagram", "Instagram", "Use bio link, DM link, or manual assisted capture.", "使用简介 link、私信 link，或手动辅助导入。"],
+                    ["facebook", "Facebook", "Track Marketplace, page, group, or Messenger enquiries.", "追踪 Marketplace、专页、群组或 Messenger 询问。"],
+                    ["tiktok", "TikTok", "Use profile link or assisted capture for video comments and DMs.", "用主页 link 或辅助导入评论和私信。"],
+                    ["xiaohongshu", "Xiaohongshu", "Use link-in-bio or assisted capture for notes and DMs.", "用主页 link 或辅助导入笔记和私信。"],
+                    ["direct", "Direct link", "Track buyers who came through the shared enquiry link.", "追踪从共享询问 link 进来的买家。"],
+                    ["google-business", "Google Business Profile", "Track enquiries from your Google Business Profile link.", "追踪 Google 商家资料 link 的询问。"],
+                    ["website-widget", "Website widget", "Track enquiries that came from the embedded website widget.", "追踪网站 widget 进来的询问。"],
+                    ["manual", "Calls / referrals", "Add phone, walk-in, or referral leads without losing follow-up.", "把电话、walk-in 或介绍客户也加进来，不漏跟进。"]
                 ];
                 const totalSources = Object.values(bySource).reduce((sum, count) => sum + Number(count || 0), 0);
                 document.getElementById("merchantChannelCenter").innerHTML = `
                     <div class="action-card">
-                        <h3>Social source inbox</h3>
-                        <p>Use this as one daily working list even when the buyer first came from social media, WhatsApp, calls, or referrals.</p>
+                        <h3>${{langSpan("Social source inbox", "社媒来源 inbox")}}</h3>
+                        <p>${{langSpan("Use this as one daily working list even when the buyer first came from social media, WhatsApp, calls, or referrals.", "无论买家先从社媒、WhatsApp、电话或介绍进来，都集中成每天一个工作清单。")}}</p>
                         <div class="lead-badges">
                             ${{channels.map(([key, label]) => `<span class="lead-badge ${{bySource[key] ? "hot" : ""}}">${{escapeHtml(label)}} · ${{bySource[key] || 0}}</span>`).join("")}}
                         </div>
-                        <span class="next-action">Tracked sources: ${{totalSources}} enquiry record(s) with source data.</span>
+                        <span class="next-action">${{langSpan("Tracked sources", "已追踪来源")}}: ${{totalSources}} ${{inboxText("enquiry record(s) with source data.", "笔有来源资料的询问记录。")}}</span>
                     </div>
                     <div class="action-card">
-                        <h3>Assisted capture</h3>
-                        <p>When a platform cannot sync directly yet, copy the buyer enquiry into NexaFlow with the right source so AI can still prepare follow-up.</p>
+                        <h3>${{langSpan("Assisted capture", "辅助导入")}}</h3>
+                        <p>${{langSpan("When a platform cannot sync directly yet, copy the buyer enquiry into NexaFlow with the right source so AI can still prepare follow-up.", "如果平台暂时不能直接同步，就把买家询问复制进 NexaFlow，并标好来源，让 AI 继续准备跟进。")}}</p>
                         <div class="action-list">
-                            ${{channels.slice(1, 5).map(([key, label, detail]) => `
-                                <div class="action-item"><span class="action-dot">${{bySource[key] || 0}}</span><div><strong>${{escapeHtml(label)}}</strong><span>${{escapeHtml(detail)}}</span></div></div>
+                            ${{channels.slice(1, 5).map(([key, label, detail, zhDetail]) => `
+                                <div class="action-item"><span class="action-dot">${{bySource[key] || 0}}</span><div><strong>${{escapeHtml(label)}}</strong><span>${{langSpan(detail, zhDetail)}}</span></div></div>
                             `).join("")}}
                         </div>
                     </div>
                 `;
+                setInboxLang(inboxLang());
             }}
             function renderPipelineBoard(stats) {{
                 const byStatus = (stats || {{}}).by_status || {{}};
                 const stages = [
-                    ["new", "First reply needed"],
-                    ["contacted", "Waiting for buyer"],
-                    ["quoted", "Follow up to close"],
-                    ["won", "Booked or sold"],
-                    ["lost", "Not proceeding"]
+                    ["new", "First reply needed", "需要第一句回复"],
+                    ["contacted", "Waiting for buyer", "等待买家回应"],
+                    ["quoted", "Follow up to close", "跟进成交"],
+                    ["won", "Booked or sold", "已预约或成交"],
+                    ["lost", "Not proceeding", "不继续"]
                 ];
-                document.getElementById("merchantPipelineBoard").innerHTML = stages.map(([key, hint]) => `
+                document.getElementById("merchantPipelineBoard").innerHTML = stages.map(([key, hint, zhHint]) => `
                     <div class="stage-card">
                         <strong>${{statusLabel(key)}} <span>${{byStatus[key] || 0}}</span></strong>
-                        <span>${{hint}}</span>
+                        <span>${{langSpan(hint, zhHint)}}</span>
                     </div>
                 `).join("");
+                setInboxLang(inboxLang());
             }}
             async function setMerchantStatus(id, status) {{
                 try {{
@@ -8418,19 +8510,19 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         headers: {{ "Content-Type": "application/json" }},
                         body: JSON.stringify({{ internal_note: note, follow_up_at: followUpAt, deal_value: dealValue }})
                     }});
-                    document.getElementById("merchantStatus").textContent = "Buyer details saved.";
+                    document.getElementById("merchantStatus").textContent = inboxText("Buyer details saved.", "买家资料已保存。");
                     await loadMerchantInbox();
                 }} catch (error) {{
                     document.getElementById("merchantStatus").textContent = error.message;
                 }}
             }}
             async function deleteMerchantLead(id) {{
-                if (!confirm("Delete this enquiry? This removes the buyer from this inbox.")) return;
+                if (!confirm(inboxText("Delete this enquiry? This removes the buyer from this inbox.", "删除这个询问？这个买家会从 inbox 移除。"))) return;
                 try {{
                     await merchantApi(`/apps/enquiry/api/merchant/enquiries/${{id}}?business_slug=${{businessSlug}}`, {{
                         method: "DELETE"
                     }});
-                    document.getElementById("merchantStatus").textContent = "Buyer deleted.";
+                    document.getElementById("merchantStatus").textContent = inboxText("Buyer deleted.", "买家已删除。");
                     await loadMerchantInbox();
                 }} catch (error) {{
                     document.getElementById("merchantStatus").textContent = error.message;
@@ -8438,18 +8530,18 @@ def merchant_enquiry_inbox_page(business_slug: str):
             }}
             async function loadMerchantInbox() {{
                 const status = document.getElementById("merchantStatus");
-                status.textContent = "Loading buyers...";
+                status.textContent = inboxText("Loading buyers...", "正在加载买家...");
                 try {{
                     const data = await merchantApi(`/apps/enquiry/api/merchant/enquiries?${{merchantQuery(100)}}`);
                     fillMerchantSettings(data.business);
                     await loadMerchantShareLinks();
                     const stats = data.stats || {{}};
                     document.getElementById("merchantStats").innerHTML = `
-                        <section class="card"><h3>Total buyers</h3><div class="price">${{stats.total || 0}}</div></section>
-                        <section class="card"><h3>Hot buyers</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
-                        <section class="card"><h3>Top Source</h3><div class="price">${{escapeHtml(Object.entries(stats.by_source || {{}}).sort((a, b) => b[1] - a[1])[0]?.[0] || "none")}}</div></section>
-                        <section class="card"><h3>Estimated sale value</h3><div class="price">${{formatMoney(stats.pipeline_value)}}</div></section>
-                        <section class="card"><h3>Due today</h3><div class="price">${{stats.due_followups || 0}}</div></section>
+                        <section class="card"><h3>${{langSpan("Total buyers", "总买家")}}</h3><div class="price">${{stats.total || 0}}</div></section>
+                        <section class="card"><h3>${{langSpan("Hot buyers", "热买家")}}</h3><div class="price">${{(stats.by_priority || {{}}).hot || 0}}</div></section>
+                        <section class="card"><h3>${{langSpan("Top Source", "最多来源")}}</h3><div class="price">${{escapeHtml(Object.entries(stats.by_source || {{}}).sort((a, b) => b[1] - a[1])[0]?.[0] || "none")}}</div></section>
+                        <section class="card"><h3>${{langSpan("Estimated sale value", "预计成交额")}}</h3><div class="price">${{formatMoney(stats.pipeline_value)}}</div></section>
+                        <section class="card"><h3>${{langSpan("Due today", "今天到期")}}</h3><div class="price">${{stats.due_followups || 0}}</div></section>
                     `;
                     renderActionCenter(data);
                     renderDailyLeads(data.enquiries || []);
@@ -8478,20 +8570,21 @@ def merchant_enquiry_inbox_page(business_slug: str):
                                 <textarea id="note-${{item.id}}" placeholder="Internal follow-up note">${{escapeHtml(item.internal_note || "")}}</textarea>
                                 <span class="next-action">${{escapeHtml(chooseNextAction(item))}}</span>
                                 ${{item.follow_up_recommendation ? `<span class="next-action">${{escapeHtml(item.follow_up_recommendation)}}</span>` : ""}}
-                                <button class="btn secondary" onclick="saveMerchantNote(${{item.id}})">Save Details</button>
+                                <button class="btn secondary" onclick="saveMerchantNote(${{item.id}})">${{langSpan("Save Details", "保存资料")}}</button>
                             </td>
                             <td><span class="lead-badge ${{item.priority === "hot" ? "hot" : ""}}">${{escapeHtml(statusLabel(item.status))}}</span></td>
                             <td>
                                 ${{item.whatsapp_url ? `<a class="btn secondary" target="_blank" href="${{escapeHtml(item.whatsapp_url)}}">WhatsApp</a>` : ""}}
-                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">Contacted</button>
-                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">Quoted</button>
-                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">Booked</button>
-                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'lost')">Not Proceeding</button>
-                                <button class="btn secondary" onclick="deleteMerchantLead(${{item.id}})">Delete</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'contacted')">${{langSpan("Contacted", "已联系")}}</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'quoted')">${{langSpan("Quoted", "已报价")}}</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">${{langSpan("Booked", "已预约")}}</button>
+                                <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'lost')">${{langSpan("Not Proceeding", "不继续")}}</button>
+                                <button class="btn secondary" onclick="deleteMerchantLead(${{item.id}})">${{langSpan("Delete", "删除")}}</button>
                             </td>
                         </tr>
                     `).join("");
-                    status.textContent = "Buyer list loaded.";
+                    setInboxLang(inboxLang());
+                    status.textContent = inboxText("Buyer list loaded.", "买家列表已加载。");
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -8502,6 +8595,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 loadMerchantInbox();
             }}
             renderMerchantChecklist();
+            setInboxLang(localStorage.getItem(inboxLangStorageKey) || "en");
         </script>
         """
     )
@@ -8519,39 +8613,58 @@ def merchant_channel_connections_page(business_slug: str):
         f"""
         <section class="hero compact">
             <div>
-                <div class="eyebrow">Social sources</div>
-                <h1>Social Source Setup</h1>
-                <p class="lead">Set where buyer messages come from. Start with WhatsApp, Facebook, and Instagram; keep TikTok and Xiaohongshu in assisted mode until official access is ready.</p>
+                <div class="language-toggle" aria-label="Language">
+                    <button type="button" class="active" onclick="setChannelsLang('en')" id="channelsLangEn">EN</button>
+                    <button type="button" onclick="setChannelsLang('zh')" id="channelsLangZh">中文</button>
+                </div>
+                <div class="eyebrow"><span data-lang="en">Social sources</span><span data-lang="zh" class="lang-hidden">社媒来源</span></div>
+                <h1><span data-lang="en">Social Source Setup</span><span data-lang="zh" class="lang-hidden">询问来源设置</span></h1>
+                <p class="lead"><span data-lang="en">Set where buyer messages come from. Start with WhatsApp, Facebook, and Instagram; keep TikTok and Xiaohongshu in assisted mode until official access is ready.</span><span data-lang="zh" class="lang-hidden">设置买家消息从哪里来。先从 WhatsApp、Facebook、Instagram 开始；TikTok 和小红书先用辅助导入，等官方权限准备好再同步。</span></p>
             </div>
         </section>
         <section class="form-card">
             <div class="toolbar">
-                <label>Inbox password<input id="businessKey" type="password" placeholder="biz_..."></label>
-                <button class="btn" onclick="loadChannelConnections()">Open Settings</button>
-                <a class="btn secondary" href="/inbox/{slug}">Back to Inbox</a>
+                <label><span data-lang="en">Inbox password</span><span data-lang="zh" class="lang-hidden">Inbox 密码</span><input id="businessKey" type="password" placeholder="biz_..."></label>
+                <button class="btn" onclick="loadChannelConnections()"><span data-lang="en">Open Settings</span><span data-lang="zh" class="lang-hidden">打开设置</span></button>
+                <a class="btn secondary" href="/inbox/{slug}"><span data-lang="en">Back to Inbox</span><span data-lang="zh" class="lang-hidden">回到 Inbox</span></a>
             </div>
-            <div class="status" id="channelStatus">Enter the owner inbox password to manage social source settings.</div>
-            <p class="mini-note">Never paste platform passwords, OTPs, cookies, access tokens, or customer identity documents here. This setup stores connection metadata only.</p>
+            <div class="status" id="channelStatus"><span data-lang="en">Enter the owner inbox password to manage social source settings.</span><span data-lang="zh" class="lang-hidden">输入老板 inbox 密码来管理社媒来源设置。</span></div>
+            <p class="mini-note"><span data-lang="en">Never paste platform passwords, OTPs, cookies, access tokens, or customer identity documents here. This setup stores connection metadata only.</span><span data-lang="zh" class="lang-hidden">不要在这里粘贴平台密码、OTP、cookies、access token 或客户身份证件。这里仅保存连接设置资料。</span></p>
         </section>
         <section class="grid" id="channelSummary"></section>
         <details class="form-card">
-            <summary>Security details</summary>
+            <summary><span data-lang="en">Security details</span><span data-lang="zh" class="lang-hidden">安全细节</span></summary>
             <div class="section-head">
                 <div>
-                    <h2>Security baseline</h2>
-                    <p>Direct DM sync must use official APIs, signed webhooks, least-privilege permissions, audit logs, and retention rules. Unsupported inbox scraping is not part of NexaFlow.</p>
+                    <h2><span data-lang="en">Security baseline</span><span data-lang="zh" class="lang-hidden">安全底线</span></h2>
+                    <p><span data-lang="en">Direct DM sync must use official APIs, signed webhooks, least-privilege permissions, audit logs, and retention rules. Unsupported inbox scraping is not part of NexaFlow.</span><span data-lang="zh" class="lang-hidden">直接同步私信必须使用官方 API、签名 webhook、最小权限、审计记录和资料保留规则。NexaFlow 不做不受支持的 inbox 抓取。</span></p>
                 </div>
             </div>
             <div class="setup-panel">
-                <div class="setup-step"><strong>No token paste</strong><span>OAuth tokens and app secrets belong in server-side secret storage, not merchant forms.</span></div>
-                <div class="setup-step"><strong>Owner key required</strong><span>Only the private owner inbox key can view or update channel connection plans.</span></div>
-                <div class="setup-step"><strong>Audit trail</strong><span>Every channel request records who changed what, without exposing customer message content.</span></div>
-                <div class="setup-step"><strong>Retention aware</strong><span>Future synced messages must follow the business data-retention window.</span></div>
+                <div class="setup-step"><strong><span data-lang="en">No token paste</span><span data-lang="zh" class="lang-hidden">不粘贴 token</span></strong><span><span data-lang="en">OAuth tokens and app secrets belong in server-side secret storage, not merchant forms.</span><span data-lang="zh" class="lang-hidden">OAuth token 和 app secret 应保存在服务器 secret storage，不应放进车商表格。</span></span></div>
+                <div class="setup-step"><strong><span data-lang="en">Owner key required</span><span data-lang="zh" class="lang-hidden">需要老板密钥</span></strong><span><span data-lang="en">Only the private owner inbox key can view or update channel connection plans.</span><span data-lang="zh" class="lang-hidden">只有私密老板 inbox 密钥可以查看或更新渠道连接计划。</span></span></div>
+                <div class="setup-step"><strong><span data-lang="en">Audit trail</span><span data-lang="zh" class="lang-hidden">审计记录</span></strong><span><span data-lang="en">Every channel request records who changed what, without exposing customer message content.</span><span data-lang="zh" class="lang-hidden">每个渠道请求都会记录谁改了什么，但不暴露客户消息内容。</span></span></div>
+                <div class="setup-step"><strong><span data-lang="en">Retention aware</span><span data-lang="zh" class="lang-hidden">资料保留规则</span></strong><span><span data-lang="en">Future synced messages must follow the business data-retention window.</span><span data-lang="zh" class="lang-hidden">未来同步的消息必须遵守商家的资料保留期限。</span></span></div>
             </div>
         </details>
         <section class="grid" id="channelCards"></section>
         <script>
             const businessSlug = "{slug}";
+            const channelsLangStorageKey = "nexaflow_channels_lang";
+            function channelsLang() {{
+                return localStorage.getItem(channelsLangStorageKey) || "en";
+            }}
+            function channelsText(en, zh) {{
+                return channelsLang() === "zh" ? zh : en;
+            }}
+            function setChannelsLang(lang) {{
+                document.querySelectorAll("[data-lang]").forEach(item => {{
+                    item.classList.toggle("lang-hidden", item.dataset.lang !== lang);
+                }});
+                document.getElementById("channelsLangEn").classList.toggle("active", lang === "en");
+                document.getElementById("channelsLangZh").classList.toggle("active", lang === "zh");
+                localStorage.setItem(channelsLangStorageKey, lang);
+            }}
             function escapeHtml(value) {{
                 return String(value ?? "").replace(/[&<>"']/g, char => ({{
                     "&": "&amp;",
@@ -8560,6 +8673,9 @@ def merchant_channel_connections_page(business_slug: str):
                     '"': "&quot;",
                     "'": "&#039;"
                 }}[char]));
+            }}
+            function channelLangSpan(en, zh) {{
+                return `<span data-lang="en">${{escapeHtml(en)}}</span><span data-lang="zh" class="lang-hidden">${{escapeHtml(zh)}}</span>`;
             }}
             function selected(value, expected) {{
                 return value === expected ? "selected" : "";
@@ -8580,9 +8696,9 @@ def merchant_channel_connections_page(business_slug: str):
                 const mainChannels = connections.filter(item => ["whatsapp", "facebook", "instagram"].includes(item.channel));
                 const otherChannels = connections.filter(item => !["whatsapp", "facebook", "instagram"].includes(item.channel));
                 document.getElementById("channelSummary").innerHTML = `
-                    <section class="card"><h3>Main sources</h3><div class="price">${{mainChannels.length}}</div><p>WhatsApp, Facebook, Instagram</p></section>
-                    <section class="card"><h3>Setup requested</h3><div class="price">${{summary.configured || 0}}</div><p>Saved source settings</p></section>
-                    <section class="card"><h3>Limited sources</h3><div class="price">${{summary.limited || 0}}</div><p>TikTok / Xiaohongshu assisted mode</p></section>
+                    <section class="card"><h3>${{channelLangSpan("Main sources", "主要来源")}}</h3><div class="price">${{mainChannels.length}}</div><p>WhatsApp, Facebook, Instagram</p></section>
+                    <section class="card"><h3>${{channelLangSpan("Setup requested", "已请求设置")}}</h3><div class="price">${{summary.configured || 0}}</div><p>${{channelLangSpan("Saved source settings", "已保存来源设置")}}</p></section>
+                    <section class="card"><h3>${{channelLangSpan("Limited sources", "受限来源")}}</h3><div class="price">${{summary.limited || 0}}</div><p>${{channelLangSpan("TikTok / Xiaohongshu assisted mode", "TikTok / 小红书辅助导入模式")}}</p></section>
                 `;
                 function renderChannelCard(item) {{
                     return `
@@ -8590,62 +8706,63 @@ def merchant_channel_connections_page(business_slug: str):
                         <h3>${{escapeHtml(item.label)}}</h3>
                         <p>${{escapeHtml(item.data_note || "")}}</p>
                         <div class="lead-badges">
-                            <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{item.official_status === "limited" ? "Assisted only" : "Can request sync"}}</span>
-                            <span class="lead-badge">${{item.data_processing_acknowledged ? "Confirmed" : "Needs confirm"}}</span>
+                            <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{item.official_status === "limited" ? channelLangSpan("Assisted only", "只支持辅助导入") : channelLangSpan("Can request sync", "可申请同步")}}</span>
+                            <span class="lead-badge">${{item.data_processing_acknowledged ? channelLangSpan("Confirmed", "已确认") : channelLangSpan("Needs confirm", "需要确认")}}</span>
                         </div>
-                        <label>Current way
+                        <label>${{channelLangSpan("Current way", "目前方式")}}
                             <select id="mode-${{item.channel}}">
-                                <option value="official_api_requested" ${{selected(item.integration_mode, "official_api_requested")}}>Request auto sync</option>
-                                <option value="assisted_capture" ${{selected(item.integration_mode, "assisted_capture")}}>Manual / assisted record</option>
-                                <option value="smart_link" ${{selected(item.integration_mode, "smart_link")}}>Link or QR</option>
-                                <option value="lead_form" ${{selected(item.integration_mode, "lead_form")}}>Lead form</option>
+                                <option value="official_api_requested" ${{selected(item.integration_mode, "official_api_requested")}}>Request auto sync / 申请自动同步</option>
+                                <option value="assisted_capture" ${{selected(item.integration_mode, "assisted_capture")}}>Manual / assisted record / 手动或辅助记录</option>
+                                <option value="smart_link" ${{selected(item.integration_mode, "smart_link")}}>Link or QR / Link 或 QR</option>
+                                <option value="lead_form" ${{selected(item.integration_mode, "lead_form")}}>Lead form / 询问表格</option>
                             </select>
                         </label>
-                        <label>Account or page label<input id="label-${{item.channel}}" value="${{escapeHtml(item.account_label || "")}}" placeholder="@dealer or page name"></label>
-                        <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>I confirm this is for buyer follow-up and I will not enter passwords or verification codes here.</span></label>
+                        <label>${{channelLangSpan("Account or page label", "账号或专页名称")}}<input id="label-${{item.channel}}" value="${{escapeHtml(item.account_label || "")}}" placeholder="@dealer or page name"></label>
+                        <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>${{channelLangSpan("I confirm this is for buyer follow-up and I will not enter passwords or verification codes here.", "我确认这是用于买家跟进，并且不会在这里输入密码或验证码。")}}</span></label>
                         <details>
-                            <summary>Advanced channel details</summary>
-                            <label>Status
+                            <summary>${{channelLangSpan("Advanced channel details", "高级渠道细节")}}</summary>
+                            <label>${{channelLangSpan("Status", "状态")}}
                                 <select id="status-${{item.channel}}">
-                                    <option value="requested" ${{selected(item.status, "requested")}}>Requested</option>
-                                    <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active</option>
-                                    <option value="paused" ${{selected(item.status, "paused")}}>Paused</option>
+                                    <option value="requested" ${{selected(item.status, "requested")}}>Requested / 已请求</option>
+                                    <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active / 辅助导入已开启</option>
+                                    <option value="paused" ${{selected(item.status, "paused")}}>Paused / 暂停</option>
                                 </select>
                             </label>
-                            <label>External account ID optional<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="Page ID / WABA ID / handle"></label>
-                            <label>Notes<textarea id="notes-${{item.channel}}" placeholder="Setup notes, never secrets">${{escapeHtml(item.notes || "")}}</textarea></label>
+                            <label>${{channelLangSpan("External account ID optional", "外部账号 ID（选填）")}}<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="Page ID / WABA ID / handle"></label>
+                            <label>${{channelLangSpan("Notes", "备注")}}<textarea id="notes-${{item.channel}}" placeholder="Setup notes, never secrets">${{escapeHtml(item.notes || "")}}</textarea></label>
                             <div class="lead-badges">
                                 ${{(item.capabilities || []).map(value => `<span class="lead-badge">${{escapeHtml(value)}}</span>`).join("")}}
                             </div>
-                            <span class="next-action">Security: ${{(item.security_requirements || []).map(value => escapeHtml(value)).join(" · ")}}</span>
+                            <span class="next-action">${{channelLangSpan("Security", "安全")}}: ${{(item.security_requirements || []).map(value => escapeHtml(value)).join(" · ")}}</span>
                         </details>
-                        <button class="btn" onclick="saveChannelConnection('${{item.channel}}')">Save source</button>
+                        <button class="btn" onclick="saveChannelConnection('${{item.channel}}')">${{channelLangSpan("Save source", "保存来源")}}</button>
                     </section>
                     `;
                 }}
                 document.getElementById("channelCards").innerHTML = `
                     ${{mainChannels.map(renderChannelCard).join("")}}
                     <details class="form-card">
-                        <summary>Other sources: TikTok, Xiaohongshu, website, and assisted capture</summary>
+                        <summary>${{channelLangSpan("Other sources: TikTok, Xiaohongshu, website, and assisted capture", "其他来源：TikTok、小红书、网站和辅助导入")}}</summary>
                         <div class="grid">${{otherChannels.map(renderChannelCard).join("")}}</div>
                     </details>
                 `;
+                setChannelsLang(channelsLang());
             }}
             async function loadChannelConnections() {{
                 const status = document.getElementById("channelStatus");
-                status.textContent = "Loading channel connections...";
+                status.textContent = channelsText("Loading channel connections...", "正在加载渠道连接...");
                 try {{
                     const payload = await channelApi(`/apps/enquiry/api/merchant/channel-connections?business_slug=${{businessSlug}}`);
                     renderChannelConnections(payload);
                     localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
-                    status.textContent = payload.security_notice || "Loaded.";
+                    status.textContent = payload.security_notice || channelsText("Loaded.", "已加载。");
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
             }}
             async function saveChannelConnection(channel) {{
                 const status = document.getElementById("channelStatus");
-                status.textContent = `Saving ${{channel}} connection...`;
+                status.textContent = channelsText(`Saving ${{channel}} connection...`, `正在保存 ${{channel}} 连接...`);
                 try {{
                     await channelApi(`/apps/enquiry/api/merchant/channel-connections/${{channel}}?business_slug=${{businessSlug}}`, {{
                         method: "PATCH",
@@ -8660,7 +8777,7 @@ def merchant_channel_connections_page(business_slug: str):
                         }})
                     }});
                     await loadChannelConnections();
-                    status.textContent = `${{channel}} connection saved. No passwords or access tokens were stored.`;
+                    status.textContent = channelsText(`${{channel}} connection saved. No passwords or access tokens were stored.`, `${{channel}} 连接已保存。没有保存任何密码或 access token。`);
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -8670,6 +8787,7 @@ def merchant_channel_connections_page(business_slug: str):
                 document.getElementById("businessKey").value = savedBusinessKey;
                 loadChannelConnections();
             }}
+            setChannelsLang(localStorage.getItem(channelsLangStorageKey) || "en");
         </script>
         """
     )
