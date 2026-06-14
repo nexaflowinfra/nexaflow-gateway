@@ -792,7 +792,7 @@ def test_enquiry_requires_pdpa_consent():
     assert "Consent is required" in response.text
 
 
-def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
+def test_enquiry_create_attaches_business_profile_and_buyer_whatsapp():
     suffix = uuid.uuid4().hex[:8]
     slug = f"tuition-{suffix}"
     profile = client.post(
@@ -833,7 +833,8 @@ def test_enquiry_create_attaches_business_profile_and_owner_whatsapp():
     saved = next(item for item in listing.json()["enquiries"] if item["id"] == body["id"])
     assert saved["business_type"] == "tuition"
     assert "Bright Tuition" in saved["reply_draft"]
-    assert saved["whatsapp_url"].startswith("https://wa.me/6588889999")
+    assert saved["whatsapp_url"].startswith("https://wa.me/6591112222")
+    assert "6588889999" not in saved["whatsapp_url"]
     assert saved["merchant_notification_status"] == "skipped"
     assert "contact_email" in saved["merchant_notification_error"]
 
@@ -1373,7 +1374,8 @@ def test_merchant_can_update_own_business_settings_only():
     )
     assert listing.status_code == 200
     saved = next(item for item in listing.json()["enquiries"] if item["id"] == lead.json()["id"])
-    assert "6588889999" in saved["whatsapp_url"]
+    assert "6512345678" in saved["whatsapp_url"]
+    assert "6588889999" not in saved["whatsapp_url"]
     assert saved["follow_up_at"] == ""
 
 

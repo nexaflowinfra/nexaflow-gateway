@@ -4248,7 +4248,9 @@ def create_enquiry_record(req):
     workflow = enquiry_workflow_summary(req.name, req.message, classification, profile)
     follow_up_at = enquiry_auto_follow_up_date(classification, profile)
     reply_draft = enquiry_reply_draft(req.name, business_type, req.message, classification, profile)
-    reply_phone = profile.get("whatsapp_phone") or req.phone
+    # The inbox WhatsApp action is for the merchant to reply to the buyer.
+    # Dealer/profile WhatsApp is used for merchant notifications and setup, not this follow-up link.
+    reply_phone = req.phone
     whatsapp_url = whatsapp_reply_url(reply_phone, reply_draft)
     timestamp = now_iso()
     consent_notice = (
