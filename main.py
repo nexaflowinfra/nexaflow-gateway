@@ -4852,7 +4852,9 @@ MERCHANT_DEMO_ENQUIRIES = [
         "source": "tiktok",
         "campaign": "Civic TikTok DM",
         "buyer_request": "2018 Honda Civic, loan check, monthly below RM900",
+        "buyer_request_zh": "2018 Honda Civic，想查贷款，月供低过 RM900",
         "message": "Saw your 2018 Honda Civic on TikTok. Can loan? Monthly below RM900, can view today?",
+        "reply_draft_zh": "你好，感谢你询问这台 2018 Honda Civic。我们先帮你确认月供和贷款方向。可以告诉我你舒服的月供、首付范围，以及是否需要贷款吗？如果合适，我们再安排今天看车。",
         "status": "new",
         "internal_note": "Demo: high intent, asks loan, monthly payment, and viewing today.",
         "follow_up_days": 0,
@@ -4864,7 +4866,9 @@ MERCHANT_DEMO_ENQUIRIES = [
         "source": "instagram",
         "campaign": "Vios Instagram DM",
         "buyer_request": "Toyota Vios, best price, lowest deposit",
+        "buyer_request_zh": "Toyota Vios，问最低价和最低首付",
         "message": "Still got Toyota Vios? I saw another dealer cheaper. What is your best price and lowest deposit?",
+        "reply_draft_zh": "你好，Toyota Vios 还有。为了给你比较准确的方案，可以发我你看到的年份、spec、mileage、价格和月供吗？我帮你对比最接近、最划算的选择。",
         "status": "contacted",
         "internal_note": "Demo: buyer is comparing dealers and needs price confidence.",
         "follow_up_days": 0,
@@ -4876,7 +4880,9 @@ MERCHANT_DEMO_ENQUIRIES = [
         "source": "facebook",
         "campaign": "Alza Facebook Messenger",
         "buyer_request": "Family car, loan advice with variable income",
+        "buyer_request_zh": "家庭车，收入不固定，需要贷款建议",
         "message": "Looking for family car. Need loan but income not fixed every month. Can you advise what documents first?",
+        "reply_draft_zh": "你好，感谢你询问家庭车。贷款方面我们可以先简单了解收入类型、预算月供和首付范围，再建议需要准备什么文件。你大概想控制在多少月供？",
         "status": "new",
         "internal_note": "Demo: loan qualification is unclear; ask income and documents before pushing appointment.",
         "follow_up_days": 1,
@@ -4888,7 +4894,9 @@ MERCHANT_DEMO_ENQUIRIES = [
         "source": "whatsapp",
         "campaign": "Mazda WhatsApp",
         "buyer_request": "Mazda 3 viewing, location, 7-year monthly estimate",
+        "buyer_request_zh": "Mazda 3，看车地点和 7 年月供预算",
         "message": "Can I view the Mazda 3 tomorrow morning? Send location and total monthly for 7 years please.",
+        "reply_draft_zh": "你好，可以。我先帮你确认明早看车时间和地点。你方便几点到？同时我可以准备 7 年供期的月供估算，也想确认你是否需要贷款。",
         "status": "quoted",
         "internal_note": "Demo: appointment intent is clear; confirm time and showroom location.",
         "follow_up_days": 1,
@@ -4900,7 +4908,9 @@ MERCHANT_DEMO_ENQUIRIES = [
         "source": "xiaohongshu",
         "campaign": "Bezza Xiaohongshu DM",
         "buyer_request": "Bezza around RM700 monthly, maybe next month",
+        "buyer_request_zh": "Bezza，月供约 RM700，可能下个月才买",
         "message": "Hi, just checking. Any Bezza around RM700 monthly? Not urgent, maybe next month only.",
+        "reply_draft_zh": "你好，有机会可以找 RM700 左右月供的 Bezza 方向。你比较接受多少首付？想新一点还是月供低一点？如果你是下个月看车，我可以先帮你留意合适单位。",
         "status": "new",
         "internal_note": "Demo: lower urgency; ask budget and timeline without sounding pushy.",
         "follow_up_days": 3,
@@ -4912,7 +4922,9 @@ MERCHANT_DEMO_ENQUIRIES = [
         "source": "referral",
         "campaign": "Trade-in referral call",
         "buyer_request": "Trade in Myvi, upgrade to HR-V, around RM1200 monthly",
+        "buyer_request_zh": "Myvi trade in，升级 HR-V，月供约 RM1200",
         "message": "My friend bought from you. I want to trade in my Myvi and upgrade to HR-V. Budget around RM1200 monthly, can call tonight?",
+        "reply_draft_zh": "你好，感谢朋友介绍。HR-V 和 Myvi trade in 可以一起评估。你今晚方便几点通话？我会先确认你的 Myvi 年份、mileage、目标月供 RM1200 和贷款需求。",
         "status": "new",
         "internal_note": "Demo: referral with trade-in and monthly payment target.",
         "follow_up_days": 0,
@@ -4924,13 +4936,104 @@ MERCHANT_DEMO_ENQUIRIES = [
         "source": "direct",
         "campaign": "Buyer enquiry link",
         "buyer_request": "Honda City Saturday viewing, loan estimate",
+        "buyer_request_zh": "Honda City，星期六看车，准备贷款估算",
         "message": "Thanks, I already booked the Saturday viewing slot for the City. Please prepare the loan estimate.",
+        "reply_draft_zh": "你好，星期六 Honda City 看车已经记录。我会先准备贷款估算。到时也可以一起确认首付、供期和你舒服的月供范围。",
         "status": "won",
         "internal_note": "Demo: booked buyer kept in the pipeline but not shown as urgent.",
         "follow_up_days": 2,
         "deal_value": 76800,
     },
 ]
+
+
+DEMO_TEXT_ZH = {
+    "Reply first": "优先回复",
+    "Check details": "确认资料",
+    "Ask next": "问下一句",
+    "Unknown": "未知",
+    "New": "新客户",
+    "Contacted": "已联系",
+    "Quoted": "已报价",
+    "Booked": "已预约",
+    "Direct": "直接询问",
+    "Referral": "介绍",
+    "Xiaohongshu": "小红书",
+    "Demo pipeline stage": "Demo 阶段",
+    "Monthly payment or loan readiness": "月供或贷款条件还没确认",
+    "Comparing price, spec, or monthly payment with another dealer": "正在和其他车商比价或比月供",
+    "Viewing appointment not confirmed": "看车时间还没确认",
+    "Still choosing the right car or spec": "还在选车型或规格",
+    "Budget or down payment not clear": "预算或首付还不清楚",
+    "Buyer has not shared enough buying background yet": "买家背景资料还不够",
+    "Need more context": "需要更多客户背景",
+    "Clarify target monthly payment, down payment, and loan need before pushing for viewing.": "先确认目标月供、首付和贷款需求，再推进看车。",
+    "Ask what price, spec, or monthly payment they are comparing, then explain the strongest matching option.": "先问他在比较什么价格、规格或月供，再解释最接近的选择。",
+    "Confirm viewing time, branch, preferred model, and whether loan support is needed.": "确认看车时间、分行、车型，以及是否需要贷款协助。",
+    "Confirm model, year, mileage, budget or monthly range, and must-have specs.": "确认车型、年份、mileage、预算或月供范围，以及必备规格。",
+    "Ask budget range, down payment comfort, and monthly payment target.": "询问预算范围、可接受首付和目标月供。",
+    "Do discovery first: ask model, budget/monthly range, loan need, and viewing timeline.": "先了解需求：车型、预算/月供、贷款需求和看车时间。",
+    "If no reply, follow up within 2 hours with one clear loan or monthly-payment question.": "如果没回复，2 小时内用一个贷款或月供问题跟进。",
+    "Follow up within 4 hours; comparison shoppers often go cold when the next step is unclear.": "4 小时内跟进；比价客户如果下一步不清楚，很容易冷掉。",
+    "Follow up the same day if the appointment is not confirmed.": "如果看车时间没确认，当天再跟进。",
+    "Follow up within 1 business day with one matching option or a short discovery question.": "1 个工作日内用一个合适选择或一个简短问题跟进。",
+    "Follow up within 1 business day with an option that fits the stated budget.": "1 个工作日内用一个符合预算的选择跟进。",
+    "Follow up within 1 business day if the customer does not answer the discovery question.": "如果客户没回答需求问题，1 个工作日内跟进。",
+    "Follow up within 2 business days if there is no reply.": "如果没回复，2 个工作日内跟进。",
+}
+
+
+DEMO_SIGNAL_ZH = {
+    "finance": {
+        "label": "贷款 / 银行",
+        "detail": "询问目标月供、首付和贷款准备情况。",
+    },
+    "monthly_payment": {
+        "label": "月供",
+        "detail": "先确认舒服的月供范围，再推进看车。",
+    },
+    "budget": {
+        "label": "预算 / 首付",
+        "detail": "询问预算范围和可接受首付，让方案更贴近客户。",
+    },
+    "comparison": {
+        "label": "正在比价",
+        "detail": "问清楚客户在比较的价格、规格和月供。",
+    },
+    "appointment": {
+        "label": "看车 / 预约",
+        "detail": "确认日期、时间、地点，以及是否需要贷款协助。",
+    },
+    "vehicle_fit": {
+        "label": "车型匹配",
+        "detail": "确认车型、年份、mileage、颜色和必要规格。",
+    },
+    "income_check": {
+        "label": "贷款背景",
+        "detail": "只问必要的贷款准备问题，不太早收敏感资料。",
+    },
+    "time_sensitive": {
+        "label": "需要快回",
+        "detail": "先快速回复，如果客户安静下来，当天再跟进。",
+    },
+    "discovery": {
+        "label": "需要了解需求",
+        "detail": "询问车型、预算/月供、贷款需求和看车时间。",
+    },
+}
+
+
+def demo_zh_text(value):
+    return DEMO_TEXT_ZH.get(value or "", value or "")
+
+
+def demo_signal_zh(signal):
+    mapped = DEMO_SIGNAL_ZH.get(signal.get("key") or "", {})
+    return {
+        "key": signal.get("key") or "",
+        "label": mapped.get("label") or signal.get("label") or signal.get("key") or "",
+        "detail": mapped.get("detail") or signal.get("detail") or "",
+    }
 
 
 def seed_merchant_demo_enquiries(profile):
@@ -5031,16 +5134,22 @@ def demo_dealer_enquiry_cards():
                 "priority": classification["priority"],
                 "intent": classification["intent"],
                 "buyer_request": sample["buyer_request"],
+                "buyer_request_zh": sample["buyer_request_zh"],
                 "deal_value": sample["deal_value"],
                 "follow_up_at": (today + timedelta(days=sample["follow_up_days"])).isoformat(),
                 "stuck_point": guidance["stuck_point"],
+                "stuck_point_zh": demo_zh_text(guidance["stuck_point"]),
                 "next_question": guidance["next_question"],
                 "follow_up_timing": guidance["follow_up_timing"],
+                "follow_up_timing_zh": demo_zh_text(guidance["follow_up_timing"]),
                 "reply_draft": enquiry_reply_draft(sample["name"], profile["business_type"], sample["message"], classification, profile),
+                "reply_draft_zh": sample["reply_draft_zh"],
                 "next_action": workflow["next_action"],
+                "next_action_zh": demo_zh_text(workflow["next_action"]),
                 "auto_summary": workflow["auto_summary"],
                 "follow_up_recommendation": workflow["follow_up_recommendation"],
                 "signals": signals,
+                "signals_zh": [demo_signal_zh(signal) for signal in signals],
             }
         )
     return cards
@@ -5058,15 +5167,21 @@ def dealer_demo_page_body():
         pipeline[card["status"]] = pipeline.get(card["status"], 0) + 1
         sources[card["source"]] = sources.get(card["source"], 0) + 1
 
+    def lang_span(en, zh):
+        return (
+            f'<span data-lang="en">{escape_html(en)}</span>'
+            f'<span data-lang="zh" class="lang-hidden">{escape_html(zh)}</span>'
+        )
+
     source_badges = "".join(
-        f'<span class="lead-badge">{escape_html(source.title())} · {count}</span>'
+        f'<span class="lead-badge">{lang_span(source.title(), demo_zh_text(source.title()))} · {count}</span>'
         for source, count in sorted(sources.items())
     )
     pipeline_cards = "".join(
         f"""
         <div class="stage-card">
-            <strong>{escape_html(status.title())} <span>{count}</span></strong>
-            <span>Demo pipeline stage</span>
+            <strong>{lang_span(status.title(), demo_zh_text(status.title()))} <span>{count}</span></strong>
+            <span>{lang_span("Demo pipeline stage", "Demo 阶段")}</span>
         </div>
         """
         for status, count in sorted(pipeline.items())
@@ -5080,6 +5195,9 @@ def dealer_demo_page_body():
             "normal": "Ask next",
         }.get(value or "", value or "Unknown")
 
+    def demo_priority_label_zh(value):
+        return demo_zh_text(demo_priority_label(value))
+
     def demo_status_label(value):
         return {
             "new": "New",
@@ -5087,6 +5205,9 @@ def dealer_demo_page_body():
             "quoted": "Quoted",
             "won": "Booked",
         }.get(value or "", (value or "Unknown").title())
+
+    def demo_status_label_zh(value):
+        return demo_zh_text(demo_status_label(value))
 
     def demo_source_label(value):
         return {
@@ -5099,15 +5220,18 @@ def dealer_demo_page_body():
             "direct": "Direct",
         }.get(value or "", (value or "Unknown").replace("_", " ").title())
 
+    def demo_source_label_zh(value):
+        return demo_zh_text(demo_source_label(value))
+
     lead_cards = "".join(
         f"""
         <button type="button" class="demo-queue-card {"active" if index == 0 else ""}" data-demo-id="{card["id"]}" onclick="selectDemoLead({card["id"]})">
             <span class="demo-queue-top">
                 <strong>{escape_html(card["name"])}</strong>
-                <span class="lead-badge {"hot" if card["priority"] == "hot" or card["follow_up_at"] <= today_iso else ""}">{escape_html(demo_priority_label(card["priority"]))}</span>
+                <span class="lead-badge {"hot" if card["priority"] == "hot" or card["follow_up_at"] <= today_iso else ""}">{lang_span(demo_priority_label(card["priority"]), demo_priority_label_zh(card["priority"]))}</span>
             </span>
-            <span class="demo-queue-meta">{escape_html(demo_source_label(card["source"]))} · {escape_html(demo_status_label(card["status"]))}</span>
-            <span class="demo-queue-focus">{escape_html(card["stuck_point"])}</span>
+            <span class="demo-queue-meta">{lang_span(demo_source_label(card["source"]), demo_source_label_zh(card["source"]))} · {lang_span(demo_status_label(card["status"]), demo_status_label_zh(card["status"]))}</span>
+            <span class="demo-queue-focus">{lang_span(card["stuck_point"], card["stuck_point_zh"])}</span>
         </button>
         """
         for index, card in enumerate(display_cards)
@@ -5122,20 +5246,24 @@ def dealer_demo_page_body():
     return f"""
     <section class="hero compact">
         <div>
-            <div class="eyebrow">Dealer Demo</div>
-            <h1>A sales queue for used car enquiries.</h1>
-            <p class="lead">Pick a buyer, see what they want, what they are stuck on, and the next reply your sales team can send.</p>
+            <div class="language-toggle" aria-label="Language">
+                <button type="button" class="active" onclick="setDealerDemoLang('en')" id="demoLangEn">EN</button>
+                <button type="button" onclick="setDealerDemoLang('zh')" id="demoLangZh">中文</button>
+            </div>
+            <div class="eyebrow">{lang_span("Dealer Demo", "车商 Demo")}</div>
+            <h1>{lang_span("A sales queue for used car enquiries.", "二手车询问的销售队列。")}</h1>
+            <p class="lead">{lang_span("Pick a buyer, see what they want, what they are stuck on, and the next reply your sales team can send.", "点开一个买家，马上看到他想要什么、卡在哪里，以及销售可以发的下一句回复。")}</p>
             <div class="actions">
-                <a class="btn" href="/merchant-signup">Create Dealer Inbox</a>
-                <a class="btn secondary" href="/ai-enquiry#enquiry-form">Add Test Buyer</a>
+                <a class="btn" href="/merchant-signup">{lang_span("Create Dealer Inbox", "创建车商 Inbox")}</a>
+                <a class="btn secondary" href="/ai-enquiry#enquiry-form">{lang_span("Add Test Buyer", "新增测试买家")}</a>
             </div>
         </div>
     </section>
     <section class="form-card">
         <div class="section-head">
             <div>
-                <h2>Today&apos;s buyer queue</h2>
-                <p>Start from the top, open one buyer, then copy the next reply. Demo records only; no real buyer data, access key, export, delete, or admin route is exposed here.</p>
+                <h2>{lang_span("Today&apos;s buyer queue", "今天的买家队列")}</h2>
+                <p>{lang_span("Start from the top, open one buyer, then copy the next reply. Demo records only; no real buyer data, access key, export, delete, or admin route is exposed here.", "从最上面开始，点开一个买家，然后复制下一句回复。这里都是 Demo 资料；不会显示真实买家资料、access key、导出、删除或 admin 入口。")}</p>
             </div>
         </div>
         <div class="dealer-demo-board">
@@ -5156,6 +5284,29 @@ def dealer_demo_page_body():
                 "'": "&#039;"
             }}[char]));
         }}
+        function currentDealerDemoLang() {{
+            return localStorage.getItem("nexaflow_dealer_demo_lang") || "en";
+        }}
+        function demoText(en, zh) {{
+            return currentDealerDemoLang() === "zh" ? zh : en;
+        }}
+        function demoLangSpan(en, zh) {{
+            return `<span data-lang="en">${{escapeDemoHtml(en)}}</span><span data-lang="zh" class="lang-hidden">${{escapeDemoHtml(zh)}}</span>`;
+        }}
+        function setDealerDemoLang(lang, options = {{}}) {{
+            document.querySelectorAll("[data-lang]").forEach(item => {{
+                item.classList.toggle("lang-hidden", item.dataset.lang !== lang);
+            }});
+            const enButton = document.getElementById("demoLangEn");
+            const zhButton = document.getElementById("demoLangZh");
+            if (enButton && zhButton) {{
+                enButton.classList.toggle("active", lang === "en");
+                zhButton.classList.toggle("active", lang === "zh");
+            }}
+            if (options.persist !== false) {{
+                localStorage.setItem("nexaflow_dealer_demo_lang", lang);
+            }}
+        }}
         function demoSourceLabel(value) {{
             const labels = {{
                 tiktok: "TikTok",
@@ -5168,22 +5319,45 @@ def dealer_demo_page_body():
             }};
             return labels[value] || String(value || "Unknown").replace(/_/g, " ");
         }}
-        function demoPriorityLabel(value) {{
+        function demoSourceLabelZh(value) {{
+            const labels = {{
+                tiktok: "TikTok",
+                instagram: "Instagram",
+                facebook: "Facebook",
+                whatsapp: "WhatsApp",
+                xiaohongshu: "小红书",
+                referral: "介绍",
+                direct: "直接询问"
+            }};
+            return labels[value] || String(value || "未知").replace(/_/g, " ");
+        }}
+        function demoPriorityLabelEn(value) {{
             const labels = {{ hot: "Reply first", warm: "Check details", normal: "Ask next" }};
             return labels[value] || value || "Unknown";
         }}
-        function demoStatusLabel(value) {{
+        function demoPriorityLabelZh(value) {{
+            const labels = {{ hot: "优先回复", warm: "确认资料", normal: "问下一句" }};
+            return labels[value] || value || "未知";
+        }}
+        function demoStatusLabelEn(value) {{
             const labels = {{ new: "New", contacted: "Contacted", quoted: "Quoted", won: "Booked" }};
             return labels[value] || value || "Unknown";
+        }}
+        function demoStatusLabelZh(value) {{
+            const labels = {{ new: "新客户", contacted: "已联系", quoted: "已报价", won: "已预约" }};
+            return labels[value] || value || "未知";
         }}
         function renderDemoSignals(lead) {{
             const urgent = new Set(["finance", "monthly_payment", "budget", "comparison", "appointment", "time_sensitive"]);
             const signals = Array.isArray(lead.signals) && lead.signals.length
                 ? lead.signals.slice(0, 5)
                 : [{{ key: "discovery", label: "Needs discovery" }}];
+            const signalsZh = Array.isArray(lead.signals_zh) && lead.signals_zh.length
+                ? lead.signals_zh.slice(0, 5)
+                : [{{ key: "discovery", label: "需要了解需求", detail: "询问车型、预算/月供、贷款需求和看车时间。" }}];
             return signals.map(signal => `
                 <span class="lead-badge ${{urgent.has(signal.key) ? "hot" : ""}}" title="${{escapeDemoHtml(signal.detail || "")}}">
-                    ${{escapeDemoHtml(signal.label || signal.key)}}
+                    ${{demoLangSpan(signal.label || signal.key, (signalsZh.find(item => item.key === signal.key) || {{}}).label || signal.label || signal.key)}}
                 </span>
             `).join("");
         }}
@@ -5200,48 +5374,49 @@ def dealer_demo_page_body():
             panel.innerHTML = `
                 <div class="demo-detail-head">
                     <div>
-                        <span class="demo-detail-kicker">${{escapeDemoHtml(demoSourceLabel(lead.source))}} · ${{escapeDemoHtml(lead.campaign)}}</span>
+                        <span class="demo-detail-kicker">${{demoLangSpan(demoSourceLabel(lead.source), demoSourceLabelZh(lead.source))}} · ${{escapeDemoHtml(lead.campaign)}}</span>
                         <h3>${{escapeDemoHtml(lead.name)}}</h3>
                     </div>
-                    <span class="lead-badge ${{lead.priority === "hot" ? "hot" : ""}}">${{escapeDemoHtml(demoPriorityLabel(lead.priority))}}</span>
+                    <span class="lead-badge ${{lead.priority === "hot" ? "hot" : ""}}">${{demoLangSpan(demoPriorityLabelEn(lead.priority), demoPriorityLabelZh(lead.priority))}}</span>
                 </div>
                 <div class="demo-detail-grid">
                     <div class="demo-detail-box">
-                        <strong>Buyer wants</strong>
-                        <span>${{escapeDemoHtml(lead.buyer_request || lead.message)}}</span>
+                        <strong>${{demoLangSpan("Buyer wants", "客户想要")}}</strong>
+                        <span>${{demoLangSpan(lead.buyer_request || lead.message, lead.buyer_request_zh || lead.buyer_request || lead.message)}}</span>
                     </div>
                     <div class="demo-detail-box">
-                        <strong>Stuck on</strong>
-                        <span>${{escapeDemoHtml(lead.stuck_point)}}</span>
+                        <strong>${{demoLangSpan("Stuck on", "客户卡点")}}</strong>
+                        <span>${{demoLangSpan(lead.stuck_point, lead.stuck_point_zh || lead.stuck_point)}}</span>
                     </div>
                 </div>
                 <div class="demo-reply-box">
-                    <strong>Next reply</strong>
-                    <p>${{escapeDemoHtml(lead.reply_draft)}}</p>
+                    <strong>${{demoLangSpan("Next reply", "下一句回复")}}</strong>
+                    <p>${{demoLangSpan(lead.reply_draft, lead.reply_draft_zh || lead.reply_draft)}}</p>
                 </div>
                 <div class="demo-panel-actions">
-                    <button type="button" class="btn secondary" onclick="copyDemoReply()">Copy reply</button>
-                    <span id="demoPanelStatus">Demo only: no message is sent.</span>
+                    <button type="button" class="btn secondary" onclick="copyDemoReply()">${{demoLangSpan("Copy reply", "复制回复")}}</button>
+                    <span id="demoPanelStatus">${{demoLangSpan("Demo only: no message is sent.", "Demo 不会发送任何消息。")}}</span>
                 </div>
                 <details class="demo-inline-details">
-                    <summary>More buyer details</summary>
+                    <summary>${{demoLangSpan("More buyer details", "更多买家资料")}}</summary>
                     <div class="lead-badges">${{renderDemoSignals(lead)}}</div>
                     <div class="demo-detail-grid demo-extra-grid">
                         <div class="demo-detail-box">
-                            <strong>Next move</strong>
-                            <span>${{escapeDemoHtml(lead.next_action)}}</span>
+                            <strong>${{demoLangSpan("Next move", "下一步")}}</strong>
+                            <span>${{demoLangSpan(lead.next_action, lead.next_action_zh || lead.next_action)}}</span>
                         </div>
                         <div class="demo-detail-box">
-                            <strong>When to chase</strong>
-                            <span>${{escapeDemoHtml(lead.follow_up_timing || lead.follow_up_recommendation)}}</span>
+                            <strong>${{demoLangSpan("When to chase", "什么时候再追")}}</strong>
+                            <span>${{demoLangSpan(lead.follow_up_timing || lead.follow_up_recommendation, lead.follow_up_timing_zh || lead.follow_up_timing || lead.follow_up_recommendation)}}</span>
                         </div>
                     </div>
                     <div class="demo-message-box">
-                        <strong>Buyer message</strong>
+                        <strong>${{demoLangSpan("Buyer message", "买家原始留言")}}</strong>
                         <p>${{escapeDemoHtml(lead.message)}}</p>
                     </div>
                 </details>
             `;
+            setDealerDemoLang(currentDealerDemoLang(), {{ persist: false }});
         }}
         function copyDemoReply() {{
             const lead = dealerDemoLeads.find(item => item.id === selectedDemoLeadId);
@@ -5249,37 +5424,39 @@ def dealer_demo_page_body():
             if (!lead || !status) {{
                 return;
             }}
-            if (navigator.clipboard && lead.reply_draft) {{
-                navigator.clipboard.writeText(lead.reply_draft)
-                    .then(() => {{ status.textContent = "Reply copied for demo."; }})
-                    .catch(() => {{ status.textContent = "Copy manually from the suggested reply."; }});
+            const draft = currentDealerDemoLang() === "zh" && lead.reply_draft_zh ? lead.reply_draft_zh : lead.reply_draft;
+            if (navigator.clipboard && draft) {{
+                navigator.clipboard.writeText(draft)
+                    .then(() => {{ status.textContent = demoText("Reply copied for demo.", "回复已复制。"); }})
+                    .catch(() => {{ status.textContent = demoText("Copy manually from the suggested reply.", "请手动复制上面的建议回复。"); }});
             }} else {{
-                status.textContent = "Copy manually from the suggested reply.";
+                status.textContent = demoText("Copy manually from the suggested reply.", "请手动复制上面的建议回复。");
             }}
         }}
+        setDealerDemoLang(currentDealerDemoLang(), {{ persist: false }});
         selectDemoLead(selectedDemoLeadId);
     </script>
     <details class="form-card">
-        <summary>Demo notes</summary>
+        <summary>{lang_span("Demo notes", "Demo 说明")}</summary>
         <section class="action-center">
             <div class="action-card">
-                <h3>Open today&apos;s queue</h3>
-                <p>See who should be replied first, who needs a loan check, and who is waiting for a viewing confirmation.</p>
+                <h3>{lang_span("Open today&apos;s queue", "打开今天队列")}</h3>
+                <p>{lang_span("See who should be replied first, who needs a loan check, and who is waiting for a viewing confirmation.", "先看谁要优先回复、谁要查贷款、谁在等看车确认。")}</p>
                 <div class="lead-badges">
-                    <span class="lead-badge hot">Reply first · {hot_count}</span>
-                    <span class="lead-badge hot">Due today · {due_count}</span>
-                    <span class="lead-badge">Demo buyers · {len(cards)}</span>
+                    <span class="lead-badge hot">{lang_span("Reply first", "优先回复")} · {hot_count}</span>
+                    <span class="lead-badge hot">{lang_span("Due today", "今天到期")} · {due_count}</span>
+                    <span class="lead-badge">{lang_span("Demo buyers", "Demo 买家")} · {len(cards)}</span>
                 </div>
             </div>
             <div class="action-card">
-                <h3>All sources, one list</h3>
-                <p>WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be worked from the same sales queue.</p>
+                <h3>{lang_span("All sources, one list", "所有来源，一个列表")}</h3>
+                <p>{lang_span("WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be worked from the same sales queue.", "WhatsApp、Instagram、Facebook、TikTok、小红书、介绍和 direct link 来的客户，都可以在同一个销售队列处理。")}</p>
                 <div class="lead-badges">{source_badges}</div>
             </div>
         </section>
     </details>
     <details class="form-card">
-        <summary>Buyer progress</summary>
+        <summary>{lang_span("Buyer progress", "买家进度")}</summary>
         <section class="pipeline-board">{pipeline_cards}</section>
     </details>
     """

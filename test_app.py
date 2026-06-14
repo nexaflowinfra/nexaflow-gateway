@@ -85,18 +85,29 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     response = client.get("/dealer-demo")
     assert response.status_code == 200
     assert "A sales queue for used car enquiries." in response.text
+    assert "二手车询问的销售队列。" in response.text
+    assert "setDealerDemoLang" in response.text
+    assert "nexaflow_dealer_demo_lang" in response.text
+    assert "今天的买家队列" in response.text
     assert "TikTok Civic Buyer" in response.text
     assert "Referral Trade-in Buyer" in response.text
     assert "demoLeadDetail" in response.text
     assert "demo-queue-card" in response.text
     assert "Buyer wants" in response.text
+    assert "客户想要" in response.text
     assert "Stuck on" in response.text
+    assert "客户卡点" in response.text
     assert "Next reply" in response.text
+    assert "下一句回复" in response.text
     assert "More buyer details" in response.text
+    assert "更多买家资料" in response.text
     assert "Demo notes" in response.text
+    assert "Demo 说明" in response.text
     assert "no real buyer data, access key, export, delete, or admin route is exposed here." in response.text
     assert "Buyer progress" in response.text
+    assert "买家进度" in response.text
     assert "Create Dealer Inbox" in response.text
+    assert "创建车商 Inbox" in response.text
     assert "/admin/dashboard" not in response.text
     assert "business_access_key" not in response.text
     assert "nexaflow_business_key_" not in response.text
