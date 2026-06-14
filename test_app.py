@@ -526,6 +526,9 @@ def test_business_profile_create_and_public_form_loads():
     assert "Never paste platform passwords" in channels.text
     assert "Request auto sync" in channels.text
     assert "Assisted capture" in channels.text
+    assert "Meta auto-sync setup" in channels.text
+    assert "metaSetupContent" in channels.text
+    assert "loadMetaSetup" in channels.text
     assert "/admin/dashboard" not in channels.text
 
     legacy_channels = client.get(f"/apps/enquiry/channels/{slug}")
@@ -1237,6 +1240,7 @@ def test_merchant_channel_connections_are_private_and_audited():
     suffix = uuid.uuid4().hex[:8]
     slug_one = f"channels-one-{suffix}"
     slug_two = f"channels-two-{suffix}"
+    phone_number_id = f"phone-number-id-{suffix}"
     profile_one = client.post(
         "/apps/enquiry/api/business-profiles",
         json={
@@ -1260,6 +1264,7 @@ def test_merchant_channel_connections_are_private_and_audited():
     assert profile_one.status_code == 200
     assert profile_two.status_code == 200
     business_key = profile_one.json()["business_access_key"]
+    business_key_two = profile_two.json()["business_access_key"]
 
     unauthorized = client.get(
         f"/apps/enquiry/api/merchant/channel-connections?business_slug={slug_one}"
@@ -1276,6 +1281,38 @@ def test_merchant_channel_connections_are_private_and_audited():
     assert body["data_protection"]["owner_key_required"] is True
     assert "passwords, OTPs, cookies" in body["security_notice"]
     assert {item["channel"] for item in body["connections"]}.issuperset({"whatsapp", "instagram", "facebook", "tiktok", "xiaohongshu"})
+    connections_by_channel = {item["channel"]: item for item in body["connections"]}
+    assert connections_by_channel["whatsapp"]["id_field"]["meta_name"] == "phone_number_id"
+    assert connections_by_channel["whatsapp"]["id_field"]["matched_from"] == "value.metadata.phone_number_id"
+    assert connections_by_channel["facebook"]["id_field"]["meta_name"] == "page_id"
+    assert connections_by_channel["instagram"]["id_field"]["meta_name"] == "instagram_account_id"
+
+    meta_setup_missing = client.get(
+        f"/apps/enquiry/api/merchant/meta-setup?business_slug={slug_one}"
+    )
+    assert meta_setup_missing.status_code == 401
+
+    meta_setup = client.get(
+        f"/apps/enquiry/api/merchant/meta-setup?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert meta_setup.status_code == 200
+    meta_body = meta_setup.json()
+    assert meta_body["webhook"]["url"] == "https://api.nexaflowinfra.com/webhooks/meta"
+    assert meta_body["webhook"]["verify_token_configured"] is True
+    assert meta_body["webhook"]["app_secret_configured"] is True
+    assert meta_body["webhook"]["signature_required"] is True
+    assert meta_body["webhook"]["https_callback_url"] is True
+    assert meta_body["webhook"]["ready_for_meta_setup"] is True
+    assert "site_url_configured" in meta_body["webhook"]
+    assert meta_body["security"]["tokens_stored"] is False
+    assert "test-meta" not in json.dumps(meta_body)
+    assert {item["channel"] for item in meta_body["meta_channels"]} == {"whatsapp", "facebook", "instagram"}
+    meta_channels = {item["channel"]: item for item in meta_body["meta_channels"]}
+    assert meta_channels["whatsapp"]["id_field"]["label"] == "WhatsApp phone_number_id"
+    assert meta_channels["whatsapp"]["id_field"]["matched_from"] == "value.metadata.phone_number_id"
+    assert meta_channels["facebook"]["id_field"]["meta_name"] == "page_id"
+    assert meta_channels["instagram"]["id_field"]["meta_name"] == "instagram_account_id"
 
     rejected_secret = client.patch(
         f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_one}",
@@ -1283,7 +1320,7 @@ def test_merchant_channel_connections_are_private_and_audited():
             "integration_mode": "official_api_requested",
             "status": "requested",
             "account_label": "City Cars WABA",
-            "external_account_id": "waba_123",
+            "external_account_id": phone_number_id,
             "data_processing_acknowledged": True,
             "notes": "Prepare Cloud API setup. access_token=should-not-be-used",
             "access_token": "secret-token-that-should-be-ignored",
@@ -1298,7 +1335,7 @@ def test_merchant_channel_connections_are_private_and_audited():
             "integration_mode": "official_api_requested",
             "status": "requested",
             "account_label": "City Cars WABA",
-            "external_account_id": "waba_123",
+            "external_account_id": phone_number_id,
             "data_processing_acknowledged": True,
             "notes": "Prepare Cloud API setup with server-side OAuth later.",
             "access_token": "secret-token-that-should-be-ignored",
@@ -1311,6 +1348,19 @@ def test_merchant_channel_connections_are_private_and_audited():
     assert saved["token_status"] == "not_stored"
     assert "access_token" not in json.dumps(saved)
     assert "secret-token" not in json.dumps(saved)
+
+    duplicate_external_id = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_two}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "Other Dealer WABA",
+            "external_account_id": phone_number_id,
+            "data_processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key_two},
+    )
+    assert duplicate_external_id.status_code == 409
 
     blocked = client.patch(
         f"/apps/enquiry/api/merchant/channel-connections/instagram?business_slug={slug_two}",
@@ -1357,6 +1407,23 @@ def test_merchant_channel_connections_are_private_and_audited():
     assert "not_stored" in audit_payload
     assert "secret-token" not in audit_payload
     assert "access_token" not in audit_payload
+
+
+def test_merchant_meta_setup_readiness_requires_meta_secrets_and_https(monkeypatch):
+    profile = {"slug": "readiness-demo", "business_name": "Readiness Demo"}
+
+    monkeypatch.setenv("META_WEBHOOK_VERIFY_TOKEN", "verify-token")
+    monkeypatch.delenv("META_APP_SECRET", raising=False)
+    missing_secret = main.merchant_meta_setup_response(profile)
+    assert missing_secret["webhook"]["verify_token_configured"] is True
+    assert missing_secret["webhook"]["app_secret_configured"] is False
+    assert missing_secret["webhook"]["ready_for_meta_setup"] is False
+
+    monkeypatch.setenv("META_APP_SECRET", "app-secret")
+    monkeypatch.setenv("NEXAFLOW_SITE_URL", "http://localhost:8000")
+    insecure_url = main.merchant_meta_setup_response(profile)
+    assert insecure_url["webhook"]["https_callback_url"] is False
+    assert insecure_url["webhook"]["ready_for_meta_setup"] is False
 
 
 def test_merchant_inbox_includes_action_center_and_pipeline_board():
@@ -3303,6 +3370,123 @@ def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
     assert saved["phone"].startswith("facebook:")
     assert not saved["whatsapp_url"]
     assert saved["stuck_point"] == "Viewing appointment not confirmed"
+
+
+def test_meta_webhook_instagram_message_creates_enquiry_without_whatsapp_link():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"meta-ig-{suffix}"
+    instagram_account_id = f"ig-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Meta Instagram Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    connection = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/instagram?business_slug={slug}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "Dealer Instagram",
+            "external_account_id": instagram_account_id,
+            "data_processing_acknowledged": True,
+            "notes": "Official Instagram messaging webhook",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert connection.status_code == 200
+
+    payload = {
+        "object": "instagram",
+        "entry": [
+            {
+                "id": instagram_account_id,
+                "time": 1718000000000,
+                "messaging": [
+                    {
+                        "sender": {"id": "igid-789"},
+                        "recipient": {"id": instagram_account_id},
+                        "timestamp": 1718000000000,
+                        "message": {
+                            "mid": f"m-instagram-{suffix}",
+                            "text": "Still got Vios? Need low deposit, can check loan?",
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    raw = json.dumps(payload, separators=(",", ":"))
+    first = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert first.status_code == 200
+    assert first.json()["created"] == 1
+
+    second = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert second.status_code == 200
+    assert second.json()["created"] == 0
+    assert second.json()["duplicates"] == 1
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=instagram",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    saved = next(item for item in listing.json()["enquiries"] if "Vios" in item["message"])
+    assert saved["source"] == "instagram"
+    assert saved["phone"].startswith("instagram:")
+    assert not saved["whatsapp_url"]
+    assert saved["stuck_point"] == "Monthly payment or loan readiness"
+
+
+def test_meta_webhook_unmapped_response_masks_account_id():
+    suffix = uuid.uuid4().hex[:8]
+    raw_account_id = f"unmapped-page-account-{suffix}"
+    payload = {
+        "object": "page",
+        "entry": [
+            {
+                "id": raw_account_id,
+                "messaging": [
+                    {
+                        "sender": {"id": "psid-unmapped"},
+                        "recipient": {"id": raw_account_id},
+                        "timestamp": 1718000000000,
+                        "message": {
+                            "mid": f"m-unmapped-{suffix}",
+                            "text": "Is this still available?",
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    raw = json.dumps(payload, separators=(",", ":"))
+    response = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["created"] == 0
+    assert body["unmapped"] == 1
+    assert body["items"][0]["account_id_preview"].startswith("unm...")
+    assert raw_account_id not in json.dumps(body)
 
 
 def test_stripe_webhook_rejects_bad_signature():

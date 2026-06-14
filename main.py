@@ -938,6 +938,7 @@ def init_db():
         connection.execute("CREATE INDEX IF NOT EXISTS idx_business_profiles_client ON business_profiles (client_id)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_trial_requests_status_created ON trial_requests (status, created_at)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_connections_business ON channel_connections (business_slug, channel)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_connections_external ON channel_connections (channel, external_account_id)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_messages_business_created ON channel_messages (business_slug, created_at)")
         connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_channel_messages_external_unique ON channel_messages (channel, external_message_id) WHERE external_message_id IS NOT NULL AND external_message_id != ''")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_data_audit_business_created ON data_audit_events (business_slug, created_at)")
@@ -2559,6 +2560,58 @@ def channel_catalog_item(channel):
     return item
 
 
+META_CHANNEL_ID_FIELDS = {
+    "whatsapp": {
+        "meta_name": "phone_number_id",
+        "label": "WhatsApp phone_number_id",
+        "label_zh": "WhatsApp phone_number_id",
+        "matched_from": "value.metadata.phone_number_id",
+        "where_to_find": "Meta Developer App > WhatsApp > API Setup > Phone number ID",
+        "help": "Use the phone number ID that receives buyer messages, not the WABA ID.",
+        "help_zh": "使用接收买家私信的 phone number ID，不是 WABA ID。",
+    },
+    "facebook": {
+        "meta_name": "page_id",
+        "label": "Facebook Page ID",
+        "label_zh": "Facebook Page ID",
+        "matched_from": "messaging.recipient.id or entry.id",
+        "where_to_find": "Meta Business Suite or Graph API page id for the connected Page",
+        "help": "Use the connected Facebook Page ID that receives Messenger enquiries.",
+        "help_zh": "使用接收 Messenger 询问的 Facebook 专页 ID。",
+    },
+    "instagram": {
+        "meta_name": "instagram_account_id",
+        "label": "Instagram professional account ID",
+        "label_zh": "Instagram 专业账号 ID",
+        "matched_from": "messaging.recipient.id or entry.id",
+        "where_to_find": "Instagram professional account connected to a Facebook Page in Meta Business",
+        "help": "Use the professional Instagram account ID connected to the Meta app.",
+        "help_zh": "使用已连接到 Meta app 的 Instagram 专业账号 ID。",
+    },
+}
+
+
+def channel_external_id_field(channel):
+    field = META_CHANNEL_ID_FIELDS.get(channel)
+    if field:
+        return {
+            "storage_key": "external_account_id",
+            "required_for_official_sync": True,
+            **field,
+        }
+    return {
+        "storage_key": "external_account_id",
+        "meta_name": "external_account_id",
+        "label": "External account ID",
+        "label_zh": "外部账号 ID",
+        "matched_from": "",
+        "where_to_find": "Optional source identifier for assisted capture.",
+        "help": "Optional unless official API sync is approved for this source.",
+        "help_zh": "除非这个来源已获官方 API 同步权限，否则这是选填。",
+        "required_for_official_sync": False,
+    }
+
+
 def row_to_channel_connection(row):
     capabilities = json.loads(row["capabilities_json"] or "[]")
     return {
@@ -2620,6 +2673,7 @@ def channel_connection_response(profile):
                 "status": status,
                 "account_label": account_label,
                 "external_account_id": external_account_id,
+                "id_field": channel_external_id_field(channel),
                 "capabilities": item["capabilities"],
                 "security_requirements": item["security_requirements"],
                 "token_status": "not_stored",
@@ -2653,6 +2707,51 @@ def channel_connection_response(profile):
             "retention_days": profile.get("data_retention_days", 365),
         },
         "connections": connections,
+    }
+
+
+def merchant_meta_setup_response(profile):
+    site_url = os.getenv("NEXAFLOW_SITE_URL", "https://api.nexaflowinfra.com").rstrip("/")
+    webhook_url = f"{site_url}/webhooks/meta"
+    verify_token_configured = bool(os.getenv("META_WEBHOOK_VERIFY_TOKEN"))
+    app_secret_configured = bool(os.getenv("META_APP_SECRET"))
+    https_callback_url = webhook_url.startswith("https://")
+    ready_for_meta_setup = verify_token_configured and app_secret_configured and https_callback_url
+    permission_notes = {
+        "whatsapp": ["WhatsApp Business Platform access", "webhook messages subscription"],
+        "facebook": ["Page admin access", "Messenger webhook events", "Meta app review if required"],
+        "instagram": ["Professional Instagram account", "Instagram messaging access", "Meta app review if required"],
+    }
+    return {
+        "business": {
+            "slug": profile["slug"],
+            "business_name": profile["business_name"],
+        },
+        "webhook": {
+            "url": webhook_url,
+            "verify_token_configured": verify_token_configured,
+            "app_secret_configured": app_secret_configured,
+            "signature_required": True,
+            "site_url_configured": bool(os.getenv("NEXAFLOW_SITE_URL")),
+            "https_callback_url": https_callback_url,
+            "ready_for_meta_setup": ready_for_meta_setup,
+        },
+        "meta_channels": [
+            {
+                "channel": channel,
+                "label": CHANNEL_CATALOG[channel]["label"],
+                "id_field": channel_external_id_field(channel),
+                "external_account_id_label": channel_external_id_field(channel)["label"],
+                "where_to_find": channel_external_id_field(channel)["where_to_find"],
+                "required_permissions": permission_notes[channel],
+            }
+            for channel in ("whatsapp", "facebook", "instagram")
+        ],
+        "security": {
+            "tokens_stored": False,
+            "do_not_paste": ["platform password", "OTP", "cookies", "page access token", "app secret"],
+            "notes": "Store Meta app secret and verify token only as Railway environment variables. NexaFlow channel setup stores account IDs only.",
+        },
     }
 
 
@@ -2702,6 +2801,7 @@ def contains_sensitive_manual_enquiry_content(*values):
 
 def upsert_channel_connection(profile, channel, req):
     catalog = channel_catalog_item(channel)
+    external_account_id = req.external_account_id.strip()
     if req.integration_mode == "official_api_requested" and catalog["official_status"] == "limited":
         raise HTTPException(status_code=400, detail="This channel does not support official DM sync in the current setup")
     if req.status == "requested" and not req.data_processing_acknowledged:
@@ -2712,6 +2812,23 @@ def upsert_channel_connection(profile, channel, req):
     timestamp = now_iso()
     capabilities_json = json.dumps(catalog["capabilities"], separators=(",", ":"), sort_keys=True)
     with db_connection() as connection:
+        if external_account_id:
+            owner = connection.execute(
+                """
+                SELECT business_slug FROM channel_connections
+                WHERE channel = ? AND external_account_id = ? AND business_slug != ?
+                LIMIT 1
+                """,
+                (channel, external_account_id, profile["slug"]),
+            ).fetchone()
+            if owner:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "This Meta account ID is already connected to another NexaFlow inbox. "
+                        "Check the phone_number_id, page_id, or instagram_account_id before saving."
+                    ),
+                )
         existing = connection.execute(
             "SELECT * FROM channel_connections WHERE business_slug = ? AND channel = ?",
             (profile["slug"], channel),
@@ -2729,7 +2846,7 @@ def upsert_channel_connection(profile, channel, req):
                     req.integration_mode,
                     req.status,
                     req.account_label.strip(),
-                    req.external_account_id.strip(),
+                    external_account_id,
                     capabilities_json,
                     1 if req.data_processing_acknowledged else 0,
                     timestamp if req.data_processing_acknowledged else None,
@@ -2754,7 +2871,7 @@ def upsert_channel_connection(profile, channel, req):
                     req.integration_mode,
                     req.status,
                     req.account_label.strip(),
-                    req.external_account_id.strip(),
+                    external_account_id,
                     capabilities_json,
                     1 if req.data_processing_acknowledged else 0,
                     timestamp if req.data_processing_acknowledged else None,
@@ -3000,6 +3117,15 @@ def create_enquiry_from_meta_event(connection_info, profile, event):
     return {"status": "created", "enquiry_id": enquiry["id"], "external_message_id": event["external_message_id"]}
 
 
+def mask_external_account_id(value):
+    text = str(value or "")
+    if not text:
+        return ""
+    if len(text) <= 6:
+        return "***"
+    return f"{text[:3]}...{text[-3:]}"
+
+
 def process_meta_webhook_payload(payload):
     events = extract_meta_inbound_messages(payload)
     result = {
@@ -3018,7 +3144,7 @@ def process_meta_webhook_payload(payload):
                 {
                     "status": "unmapped",
                     "channel": event["channel"],
-                    "account_id": event["account_id"],
+                    "account_id_preview": mask_external_account_id(event["account_id"]),
                     "external_message_id": event["external_message_id"],
                 }
             )
@@ -9107,6 +9233,15 @@ def merchant_channel_connections_page(business_slug: str):
             <p class="mini-note"><span data-lang="en">Never paste platform passwords, OTPs, cookies, access tokens, or customer identity documents here. This setup stores connection metadata only.</span><span data-lang="zh" class="lang-hidden">不要在这里粘贴平台密码、OTP、cookies、access token 或客户身份证件。这里仅保存连接设置资料。</span></p>
         </section>
         <section class="grid" id="channelSummary"></section>
+        <section class="form-card" id="metaSetupPanel">
+            <div class="section-head">
+                <div>
+                    <h2><span data-lang="en">Meta auto-sync setup</span><span data-lang="zh" class="lang-hidden">Meta 自动同步设置</span></h2>
+                    <p><span data-lang="en">Use this for WhatsApp Business, Facebook Messenger, and Instagram DM. NexaFlow stores account IDs only, not tokens or passwords.</span><span data-lang="zh" class="lang-hidden">用于 WhatsApp Business、Facebook Messenger 和 Instagram DM。NexaFlow 只保存账号 ID，不保存 token 或密码。</span></p>
+                </div>
+            </div>
+            <div id="metaSetupContent" class="status"><span data-lang="en">Open settings to load Meta setup details.</span><span data-lang="zh" class="lang-hidden">打开设置后会加载 Meta 设置资料。</span></div>
+        </section>
         <details class="form-card">
             <summary><span data-lang="en">Security details</span><span data-lang="zh" class="lang-hidden">安全细节</span></summary>
             <div class="section-head">
@@ -9155,6 +9290,15 @@ def merchant_channel_connections_page(business_slug: str):
             function selected(value, expected) {{
                 return value === expected ? "selected" : "";
             }}
+            async function copyChannelText(value) {{
+                const status = document.getElementById("channelStatus");
+                try {{
+                    await navigator.clipboard.writeText(value);
+                    status.textContent = channelsText("Copied.", "已复制。");
+                }} catch (error) {{
+                    status.textContent = channelsText(`Copy failed. Select manually: ${{value}}`, `复制失败。请手动选择：${{value}}`);
+                }}
+            }}
             async function channelApi(path, options = {{}}) {{
                 const businessKey = document.getElementById("businessKey").value;
                 const headers = {{ "X-Business-Key": businessKey, ...(options.headers || {{}}) }};
@@ -9163,6 +9307,50 @@ def merchant_channel_connections_page(business_slug: str):
                     throw new Error(await response.text());
                 }}
                 return response.json();
+            }}
+            async function loadMetaSetup() {{
+                const target = document.getElementById("metaSetupContent");
+                try {{
+                    const setup = await channelApi(`/apps/enquiry/api/merchant/meta-setup?business_slug=${{businessSlug}}`);
+                    const webhook = setup.webhook || {{}};
+                    const channels = setup.meta_channels || [];
+                    const statusText = (value) => value ? channelsText("Ready", "已准备") : channelsText("Missing", "缺少");
+                    target.className = "";
+                    target.innerHTML = `
+                        <div class="action-center">
+                            <div class="action-card">
+                                <h3>${{channelLangSpan("Webhook URL", "Webhook URL")}}</h3>
+                                <p>${{channelLangSpan("Paste this URL into your Meta App webhook callback URL.", "把这个 URL 填到 Meta App 的 webhook callback URL。")}}</p>
+                                <code id="metaWebhookUrl">${{escapeHtml(webhook.url || "")}}</code>
+                                <button class="btn secondary" onclick="copyChannelText(document.getElementById('metaWebhookUrl').textContent)">${{channelLangSpan("Copy URL", "复制 URL")}}</button>
+                            </div>
+                            <div class="action-card">
+                                <h3>${{channelLangSpan("Server status", "服务器状态")}}</h3>
+                                <div class="lead-badges">
+                                    <span class="lead-badge ${{webhook.ready_for_meta_setup ? "hot" : ""}}">${{channelLangSpan("Meta setup", "Meta 设置")}} · ${{statusText(webhook.ready_for_meta_setup)}}</span>
+                                    <span class="lead-badge ${{webhook.verify_token_configured ? "hot" : ""}}">${{channelLangSpan("Verify token", "Verify token")}} · ${{statusText(webhook.verify_token_configured)}}</span>
+                                    <span class="lead-badge ${{webhook.app_secret_configured ? "hot" : ""}}">${{channelLangSpan("App secret", "App secret")}} · ${{statusText(webhook.app_secret_configured)}}</span>
+                                    <span class="lead-badge ${{webhook.https_callback_url ? "hot" : ""}}">HTTPS · ${{statusText(webhook.https_callback_url)}}</span>
+                                    <span class="lead-badge">${{channelLangSpan("Signature required", "需要签名验证")}}</span>
+                                </div>
+                                <span class="next-action">${{escapeHtml((setup.security || {{}}).notes || "")}}</span>
+                            </div>
+                        </div>
+                        <div class="setup-panel">
+                            ${{channels.map(item => `
+                                <div class="setup-step">
+                                    <strong>${{escapeHtml(item.label)}}</strong>
+                                    <span>${{escapeHtml((item.id_field || {{}}).label || item.external_account_id_label)}} · ${{escapeHtml((item.id_field || {{}}).where_to_find || item.where_to_find)}}</span>
+                                    <span>${{channelLangSpan("Webhook match", "Webhook 匹配")}}: ${{escapeHtml((item.id_field || {{}}).matched_from || "")}}</span>
+                                </div>
+                            `).join("")}}
+                        </div>
+                    `;
+                    setChannelsLang(channelsLang());
+                }} catch (error) {{
+                    target.className = "status";
+                    target.textContent = error.message;
+                }}
             }}
             function renderChannelConnections(payload) {{
                 const summary = payload.summary || {{}};
@@ -9176,6 +9364,15 @@ def merchant_channel_connections_page(business_slug: str):
                     <section class="card"><h3>${{channelLangSpan("Limited sources", "受限来源")}}</h3><div class="price">${{summary.limited || 0}}</div><p>${{channelLangSpan("TikTok / Xiaohongshu assisted mode", "TikTok / 小红书辅助导入模式")}}</p></section>
                 `;
                 function renderChannelCard(item) {{
+                    const idField = item.id_field || {{}};
+                    const idFieldLabel = channelLangSpan(
+                        idField.label || "External account ID",
+                        idField.label_zh || idField.label || "外部账号 ID"
+                    );
+                    const idFieldHelp = idField.help ? channelLangSpan(idField.help, idField.help_zh || idField.help) : "";
+                    const idFieldMatch = idField.matched_from
+                        ? `${{channelLangSpan("Webhook match", "Webhook 匹配")}}: ${{escapeHtml(idField.matched_from)}}`
+                        : "";
                     return `
                     <section class="card">
                         <h3>${{escapeHtml(item.label)}}</h3>
@@ -9203,7 +9400,8 @@ def merchant_channel_connections_page(business_slug: str):
                                     <option value="paused" ${{selected(item.status, "paused")}}>Paused / 暂停</option>
                                 </select>
                             </label>
-                            <label>${{channelLangSpan("External account ID optional", "外部账号 ID（选填）")}}<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="Page ID / WABA ID / handle"></label>
+                            <label>${{idFieldLabel}}<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="${{escapeHtml(idField.meta_name || "external_account_id")}}"></label>
+                            <span class="mini-note">${{idFieldHelp}}${{idFieldHelp && idFieldMatch ? "<br>" : ""}}${{idFieldMatch}}</span>
                             <label>${{channelLangSpan("Notes", "备注")}}<textarea id="notes-${{item.channel}}" placeholder="Setup notes, never secrets">${{escapeHtml(item.notes || "")}}</textarea></label>
                             <div class="lead-badges">
                                 ${{(item.capabilities || []).map(value => `<span class="lead-badge">${{escapeHtml(value)}}</span>`).join("")}}
@@ -9229,6 +9427,7 @@ def merchant_channel_connections_page(business_slug: str):
                 try {{
                     const payload = await channelApi(`/apps/enquiry/api/merchant/channel-connections?business_slug=${{businessSlug}}`);
                     renderChannelConnections(payload);
+                    await loadMetaSetup();
                     localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
                     status.textContent = payload.security_notice || channelsText("Loaded.", "已加载。");
                 }} catch (error) {{
@@ -11329,6 +11528,22 @@ def get_merchant_channel_connections(
         authorization=authorization,
     )
     return channel_connection_response(profile)
+
+
+@app.get("/apps/enquiry/api/merchant/meta-setup")
+def get_merchant_meta_setup(
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return merchant_meta_setup_response(profile)
 
 
 @app.patch("/apps/enquiry/api/merchant/channel-connections/{channel}")
