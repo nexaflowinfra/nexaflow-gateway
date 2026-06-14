@@ -58,6 +58,7 @@ def test_landing_page_loads():
     assert "MYR 169" in response.text
     assert "MYR 299" in response.text
     assert "MYR 499+" in response.text
+    assert "/merchant-signup" in response.text
     assert "nexaflow_home_market" in response.text
     assert "/ai-enquiry" in response.text
     assert "/merchant-login" in response.text
@@ -82,7 +83,103 @@ def test_merchant_login_page_loads():
     assert "Business link name" in response.text
     assert "Owner inbox password" in response.text
     assert "nexaflow_business_key_" in response.text
+    assert "/merchant-signup" in response.text
     assert "/admin/dashboard" not in response.text
+
+
+def test_merchant_signup_page_and_api_create_workspace():
+    page = client.get("/merchant-signup")
+    assert page.status_code == 200
+    assert "Create one inbox for your car buyer enquiries." in page.text
+    assert "createMerchantWorkspace" in page.text
+    assert "No social media password is needed here." in page.text
+    assert "/apps/enquiry/api/merchant/signup" in page.text
+    assert "/admin/dashboard" not in page.text
+
+    suffix = str(uuid.uuid4())[:8]
+    slug = f"dealer-signup-{suffix}"
+    created = client.post(
+        "/apps/enquiry/api/merchant/signup",
+        json={
+            "business_name": "Dealer Signup Auto",
+            "whatsapp_phone": "60123456789",
+            "contact_email": f"dealer-{suffix}@example.com",
+            "business_type": "used_car_dealer",
+            "market": "my",
+            "preferred_slug": slug,
+            "monthly_enquiries": "50_200",
+            "pdpa_consent": True,
+        },
+    )
+    assert created.status_code == 200
+    body = created.json()
+    assert body["profile"]["slug"] == slug
+    assert body["profile"]["business_type"] == "used_car_dealer"
+    assert body["business_access_key"].startswith("biz_")
+    assert "business_access_key" not in body["profile"]
+    assert body["inbox_url"] == f"/inbox/{slug}"
+    assert body["channels_url"] == f"/channels/{slug}"
+    assert "Never paste social media passwords" in body["security_notice"]
+
+    inbox_api = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        headers={"X-Business-Key": body["business_access_key"]},
+    )
+    assert inbox_api.status_code == 200
+    assert inbox_api.json()["business"]["slug"] == slug
+
+    conflict = client.post(
+        "/apps/enquiry/api/merchant/signup",
+        json={
+            "business_name": "Another Dealer",
+            "whatsapp_phone": "60129876543",
+            "contact_email": f"another-{suffix}@example.com",
+            "preferred_slug": slug,
+            "pdpa_consent": True,
+        },
+    )
+    assert conflict.status_code == 409
+
+    no_consent = client.post(
+        "/apps/enquiry/api/merchant/signup",
+        json={
+            "business_name": "No Consent Dealer",
+            "whatsapp_phone": "60121112222",
+            "contact_email": f"noconsent-{suffix}@example.com",
+            "preferred_slug": f"no-consent-{suffix}",
+            "pdpa_consent": False,
+        },
+    )
+    assert no_consent.status_code == 400
+
+
+def test_merchant_signup_rate_limits_same_contact():
+    suffix = str(uuid.uuid4())[:8]
+    email = f"signup-limit-{suffix}@example.com"
+    for index in range(3):
+        response = client.post(
+            "/apps/enquiry/api/merchant/signup",
+            json={
+                "business_name": f"Rate Limit Dealer {index}",
+                "whatsapp_phone": "60125550123",
+                "contact_email": email,
+                "preferred_slug": f"rate-limit-dealer-{suffix}-{index}",
+                "pdpa_consent": True,
+            },
+        )
+        assert response.status_code == 200
+
+    blocked = client.post(
+        "/apps/enquiry/api/merchant/signup",
+        json={
+            "business_name": "Rate Limit Dealer Blocked",
+            "whatsapp_phone": "60125550123",
+            "contact_email": email,
+            "preferred_slug": f"rate-limit-dealer-{suffix}-blocked",
+            "pdpa_consent": True,
+        },
+    )
+    assert blocked.status_code == 429
 
 
 def test_admin_dashboard_includes_backend_automation_panel():
@@ -128,7 +225,7 @@ def test_enquiry_app_pages_load():
     assert "Consent before submit" in public_page.text
     assert "Private merchant inbox" in public_page.text
     assert "Delete customer enquiries" in public_page.text
-    assert "Create My Enquiry Link" in public_page.text
+    assert "Create My Workspace" in public_page.text
     assert "Merchant Login" in public_page.text
     assert "Start with a 30-day trial" in public_page.text
     assert "SGD 49" in public_page.text
@@ -139,7 +236,7 @@ def test_enquiry_app_pages_load():
     assert "MYR 299" in public_page.text
     assert "MYR 499+" in public_page.text
     assert "nexaflow_enquiry_market" in public_page.text
-    assert "/start-trial" in public_page.text
+    assert "/merchant-signup" in public_page.text
     assert "WhatsApp Us" in public_page.text
     assert "wa.me" in public_page.text
     assert "/assets/brand/nexaflow-final.png" in public_page.text
@@ -364,7 +461,9 @@ def test_business_profile_create_and_public_form_loads():
     inbox = client.get(f"/inbox/{slug}")
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
-    assert "Follow-up Cockpit" in inbox.text
+    assert "Today&apos;s Customer Follow-up" in inbox.text
+    assert "Customers to handle now" in inbox.text
+    assert "merchantDailyLeads" in inbox.text
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
     assert "/channels/" in inbox.text
@@ -372,8 +471,9 @@ def test_business_profile_create_and_public_form_loads():
     assert "Customer enquiry link" in inbox.text
     assert "copyMerchantElement" in inbox.text
     assert "Website widget code" in inbox.text
-    assert "Today&apos;s focus" in inbox.text
-    assert "Fast shortcuts" in inbox.text
+    assert "Today&apos;s follow-up" in inbox.text
+    assert "Shortcuts" in inbox.text
+    assert "Advanced tools: sources, sharing, setup, and settings" in inbox.text
     assert "Channel inbox" in inbox.text
     assert "Assisted capture" in inbox.text
     assert "Follow-up Copilot" in inbox.text
@@ -395,9 +495,9 @@ def test_business_profile_create_and_public_form_loads():
 
     channels = client.get(f"/channels/{slug}")
     assert channels.status_code == 200
-    assert "Channel Connections" in channels.text
+    assert "Social Source Setup" in channels.text
     assert "Never paste platform passwords" in channels.text
-    assert "Official API requested" in channels.text
+    assert "Request auto sync" in channels.text
     assert "Assisted capture" in channels.text
     assert "/admin/dashboard" not in channels.text
 
@@ -1130,13 +1230,17 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     response = client.get(f"/inbox/{slug}")
     assert response.status_code == 200
     assert "merchantActionCenter" in response.text
+    assert "merchantDailyLeads" in response.text
+    assert "Customers to handle now" in response.text
     assert "merchantPipelineBoard" in response.text
-    assert "Today&apos;s focus" in response.text
-    assert "Setup status" in response.text
-    assert "Fast shortcuts" in response.text
+    assert "Today&apos;s follow-up" in response.text
+    assert "Quick numbers" in response.text
+    assert "Shortcuts" in response.text
     assert "Main customer link" in response.text
     assert "Suggested caption" in response.text
     assert "merchantShareDirectPrimary" in response.text
+    assert "Advanced tools: sources, sharing, setup, and settings" in response.text
+    assert "Full lead list and filters" in response.text
     assert "Lead pipeline" in response.text
     assert "chooseNextAction" in response.text
     assert "Trial launch checklist" in response.text
