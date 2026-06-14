@@ -39,12 +39,12 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
-    assert "One inbox for every enquiry. One follow-up plan for every lead." in response.text
-    assert "所有询盘进一个 inbox" in response.text
+    assert "One buyer inbox. One next step for every enquiry." in response.text
+    assert "一个买家 inbox" in response.text
     assert "What NexaFlow helps you manage" in response.text
     assert "Unified enquiry inbox" in response.text
     assert "Capture missing details" in response.text
-    assert "Follow-up Copilot" in response.text
+    assert "Next Message Helper" in response.text
     assert "Bring enquiries in from every channel" in response.text
     assert "Assisted capture" in response.text
     assert "Follow up with the next question" in response.text
@@ -79,9 +79,9 @@ def test_landing_page_loads():
 def test_merchant_login_page_loads():
     response = client.get("/merchant-login")
     assert response.status_code == 200
-    assert "Merchant Login" in response.text
-    assert "Business link name" in response.text
-    assert "Owner inbox password" in response.text
+    assert "Dealer Login" in response.text
+    assert "Dealer link name" in response.text
+    assert "Inbox password" in response.text
     assert "nexaflow_business_key_" in response.text
     assert "/merchant-signup" in response.text
     assert "/admin/dashboard" not in response.text
@@ -90,9 +90,11 @@ def test_merchant_login_page_loads():
 def test_merchant_signup_page_and_api_create_workspace():
     page = client.get("/merchant-signup")
     assert page.status_code == 200
-    assert "Create one inbox for your car buyer enquiries." in page.text
+    assert "Create your buyer inbox" in page.text
     assert "createMerchantWorkspace" in page.text
-    assert "No social media password is needed here." in page.text
+    assert "No social media password needed." in page.text
+    assert "Optional setup" in page.text
+    assert page.text.index("Create your buyer inbox") < page.text.index("Optional setup")
     assert "/apps/enquiry/api/merchant/signup" in page.text
     assert "/admin/dashboard" not in page.text
 
@@ -223,10 +225,10 @@ def test_enquiry_app_pages_load():
     assert "One enquiry link. One private inbox. Faster WhatsApp follow-up." in public_page.text
     assert "Data safety built in" in public_page.text
     assert "Consent before submit" in public_page.text
-    assert "Private merchant inbox" in public_page.text
-    assert "Delete customer enquiries" in public_page.text
-    assert "Create My Workspace" in public_page.text
-    assert "Merchant Login" in public_page.text
+    assert "Private dealer inbox" in public_page.text
+    assert "Delete buyer enquiries" in public_page.text
+    assert "Create My Buyer Inbox" in public_page.text
+    assert "Dealer Login" in public_page.text
     assert "Start with a 30-day trial" in public_page.text
     assert "SGD 49" in public_page.text
     assert "SGD 89" in public_page.text
@@ -242,9 +244,9 @@ def test_enquiry_app_pages_load():
     assert "/assets/brand/nexaflow-final.png" in public_page.text
     assert "/assets/brand/nexaflow-icon.png" in public_page.text
     assert 'alt="NexaFlow logo"' in public_page.text
-    assert "Simple sales flow for service merchants" in public_page.text
-    assert "Customer asks" in public_page.text
-    assert "Merchant follows up" in public_page.text
+    assert "Simple follow-up flow for car dealers" in public_page.text
+    assert "Buyer asks" in public_page.text
+    assert "Dealer follows up" in public_page.text
     assert "#2dd4bf" in public_page.text
     assert "#f3c76a" in public_page.text
     assert "radial-gradient(circle at 12% 10%" in public_page.text
@@ -373,10 +375,10 @@ def test_trial_request_flow():
     assert payload["profile"]["business_access_key"].startswith("biz_")
     assert payload["profile"]["form_url"].startswith("/enquiry/")
     assert payload["profile"]["inbox_url"].startswith("/inbox/")
-    assert "Customer enquiry link" in payload["onboarding_message"]
+    assert "Buyer enquiry link" in payload["onboarding_message"]
     assert payload["profile"]["business_access_key"] in payload["onboarding_message"]
     assert payload["onboarding_whatsapp_url"].startswith("https://wa.me/")
-    assert "Owner%20inbox%20password" in payload["onboarding_whatsapp_url"]
+    assert "Inbox%20password" in payload["onboarding_whatsapp_url"]
     assert "Starter:" in payload["conversion_message"]
     assert payload["conversion_whatsapp_url"].startswith("https://wa.me/")
 
@@ -461,33 +463,35 @@ def test_business_profile_create_and_public_form_loads():
     inbox = client.get(f"/inbox/{slug}")
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
-    assert "Today&apos;s Customer Follow-up" in inbox.text
-    assert "Customers to handle now" in inbox.text
+    assert "Today&apos;s Buyer Follow-up" in inbox.text
+    assert "Buyers to contact now" in inbox.text
     assert "merchantDailyLeads" in inbox.text
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
     assert "/channels/" in inbox.text
     assert "saveMerchantNote" in inbox.text
-    assert "Customer enquiry link" in inbox.text
+    assert "Buyer enquiry link" in inbox.text
     assert "copyMerchantElement" in inbox.text
     assert "Website widget code" in inbox.text
-    assert "Today&apos;s follow-up" in inbox.text
+    assert "Today&apos;s buyer follow-up" in inbox.text
     assert "Shortcuts" in inbox.text
-    assert "Advanced tools: sources, sharing, setup, and settings" in inbox.text
-    assert "Channel inbox" in inbox.text
+    assert "Advanced tools: social sources, buyer link, setup, and settings" in inbox.text
+    assert "Social source inbox" in inbox.text
     assert "Assisted capture" in inbox.text
-    assert "Follow-up Copilot" in inbox.text
+    assert "Next move" in inbox.text
     assert "TikTok" in inbox.text
     assert "Xiaohongshu" in inbox.text
-    assert "Main customer link" in inbox.text
-    assert "Copy Main Link" in inbox.text
-    assert "Lead pipeline" in inbox.text
-    assert "Pipeline Value" in inbox.text
+    assert "Main buyer link" in inbox.text
+    assert "Copy Buyer Link" in inbox.text
+    assert "Buyer progress" in inbox.text
+    assert "Estimated sale value" in inbox.text
     assert "filterPriority" in inbox.text
     assert "filterSource" in inbox.text
     assert "filterFollowUp" in inbox.text
-    assert "Due Follow-ups" in inbox.text
+    assert "Due today" in inbox.text
     assert "clearMerchantFilters" in inbox.text
+    assert inbox.text.index("Buyers to contact now") < inbox.text.index("Full buyer list and filters")
+    assert inbox.text.index("Buyers to contact now") < inbox.text.index("Data Retention Days")
     assert "/admin/dashboard" not in inbox.text
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
@@ -1231,19 +1235,19 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert response.status_code == 200
     assert "merchantActionCenter" in response.text
     assert "merchantDailyLeads" in response.text
-    assert "Customers to handle now" in response.text
+    assert "Buyers to contact now" in response.text
     assert "merchantPipelineBoard" in response.text
-    assert "Today&apos;s follow-up" in response.text
-    assert "Quick numbers" in response.text
+    assert "Today&apos;s buyer follow-up" in response.text
+    assert "Today&apos;s numbers" in response.text
     assert "Shortcuts" in response.text
-    assert "Main customer link" in response.text
+    assert "Main buyer link" in response.text
     assert "Suggested caption" in response.text
     assert "merchantShareDirectPrimary" in response.text
-    assert "Advanced tools: sources, sharing, setup, and settings" in response.text
-    assert "Full lead list and filters" in response.text
-    assert "Lead pipeline" in response.text
+    assert "Advanced tools: social sources, buyer link, setup, and settings" in response.text
+    assert "Full buyer list and filters" in response.text
+    assert "Buyer progress" in response.text
     assert "chooseNextAction" in response.text
-    assert "Trial launch checklist" in response.text
+    assert "Dealer setup checklist" in response.text
     assert "merchantChecklist" in response.text
     assert "markChecklistStep" in response.text
     assert "nexaflow_trial_checklist_" in response.text
