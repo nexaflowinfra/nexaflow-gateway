@@ -4844,6 +4844,294 @@ def create_enquiry_record(
     return row_to_enquiry(updated)
 
 
+MERCHANT_DEMO_REFERRER = "nexaflow-demo-pack"
+MERCHANT_DEMO_ENQUIRIES = [
+    {
+        "name": "TikTok Civic Buyer",
+        "phone": "demo-tiktok-001",
+        "source": "tiktok",
+        "campaign": "Civic TikTok DM",
+        "message": "Saw your 2018 Honda Civic on TikTok. Can loan? Monthly below RM900, can view today?",
+        "status": "new",
+        "internal_note": "Demo: high intent, asks loan, monthly payment, and viewing today.",
+        "follow_up_days": 0,
+        "deal_value": 68800,
+    },
+    {
+        "name": "Instagram Vios Buyer",
+        "phone": "demo-instagram-002",
+        "source": "instagram",
+        "campaign": "Vios Instagram DM",
+        "message": "Still got Toyota Vios? I saw another dealer cheaper. What is your best price and lowest deposit?",
+        "status": "contacted",
+        "internal_note": "Demo: buyer is comparing dealers and needs price confidence.",
+        "follow_up_days": 0,
+        "deal_value": 49800,
+    },
+    {
+        "name": "Facebook Alza Family",
+        "phone": "demo-facebook-003",
+        "source": "facebook",
+        "campaign": "Alza Facebook Messenger",
+        "message": "Looking for family car. Need loan but income not fixed every month. Can you advise what documents first?",
+        "status": "new",
+        "internal_note": "Demo: loan qualification is unclear; ask income and documents before pushing appointment.",
+        "follow_up_days": 1,
+        "deal_value": 72800,
+    },
+    {
+        "name": "WhatsApp Mazda Viewer",
+        "phone": "demo-whatsapp-004",
+        "source": "whatsapp",
+        "campaign": "Mazda WhatsApp",
+        "message": "Can I view the Mazda 3 tomorrow morning? Send location and total monthly for 7 years please.",
+        "status": "quoted",
+        "internal_note": "Demo: appointment intent is clear; confirm time and showroom location.",
+        "follow_up_days": 1,
+        "deal_value": 83800,
+    },
+    {
+        "name": "Xiaohongshu Bezza Browser",
+        "phone": "demo-xhs-005",
+        "source": "xiaohongshu",
+        "campaign": "Bezza Xiaohongshu DM",
+        "message": "Hi, just checking. Any Bezza around RM700 monthly? Not urgent, maybe next month only.",
+        "status": "new",
+        "internal_note": "Demo: lower urgency; ask budget and timeline without sounding pushy.",
+        "follow_up_days": 3,
+        "deal_value": 35800,
+    },
+    {
+        "name": "Referral Trade-in Buyer",
+        "phone": "demo-referral-006",
+        "source": "referral",
+        "campaign": "Trade-in referral call",
+        "message": "My friend bought from you. I want to trade in my Myvi and upgrade to HR-V. Budget around RM1200 monthly, can call tonight?",
+        "status": "new",
+        "internal_note": "Demo: referral with trade-in and monthly payment target.",
+        "follow_up_days": 0,
+        "deal_value": 118800,
+    },
+    {
+        "name": "Direct Link Booked Buyer",
+        "phone": "demo-direct-007",
+        "source": "direct",
+        "campaign": "Buyer enquiry link",
+        "message": "Thanks, I already booked the Saturday viewing slot for the City. Please prepare the loan estimate.",
+        "status": "won",
+        "internal_note": "Demo: booked buyer kept in the pipeline but not shown as urgent.",
+        "follow_up_days": 2,
+        "deal_value": 76800,
+    },
+]
+
+
+def seed_merchant_demo_enquiries(profile):
+    with db_connection() as connection:
+        existing_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM enquiries WHERE business_slug = ? AND referrer = ?",
+            (profile["slug"], MERCHANT_DEMO_REFERRER),
+        ).fetchone()["count"]
+    if existing_count:
+        return {
+            "status": "already_loaded",
+            "created": 0,
+            "existing": existing_count,
+            "message": "Demo buyers are already loaded for this inbox.",
+            "enquiries": list_enquiry_records(business_slug=profile["slug"], search="Demo:", limit=20),
+        }
+
+    today = datetime.now(timezone.utc).date()
+    created = []
+    consent_notice = (
+        "Demo sample created by the merchant to evaluate NexaFlow. "
+        "This is fictional buyer data for product demonstration only."
+    )
+    for sample in MERCHANT_DEMO_ENQUIRIES:
+        enquiry_req = EnquiryCreateRequest(
+            business_slug=profile["slug"],
+            business_type=profile["business_type"],
+            name=sample["name"],
+            phone=sample["phone"],
+            email=None,
+            message=sample["message"],
+            source=sample["source"],
+            campaign=sample["campaign"],
+            referrer=MERCHANT_DEMO_REFERRER,
+            page_url=site_absolute_url(profile["inbox_url"]),
+            pdpa_consent=True,
+        )
+        enquiry = create_enquiry_record(
+            enquiry_req,
+            actor_type="merchant_demo",
+            notify_merchant=False,
+            consent_notice_override=consent_notice,
+            create_whatsapp_reply=False,
+        )
+        follow_up_at = (today + timedelta(days=sample["follow_up_days"])).isoformat()
+        with db_connection() as connection:
+            connection.execute(
+                """
+                UPDATE enquiries
+                SET status = ?, internal_note = ?, follow_up_at = ?, deal_value = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    sample["status"],
+                    sample["internal_note"],
+                    follow_up_at,
+                    sample["deal_value"],
+                    now_iso(),
+                    enquiry["id"],
+                ),
+            )
+            updated = connection.execute("SELECT * FROM enquiries WHERE id = ?", (enquiry["id"],)).fetchone()
+        created.append(row_to_enquiry(updated))
+
+    return {
+        "status": "created",
+        "created": len(created),
+        "existing": 0,
+        "message": "Demo buyers loaded. Use them to show daily follow-up, loan, monthly payment, viewing, and comparison workflows.",
+        "enquiries": created,
+    }
+
+
+def demo_dealer_enquiry_cards():
+    profile = {
+        "slug": "dealer-demo",
+        "business_name": "NexaFlow Demo Dealer",
+        "business_type": "used_car_dealer",
+        "offer_summary": "used cars with loan support, trade-in advice, and viewing appointments",
+        "reply_tone": "friendly, sales-focused, and clear",
+        "opening_hours": "Mon-Sat 10am-7pm",
+    }
+    today = datetime.now(timezone.utc).date()
+    cards = []
+    for index, sample in enumerate(MERCHANT_DEMO_ENQUIRIES, start=1):
+        classification = classify_enquiry(sample["message"], profile["business_type"])
+        workflow = enquiry_workflow_summary(sample["name"], sample["message"], classification, profile)
+        signals = enquiry_followup_signals(sample["message"], profile["business_type"])
+        guidance = enquiry_followup_guidance(sample["message"], profile["business_type"], signals)
+        cards.append(
+            {
+                "id": index,
+                "name": sample["name"],
+                "source": sample["source"],
+                "campaign": sample["campaign"],
+                "message": sample["message"],
+                "status": sample["status"],
+                "priority": classification["priority"],
+                "intent": classification["intent"],
+                "deal_value": sample["deal_value"],
+                "follow_up_at": (today + timedelta(days=sample["follow_up_days"])).isoformat(),
+                "stuck_point": guidance["stuck_point"],
+                "next_question": guidance["next_question"],
+                "follow_up_timing": guidance["follow_up_timing"],
+                "reply_draft": enquiry_reply_draft(sample["name"], profile["business_type"], sample["message"], classification, profile),
+                "next_action": workflow["next_action"],
+                "signals": signals,
+            }
+        )
+    return cards
+
+
+def dealer_demo_page_body():
+    cards = demo_dealer_enquiry_cards()
+    actionable = [card for card in cards if card["status"] not in {"won", "lost", "spam"}]
+    hot_count = sum(1 for card in actionable if card["priority"] == "hot")
+    due_count = sum(1 for card in actionable if card["follow_up_at"] <= datetime.now(timezone.utc).date().isoformat())
+    pipeline = {}
+    sources = {}
+    for card in cards:
+        pipeline[card["status"]] = pipeline.get(card["status"], 0) + 1
+        sources[card["source"]] = sources.get(card["source"], 0) + 1
+
+    source_badges = "".join(
+        f'<span class="lead-badge">{escape_html(source.title())} · {count}</span>'
+        for source, count in sorted(sources.items())
+    )
+    pipeline_cards = "".join(
+        f"""
+        <div class="stage-card">
+            <strong>{escape_html(status.title())} <span>{count}</span></strong>
+            <span>Demo pipeline stage</span>
+        </div>
+        """
+        for status, count in sorted(pipeline.items())
+    )
+    lead_cards = "".join(
+        f"""
+        <div class="simple-lead-card">
+            <div>
+                <strong>{escape_html(card["name"])}</strong>
+                <small>{escape_html(card["source"].title())} · {escape_html(card["campaign"])}</small>
+                <div class="lead-badges">
+                    <span class="lead-badge {"hot" if card["priority"] == "hot" else ""}">{escape_html(card["priority"])}</span>
+                    <span class="lead-badge">{escape_html(card["status"])}</span>
+                    <span class="lead-badge">{escape_html(card["intent"])}</span>
+                </div>
+            </div>
+            <div>
+                <strong>{escape_html(card["next_action"])}</strong>
+                <small>{escape_html(card["message"])}</small>
+                <small><strong>Stuck point:</strong> {escape_html(card["stuck_point"])}</small>
+                <small><strong>Next question:</strong> {escape_html(card["next_question"])}</small>
+                <small><strong>Timing:</strong> {escape_html(card["follow_up_timing"])}</small>
+            </div>
+            <div>
+                <small><strong>Suggested reply</strong></small>
+                <small>{escape_html(card["reply_draft"])}</small>
+            </div>
+        </div>
+        """
+        for card in actionable[:6]
+    )
+
+    return f"""
+    <section class="hero compact">
+        <div>
+            <div class="eyebrow">Dealer Demo</div>
+            <h1>Daily buyer follow-up, without Meta setup.</h1>
+            <p class="lead">This read-only demo shows how a used car dealer can see who is stuck on loan, monthly payment, price comparison, viewing time, or missing details.</p>
+            <div class="actions">
+                <a class="btn" href="/merchant-signup">Create Buyer Inbox</a>
+                <a class="btn secondary" href="/ai-enquiry#enquiry-form">Submit Test Enquiry</a>
+            </div>
+        </div>
+    </section>
+    <section class="action-center">
+        <div class="action-card">
+            <h3>Start here today</h3>
+            <p>Begin with the buyer asking about loan/monthly payment or a viewing slot. NexaFlow shows the stuck point before the salesperson replies.</p>
+            <div class="lead-badges">
+                <span class="lead-badge hot">Needs answer · {hot_count}</span>
+                <span class="lead-badge hot">Due today · {due_count}</span>
+                <span class="lead-badge">Demo buyers · {len(cards)}</span>
+            </div>
+        </div>
+        <div class="action-card">
+            <h3>Sources in one list</h3>
+            <p>WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be handled in the same daily list.</p>
+            <div class="lead-badges">{source_badges}</div>
+        </div>
+    </section>
+    <section class="form-card">
+        <div class="section-head">
+            <div>
+                <h2>Buyers to contact now</h2>
+                <p>These are synthetic demo records only. No real buyer data, access key, export, delete, or admin route is exposed here.</p>
+            </div>
+        </div>
+        <div class="simple-lead-list">{lead_cards}</div>
+    </section>
+    <section class="form-card">
+        <h2>Buyer progress</h2>
+        <section class="pipeline-board">{pipeline_cards}</section>
+    </section>
+    """
+
+
 def list_enquiry_records(
     status=None,
     business_slug=None,
@@ -7444,7 +7732,7 @@ def landing_page():
                 <p class="lead"><span data-market="sg">Built for Singapore dealers and sales teams that need PDPA-aware enquiry capture, private records, and WhatsApp-ready follow-up.</span><span data-market="my" class="market-hidden">Built for Malaysia dealers and sales teams that need simple buyer enquiry capture, private inbox, WhatsApp follow-up, and local MYR pricing.</span></p>
                 <div class="actions">
                     <a class="btn" href="/merchant-signup"><span data-lang="en">Create Buyer Inbox</span><span data-lang="zh" class="lang-hidden">创建买家 inbox</span></a>
-                    <a class="btn secondary" href="/ai-enquiry#enquiry-form"><span data-lang="en">See Demo</span><span data-lang="zh" class="lang-hidden">看 Demo</span></a>
+                    <a class="btn secondary" href="/dealer-demo"><span data-lang="en">See Demo</span><span data-lang="zh" class="lang-hidden">看 Demo</span></a>
                     <a class="btn secondary" href="/merchant-login"><span data-lang="en">Dealer Login</span><span data-lang="zh" class="lang-hidden">车商登录</span></a>
                 </div>
             </div>
@@ -7454,7 +7742,7 @@ def landing_page():
                     <div class="panel-top"><span data-lang="en">How it helps today</span><span data-lang="zh" class="lang-hidden">今天可以怎么帮你</span><span class="pill good">Live</span></div>
                     <div class="signal-list">
                         <div class="signal-row"><span class="pill hot">1</span><div><strong><span data-lang="en">Create your buyer inbox</span><span data-lang="zh" class="lang-hidden">创建你的买家 inbox</span></strong><span data-lang="en">Use it for WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, Google Business Profile, or a website.</span><span data-lang="zh" class="lang-hidden">可以用来集中 WhatsApp、Instagram、Facebook、TikTok、小红书、Google 商家资料或网站询盘。</span></div><a href="/merchant-signup"><span data-lang="en">Create</span><span data-lang="zh" class="lang-hidden">开通</span></a></div>
-                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></strong><span data-lang="en">AI helps extract source, request, budget, appointment timing, notes, and what is still missing.</span><span data-lang="zh" class="lang-hidden">AI 帮你整理来源、需求、预算、预约时间、备注，以及还缺什么资料。</span></div><a href="/ai-enquiry#enquiry-form">Demo</a></div>
+                        <div class="signal-row"><span class="pill">2</span><div><strong><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></strong><span data-lang="en">AI helps extract source, request, budget, appointment timing, notes, and what is still missing.</span><span data-lang="zh" class="lang-hidden">AI 帮你整理来源、需求、预算、预约时间、备注，以及还缺什么资料。</span></div><a href="/dealer-demo">Demo</a></div>
                         <div class="signal-row"><span class="pill">3</span><div><strong><span data-lang="en">Follow up with the next question</span><span data-lang="zh" class="lang-hidden">用下一句问题跟进</span></strong><span data-lang="en">Open the inbox, use the reply draft, update the status, and set the next follow-up.</span><span data-lang="zh" class="lang-hidden">打开 inbox，用回复草稿、更新状态，并设置下一次跟进。</span></div><a href="/merchant-login"><span data-lang="en">Login</span><span data-lang="zh" class="lang-hidden">登录</span></a></div>
                     </div>
                 </div>
@@ -7476,7 +7764,7 @@ def landing_page():
             <div class="card">
                 <h3><span data-lang="en">Capture missing details</span><span data-lang="zh" class="lang-hidden">补齐缺少资料</span></h3>
                 <p><span data-lang="en">NexaFlow summarizes what the buyer asked, what is missing, and what your team should ask next.</span><span data-lang="zh" class="lang-hidden">NexaFlow 总结买家问了什么、还缺什么资料，以及下一句应该问什么。</span></p>
-                <a class="btn secondary" href="/ai-enquiry#enquiry-form"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
+                <a class="btn secondary" href="/dealer-demo"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
             </div>
             <div class="card">
                 <h3><span data-lang="en">Next Message Helper</span><span data-lang="zh" class="lang-hidden">下一句回复助手</span></h3>
@@ -7866,6 +8154,16 @@ def pricing_page():
             <tbody>{rows}</tbody>
         </table>
         """
+    )
+
+
+@app.get("/dealer-demo", response_class=HTMLResponse)
+def dealer_demo_page():
+    return merchant_html(
+        "NexaFlow Dealer Demo",
+        "NexaFlow",
+        dealer_demo_page_body(),
+        show_sales_contact=True,
     )
 
 
@@ -8394,6 +8692,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div class="toolbar">
                 <label><span data-lang="en">Inbox password</span><span data-lang="zh" class="lang-hidden">Inbox 密码</span><input id="businessKey" type="password" placeholder="biz_..."></label>
                 <button class="btn" onclick="loadMerchantInbox()"><span data-lang="en">Open Buyer List</span><span data-lang="zh" class="lang-hidden">打开买家列表</span></button>
+                <button class="btn secondary" onclick="loadDemoBuyers()"><span data-lang="en">Load Demo Buyers</span><span data-lang="zh" class="lang-hidden">加载示例买家</span></button>
                 <a class="btn secondary" href="/channels/{slug}"><span data-lang="en">Set Social Sources</span><span data-lang="zh" class="lang-hidden">设置询问来源</span></a>
             </div>
             <div class="status" id="merchantStatus"><span data-lang="en">Enter your owner inbox password to load this private dealer inbox. Do not share this password publicly.</span><span data-lang="zh" class="lang-hidden">输入老板 inbox 密码来打开这个车商私密 inbox。请不要公开分享这个密码。</span></div>
@@ -8655,6 +8954,20 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <br>${{langSpan("Follow-up timing", "追踪时间")}}: ${{escapeHtml(result.follow_up_timing || "")}}
                     `;
                     await loadMerchantInbox();
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+            async function loadDemoBuyers() {{
+                const status = document.getElementById("merchantStatus");
+                status.textContent = inboxText("Loading demo buyers...", "正在加载示例买家...");
+                try {{
+                    const result = await merchantApi(`/apps/enquiry/api/merchant/demo-enquiries?business_slug=${{businessSlug}}`, {{
+                        method: "POST"
+                    }});
+                    markChecklistStep("first_lead");
+                    await loadMerchantInbox();
+                    status.textContent = result.message || inboxText("Demo buyers loaded.", "示例买家已加载。");
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -11441,6 +11754,22 @@ def create_merchant_manual_enquiry(
         notify_merchant=False,
         consent_notice_override=consent_notice,
     )
+
+
+@app.post("/apps/enquiry/api/merchant/demo-enquiries")
+def create_merchant_demo_enquiries(
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return seed_merchant_demo_enquiries(profile)
 
 
 @app.get("/apps/enquiry/api/merchant/enquiries/export.csv")

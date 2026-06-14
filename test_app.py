@@ -62,13 +62,13 @@ def test_landing_page_loads():
     assert "MYR 499+" in response.text
     assert "/merchant-signup" in response.text
     assert "nexaflow_home_market" in response.text
-    assert "/ai-enquiry" in response.text
     assert "/merchant-login" in response.text
     assert "og:image" in response.text
     assert 'rel="icon"' in response.text
     assert "/assets/brand/nexaflow-icon.png" in response.text
     assert 'alt="NexaFlow logo"' in response.text
     assert "nexaflow_home_lang" in response.text
+    assert "/dealer-demo" in response.text
     assert "<span>1</span>" not in response.text
     icon_asset = client.get("/assets/brand/nexaflow-icon.png")
     assert icon_asset.status_code == 200
@@ -76,6 +76,22 @@ def test_landing_page_loads():
     favicon = client.get("/favicon.ico")
     assert favicon.status_code == 200
     assert favicon.headers["content-type"].startswith("image/png")
+
+
+def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
+    monkeypatch.delenv("META_APP_SECRET", raising=False)
+    response = client.get("/dealer-demo")
+    assert response.status_code == 200
+    assert "Daily buyer follow-up, without Meta setup." in response.text
+    assert "TikTok Civic Buyer" in response.text
+    assert "Referral Trade-in Buyer" in response.text
+    assert "Buyer progress" in response.text
+    assert "Create Buyer Inbox" in response.text
+    assert "/admin/dashboard" not in response.text
+    assert "business_access_key" not in response.text
+    assert "nexaflow_business_key_" not in response.text
+    assert "/webhooks/meta" not in response.text
+    assert "Download Buyer List" not in response.text
 
 
 def test_merchant_login_page_loads():
@@ -492,6 +508,8 @@ def test_business_profile_create_and_public_form_loads():
     inbox = client.get(f"/inbox/{slug}")
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
+    assert "loadDemoBuyers" in inbox.text
+    assert "Load Demo Buyers" in inbox.text
     assert "Today&apos;s Buyer Follow-up" in inbox.text
     assert "setInboxLang" in inbox.text
     assert "nexaflow_inbox_lang" in inbox.text
@@ -1210,6 +1228,72 @@ def test_merchant_can_manually_capture_social_dm_with_followup_guidance():
     audit_payload = json.dumps(events)
     assert "TikTok Buyer" not in audit_payload
     assert "60123456789" not in audit_payload
+
+
+def test_merchant_can_load_demo_buyers_with_owner_key_only():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"demo-seed-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Demo Seed Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+            "offer_summary": "used cars with loan and trade-in support",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    unauthorized = client.post(
+        f"/apps/enquiry/api/merchant/demo-enquiries?business_slug={slug}"
+    )
+    assert unauthorized.status_code == 401
+
+    created = client.post(
+        f"/apps/enquiry/api/merchant/demo-enquiries?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert created.status_code == 200
+    body = created.json()
+    assert body["status"] == "created"
+    assert body["created"] == 7
+    assert "loan, monthly payment, viewing, and comparison" in body["message"]
+
+    duplicate = client.post(
+        f"/apps/enquiry/api/merchant/demo-enquiries?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert duplicate.status_code == 200
+    assert duplicate.json()["status"] == "already_loaded"
+    assert duplicate.json()["created"] == 0
+    assert duplicate.json()["existing"] == 7
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    enquiries = listing.json()["enquiries"]
+    demo_records = [item for item in enquiries if item["referrer"] == "nexaflow-demo-pack"]
+    assert len(demo_records) == 7
+    assert any(item["source"] == "tiktok" and item["priority"] == "hot" for item in demo_records)
+    assert any(item["source"] == "referral" for item in demo_records)
+    assert any(item["status"] == "won" for item in demo_records)
+    assert all(not item["whatsapp_url"] for item in demo_records)
+
+    audit = client.get(
+        f"/admin/data-audit-events?business_slug={slug}&event_type=enquiry.created",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert audit.status_code == 200
+    events = audit.json()["events"]
+    assert any(item["actor_type"] == "merchant_demo" for item in events)
+    audit_payload = json.dumps(events)
+    assert "TikTok Civic Buyer" not in audit_payload
+    assert "demo-tiktok-001" not in audit_payload
 
 
 def test_merchant_manual_capture_blocks_secrets_and_sensitive_documents():
