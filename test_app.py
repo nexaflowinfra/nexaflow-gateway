@@ -57,6 +57,13 @@ def test_landing_page_loads():
     assert "Customer needs" in response.text
     assert "Simple pricing after trial" in response.text
     assert "30-day trial" in response.text
+    assert "Full AI follow-up" in response.text
+    assert "Up to 100 enquiries / month" in response.text
+    assert "AI priority, category, and stuck-point detection" in response.text
+    assert "Next reply drafts and follow-up reminders" in response.text
+    assert "101-500 enquiries / month" in response.text
+    assert "Shared team queue and follow-up dashboard" in response.text
+    assert "500+ enquiries / month or custom volume" in response.text
     assert "SGD 49" in response.text
     assert "SGD 89" in response.text
     assert "SGD 149+" in response.text
@@ -315,6 +322,10 @@ def test_enquiry_app_pages_load():
     assert "Create My Buyer Inbox" in public_page.text
     assert "Dealer Login" in public_page.text
     assert "Start with a 30-day trial" in public_page.text
+    assert "Full AI follow-up" in public_page.text
+    assert "Up to 100 enquiries / month" in public_page.text
+    assert "101-500 enquiries / month" in public_page.text
+    assert "500+ enquiries / month or custom volume" in public_page.text
     assert "SGD 49" in public_page.text
     assert "SGD 89" in public_page.text
     assert "Singapore" in public_page.text

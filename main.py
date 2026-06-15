@@ -8411,25 +8411,48 @@ def landing_page():
             <div class="price-card trial">
                 <h3><span data-lang="en">30-day trial</span><span data-lang="zh" class="lang-hidden">30 天试用</span></h3>
                 <div class="plan-price">Free <span>for trial</span></div>
-                <p><span data-lang="en">Test enquiry capture, assisted import, private inbox, reply drafts, and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">试用询盘收集、辅助导入、私密 inbox、回复草稿和跟进提醒。</span></p>
+                <p><span data-lang="en">Test the full enquiry workflow with real customer messages before choosing a monthly plan.</span><span data-lang="zh" class="lang-hidden">先用真实客户消息测试完整询盘流程，再选择月费配套。</span></p>
+                <ul>
+                    <li><span data-lang="en">Private enquiry inbox</span><span data-lang="zh" class="lang-hidden">私密询盘 inbox</span></li>
+                    <li><span data-lang="en">AI classification, stuck point, and reply draft</span><span data-lang="zh" class="lang-hidden">AI 分类、客户卡点和回复草稿</span></li>
+                    <li><span data-lang="en">Follow-up reminders</span><span data-lang="zh" class="lang-hidden">跟进提醒</span></li>
+                </ul>
                 <a class="btn" href="/merchant-signup"><span data-lang="en">Create Enquiry Inbox</span><span data-lang="zh" class="lang-hidden">创建询盘 inbox</span></a>
             </div>
             <div class="price-card">
                 <h3><span data-lang="en">Enquiry Starter</span><span data-lang="zh" class="lang-hidden">询盘入门版</span></h3>
                 <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 169</span> <span>/ month</span></div>
-                <p><span data-lang="en">For small service teams with up to 100 enquiries per month.</span><span data-lang="zh" class="lang-hidden">适合每月 100 个询盘以内的小型服务团队。</span></p>
+                <p><span data-lang="en">Full AI follow-up for solo owners and small teams handling up to 100 enquiries per month.</span><span data-lang="zh" class="lang-hidden">完整 AI 跟进功能，适合每月 100 个询盘以内的老板或小团队。</span></p>
+                <ul>
+                    <li><span data-lang="en">Up to 100 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 100 个询盘</span></li>
+                    <li><span data-lang="en">AI priority, category, and stuck-point detection</span><span data-lang="zh" class="lang-hidden">AI 优先级、分类和客户卡点判断</span></li>
+                    <li><span data-lang="en">Next reply drafts and follow-up reminders</span><span data-lang="zh" class="lang-hidden">下一句回复草稿和跟进提醒</span></li>
+                    <li><span data-lang="en">Manual, paste, screenshot, and source tagging</span><span data-lang="zh" class="lang-hidden">手动新增、复制、截图和来源标记</span></li>
+                </ul>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
             </div>
             <div class="price-card highlight">
                 <h3>Enquiry Growth</h3>
                 <div class="plan-price"><span data-market="sg">SGD 89</span><span data-market="my" class="market-hidden">MYR 299</span> <span>/ month</span></div>
-                <p><span data-lang="en">Recommended for businesses with daily enquiries and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">推荐给每天都有客户询问，并需要跟进提醒的商家。</span></p>
+                <p><span data-lang="en">For teams handling 101-500 enquiries per month with daily follow-up work.</span><span data-lang="zh" class="lang-hidden">适合每月 101-500 个询盘、每天都需要跟进的团队。</span></p>
+                <ul>
+                    <li><span data-lang="en">101-500 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月 101-500 个询盘</span></li>
+                    <li><span data-lang="en">Everything in Starter</span><span data-lang="zh" class="lang-hidden">包含 Starter 全部功能</span></li>
+                    <li><span data-lang="en">Shared team queue and follow-up dashboard</span><span data-lang="zh" class="lang-hidden">团队共享队列和跟进看板</span></li>
+                    <li><span data-lang="en">Source visibility and setup support</span><span data-lang="zh" class="lang-hidden">来源可视化和设置协助</span></li>
+                </ul>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Ask on WhatsApp</span><span data-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a>
             </div>
             <div class="price-card">
                 <h3>Business</h3>
                 <div class="plan-price"><span data-market="sg">SGD 149+</span><span data-market="my" class="market-hidden">MYR 499+</span> <span>/ month</span></div>
-                <p><span data-lang="en">For teams, multiple outlets, higher enquiry volume, or custom workflow setup.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店、更高询盘量或需要客制流程的商家。</span></p>
+                <p><span data-lang="en">For 500+ enquiries per month, multiple outlets, official channel setup, or custom workflow needs.</span><span data-lang="zh" class="lang-hidden">适合每月 500+ 询盘、多分店、官方渠道接入或客制流程。</span></p>
+                <ul>
+                    <li><span data-lang="en">500+ enquiries / month or custom volume</span><span data-lang="zh" class="lang-hidden">每月 500+ 询盘或客制用量</span></li>
+                    <li><span data-lang="en">Multiple outlets or workspaces</span><span data-lang="zh" class="lang-hidden">多分店或多个 workspace</span></li>
+                    <li><span data-lang="en">Official channel setup assistance</span><span data-lang="zh" class="lang-hidden">官方渠道接入协助</span></li>
+                    <li><span data-lang="en">Custom workflow, export, and priority support</span><span data-lang="zh" class="lang-hidden">客制流程、导出和优先支持</span></li>
+                </ul>
                 <a class="btn secondary" href="{request_link}"><span data-lang="en">Request Business</span><span data-lang="zh" class="lang-hidden">申请 Business</span></a>
             </div>
         </section>
@@ -8859,7 +8882,7 @@ def enquiry_app_page():
         <div class="section-head" id="enquiry-pricing">
             <div>
                 <h2><span data-lang="en">Start with a 30-day trial</span><span data-lang="zh" class="lang-hidden">先免费试用 30 天</span></h2>
-                <p><span data-lang="en">Let dealers test the buyer follow-up flow first. After the trial, they can choose a monthly plan based on how many buyer enquiries they handle.</span><span data-lang="zh" class="lang-hidden">先让车商实际测试买家跟进流程。试用后，再根据每月买家询问数量选择配套。</span></p>
+                <p><span data-lang="en">Test the full AI follow-up flow first. After the trial, choose a monthly plan based on enquiry volume and team needs.</span><span data-lang="zh" class="lang-hidden">先测试完整 AI 跟进流程。试用后，再根据每月询盘量和团队需求选择配套。</span></p>
             </div>
         </div>
         <section class="pricing-grid">
@@ -8868,44 +8891,44 @@ def enquiry_app_page():
                 <div class="plan-price"><span data-lang="en">Free</span><span data-lang="zh" class="lang-hidden">免费</span> <span>/ 30 days</span></div>
                 <p><span data-lang="en">Best for trying the full workflow with real enquiries.</span><span data-lang="zh" class="lang-hidden">适合先用真实客户询问测试整套流程。</span></p>
                 <ul>
-                    <li><span data-lang="en">1 dealer inbox</span><span data-lang="zh" class="lang-hidden">1 个车商 inbox</span></li>
+                    <li><span data-lang="en">Private enquiry inbox</span><span data-lang="zh" class="lang-hidden">私密询盘 inbox</span></li>
                     <li><span data-lang="en">Enquiry link and widget</span><span data-lang="zh" class="lang-hidden">询问链接与网站 widget</span></li>
-                    <li><span data-lang="en">AI reply drafts</span><span data-lang="zh" class="lang-hidden">AI 回复草稿</span></li>
-                    <li><span data-lang="en">Manual onboarding support</span><span data-lang="zh" class="lang-hidden">人工协助开通</span></li>
+                    <li><span data-lang="en">AI classification, stuck point, and reply draft</span><span data-lang="zh" class="lang-hidden">AI 分类、客户卡点和回复草稿</span></li>
+                    <li><span data-lang="en">Follow-up reminders</span><span data-lang="zh" class="lang-hidden">跟进提醒</span></li>
                 </ul>
-                <a class="btn" href="/merchant-signup"><span data-lang="en">Create Buyer Inbox</span><span data-lang="zh" class="lang-hidden">创建买家 inbox</span></a>
+                <a class="btn" href="/merchant-signup"><span data-lang="en">Create Enquiry Inbox</span><span data-lang="zh" class="lang-hidden">创建询盘 inbox</span></a>
             </div>
             <div class="price-card">
                 <h3>Starter</h3>
                 <div class="plan-price"><span data-market="sg">SGD 49</span><span data-market="my" class="market-hidden">MYR 169</span> <span>/ month</span></div>
-                <p><span data-lang="en">For solo owners and small service shops.</span><span data-lang="zh" class="lang-hidden">适合个人老板或小型服务商家。</span></p>
+                <p><span data-lang="en">Full AI follow-up for solo owners and small teams handling up to 100 enquiries per month.</span><span data-lang="zh" class="lang-hidden">完整 AI 跟进功能，适合每月 100 个询盘以内的老板或小团队。</span></p>
                 <ul>
-                    <li><span data-lang="en">1 dealer inbox</span><span data-lang="zh" class="lang-hidden">1 个车商 inbox</span></li>
-                    <li><span data-lang="en">Up to 100 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 100 个询问</span></li>
-                    <li><span data-lang="en">WhatsApp reply drafts</span><span data-lang="zh" class="lang-hidden">WhatsApp 回复草稿</span></li>
-                    <li><span data-lang="en">CSV export</span><span data-lang="zh" class="lang-hidden">CSV 导出</span></li>
+                    <li><span data-lang="en">Up to 100 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 100 个询盘</span></li>
+                    <li><span data-lang="en">AI priority, category, and stuck-point detection</span><span data-lang="zh" class="lang-hidden">AI 优先级、分类和客户卡点判断</span></li>
+                    <li><span data-lang="en">Next reply drafts and follow-up reminders</span><span data-lang="zh" class="lang-hidden">下一句回复草稿和跟进提醒</span></li>
+                    <li><span data-lang="en">Manual, paste, screenshot, and source tagging</span><span data-lang="zh" class="lang-hidden">手动新增、复制、截图和来源标记</span></li>
                 </ul>
             </div>
             <div class="price-card highlight">
                 <h3>Growth</h3>
                 <div class="plan-price"><span data-market="sg">SGD 89</span><span data-market="my" class="market-hidden">MYR 299</span> <span>/ month</span></div>
-                <p><span data-lang="en">Recommended for growing businesses with daily enquiries.</span><span data-lang="zh" class="lang-hidden">推荐给每天都有客户询问的成长型商家。</span></p>
+                <p><span data-lang="en">For teams handling 101-500 enquiries per month with daily follow-up work.</span><span data-lang="zh" class="lang-hidden">适合每月 101-500 个询盘、每天都需要跟进的团队。</span></p>
                 <ul>
                     <li><span data-lang="en">Everything in Starter</span><span data-lang="zh" class="lang-hidden">包含 Starter 全部功能</span></li>
-                    <li><span data-lang="en">Up to 500 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月最多 500 个询问</span></li>
-                    <li><span data-lang="en">Follow-up digest</span><span data-lang="zh" class="lang-hidden">跟进提醒摘要</span></li>
-                    <li><span data-lang="en">Follow-up workflow setup</span><span data-lang="zh" class="lang-hidden">跟进流程设置协助</span></li>
+                    <li><span data-lang="en">101-500 enquiries / month</span><span data-lang="zh" class="lang-hidden">每月 101-500 个询盘</span></li>
+                    <li><span data-lang="en">Shared team queue and follow-up dashboard</span><span data-lang="zh" class="lang-hidden">团队共享队列和跟进看板</span></li>
+                    <li><span data-lang="en">Source visibility and setup support</span><span data-lang="zh" class="lang-hidden">来源可视化和设置协助</span></li>
                 </ul>
             </div>
             <div class="price-card">
                 <h3>Business</h3>
                 <div class="plan-price"><span data-market="sg">SGD 149+</span><span data-market="my" class="market-hidden">MYR 499+</span> <span>/ month</span></div>
-                <p><span data-lang="en">For teams, multiple outlets, or custom workflows.</span><span data-lang="zh" class="lang-hidden">适合团队、多分店或需要客制流程的商家。</span></p>
+                <p><span data-lang="en">For 500+ enquiries per month, multiple outlets, official channel setup, or custom workflow needs.</span><span data-lang="zh" class="lang-hidden">适合每月 500+ 询盘、多分店、官方渠道接入或客制流程。</span></p>
                 <ul>
-                    <li><span data-lang="en">Multiple inboxes</span><span data-lang="zh" class="lang-hidden">多个车商 inbox</span></li>
-                    <li><span data-lang="en">Custom buyer workflow</span><span data-lang="zh" class="lang-hidden">客制买家流程</span></li>
-                    <li><span data-lang="en">Higher monthly volume</span><span data-lang="zh" class="lang-hidden">更高每月用量</span></li>
-                    <li><span data-lang="en">Managed support</span><span data-lang="zh" class="lang-hidden">管理式支持</span></li>
+                    <li><span data-lang="en">500+ enquiries / month or custom volume</span><span data-lang="zh" class="lang-hidden">每月 500+ 询盘或客制用量</span></li>
+                    <li><span data-lang="en">Multiple outlets or workspaces</span><span data-lang="zh" class="lang-hidden">多分店或多个 workspace</span></li>
+                    <li><span data-lang="en">Official channel setup assistance</span><span data-lang="zh" class="lang-hidden">官方渠道接入协助</span></li>
+                    <li><span data-lang="en">Custom workflow, export, and priority support</span><span data-lang="zh" class="lang-hidden">客制流程、导出和优先支持</span></li>
                 </ul>
             </div>
         </section>
