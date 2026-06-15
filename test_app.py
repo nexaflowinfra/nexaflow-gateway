@@ -802,6 +802,33 @@ def test_vehicle_enquiry_identifies_sales_followup_signals():
     assert saved["follow_up_at"] == datetime.now(timezone.utc).date().isoformat()
 
 
+def test_analyze_enquiry_returns_complete_vehicle_followup_plan():
+    profile = {
+        **main.default_enquiry_profile(),
+        "business_name": "Analysis Dealer",
+        "business_type": "used_car_dealer",
+        "offer_summary": "used cars with loan support",
+        "auto_followup_enabled": True,
+        "hot_followup_hours": 2,
+        "standard_followup_days": 1,
+    }
+    analysis = main.analyze_enquiry(
+        "Instagram Buyer",
+        "used_car_dealer",
+        "Saw your Civic on Instagram. Can loan? Monthly below RM900 and I am comparing another dealer. Can view today?",
+        profile,
+    )
+    signal_keys = {item["key"] for item in analysis["signals"]}
+    assert analysis["analysis_source"] == "rules_v1"
+    assert analysis["classification"]["intent"] == "quotation"
+    assert analysis["classification"]["priority"] == "hot"
+    assert {"finance", "monthly_payment", "comparison", "appointment"}.issubset(signal_keys)
+    assert analysis["guidance"]["stuck_point"] == "Monthly payment or loan readiness"
+    assert "target monthly payment" in analysis["workflow"]["next_action"]
+    assert analysis["follow_up_at"] == datetime.now(timezone.utc).date().isoformat()
+    assert "target monthly payment" in analysis["reply_draft"]
+
+
 def test_carpet_care_enquiry_does_not_trigger_vehicle_followup():
     assert main.vehicle_sales_context("Need carpet care quotation", "repair") is False
     classification = main.classify_enquiry("Need carpet care quotation", "repair")

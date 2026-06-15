@@ -4191,13 +4191,13 @@ def enquiry_followup_guidance(message, business_type="", signals=None):
     }
 
 
-def enquiry_reply_draft(name, business_type, message, classification, profile=None):
+def enquiry_reply_draft(name, business_type, message, classification, profile=None, signals=None):
     profile = profile or default_enquiry_profile()
     service_label = (profile.get("offer_summary") or business_type.replace("_", " ").strip() or "service").strip()
     business_name = profile.get("business_name") or "us"
     tone = profile.get("reply_tone") or "friendly and professional"
     hours = f" Our opening hours are {profile['opening_hours']}." if profile.get("opening_hours") else ""
-    signals = enquiry_followup_signals(message, business_type)
+    signals = signals if signals is not None else enquiry_followup_signals(message, business_type)
     signal_keys = {item["key"] for item in signals}
     if vehicle_sales_context(message, business_type):
         if signal_keys.intersection({"finance", "monthly_payment"}):
@@ -4228,10 +4228,10 @@ def enquiry_reply_draft(name, business_type, message, classification, profile=No
     )
 
 
-def enquiry_workflow_summary(name, message, classification, profile=None):
+def enquiry_workflow_summary(name, message, classification, profile=None, signals=None, business_type=None):
     profile = profile or default_enquiry_profile()
     business_name = profile.get("business_name") or "the business"
-    business_type = profile.get("business_type") or "general"
+    business_type = business_type or profile.get("business_type") or "general"
     clean_message = " ".join(message.strip().split())
     if len(clean_message) > 140:
         clean_message = f"{clean_message[:137]}..."
@@ -4252,7 +4252,7 @@ def enquiry_workflow_summary(name, message, classification, profile=None):
         f"{name} sent a {priority_label} {intent_label} for {business_name}. "
         f"Message: {clean_message}"
     )
-    signals = enquiry_followup_signals(message, business_type)
+    signals = signals if signals is not None else enquiry_followup_signals(message, business_type)
     signal_keys = {item["key"] for item in signals}
     if signals:
         auto_summary += " Signals: " + ", ".join(item["label"] for item in signals) + "."
@@ -4312,6 +4312,41 @@ def enquiry_auto_follow_up_date(classification, profile=None):
         days = int(profile.get("standard_followup_days") or 1)
         follow_up_at = current + timedelta(days=days)
     return follow_up_at.date().isoformat()
+
+
+def analyze_enquiry(name, business_type, message, profile=None):
+    profile = profile or default_enquiry_profile()
+    analysis_business_type = (business_type or profile.get("business_type") or "general").strip() or "general"
+    classification = classify_enquiry(message, analysis_business_type)
+    signals = enquiry_followup_signals(message, analysis_business_type)
+    guidance = enquiry_followup_guidance(message, analysis_business_type, signals)
+    workflow = enquiry_workflow_summary(
+        name,
+        message,
+        classification,
+        profile=profile,
+        signals=signals,
+        business_type=analysis_business_type,
+    )
+    follow_up_at = enquiry_auto_follow_up_date(classification, profile)
+    reply_draft = enquiry_reply_draft(
+        name,
+        analysis_business_type,
+        message,
+        classification,
+        profile=profile,
+        signals=signals,
+    )
+    return {
+        "business_type": analysis_business_type,
+        "classification": classification,
+        "signals": signals,
+        "guidance": guidance,
+        "workflow": workflow,
+        "follow_up_at": follow_up_at,
+        "reply_draft": reply_draft,
+        "analysis_source": "rules_v1",
+    }
 
 
 def whatsapp_reply_url(phone, reply_draft):
@@ -4766,10 +4801,12 @@ def create_enquiry_record(
     enforce_enquiry_rate_limit(profile["slug"], req.phone)
 
     business_type = profile.get("business_type") or req.business_type
-    classification = classify_enquiry(req.message, business_type)
-    workflow = enquiry_workflow_summary(req.name, req.message, classification, profile)
-    follow_up_at = enquiry_auto_follow_up_date(classification, profile)
-    reply_draft = enquiry_reply_draft(req.name, business_type, req.message, classification, profile)
+    analysis = analyze_enquiry(req.name, business_type, req.message, profile)
+    business_type = analysis["business_type"]
+    classification = analysis["classification"]
+    workflow = analysis["workflow"]
+    follow_up_at = analysis["follow_up_at"]
+    reply_draft = analysis["reply_draft"]
     # The inbox WhatsApp action is for the merchant to reply to the buyer.
     # Dealer/profile WhatsApp is used for merchant notifications and setup, not this follow-up link.
     reply_phone = req.phone if create_whatsapp_reply else ""
