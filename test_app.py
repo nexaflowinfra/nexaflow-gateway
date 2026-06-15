@@ -1274,6 +1274,29 @@ def test_merchant_can_manually_capture_social_dm_with_followup_guidance():
     assert "loan support" in saved["reply_draft"]
     assert "Follow-up timing" not in saved["message"]
 
+    social_only = client.post(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        json={
+            "name": "",
+            "phone": "",
+            "source": "instagram",
+            "campaign": "Vios IG DM",
+            "message": "Saw your Vios on Instagram. Lowest deposit can? I am comparing with another dealer.",
+            "processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert social_only.status_code == 200
+    social_body = social_only.json()
+    assert social_body["name"] == "Instagram Buyer"
+    assert social_body["phone"].startswith("instagram:")
+    assert social_body["source"] == "instagram"
+    assert social_body["whatsapp_url"] is None
+    assert social_body["stuck_point"] in {
+        "Monthly payment or loan readiness",
+        "Comparing price, spec, or monthly payment with another dealer",
+    }
+
     audit = client.get(
         f"/admin/data-audit-events?business_slug={slug}&event_type=enquiry.created",
         headers={"X-Admin-Key": "test-admin"},
@@ -1605,6 +1628,8 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert "merchantActionCenter" in response.text
     assert "merchantDailyLeads" in response.text
     assert "Buyers to contact now" in response.text
+    assert "Phone / handle optional" in response.text
+    assert "买家还没给电话号码" in response.text
     assert "merchantPipelineBoard" in response.text
     assert "Today&apos;s buyer follow-up" in response.text
     assert "Today&apos;s numbers" in response.text

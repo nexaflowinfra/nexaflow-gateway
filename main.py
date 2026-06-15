@@ -218,8 +218,8 @@ class EnquiryCreateRequest(BaseModel):
 
 
 class MerchantManualEnquiryCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=120)
-    phone: str = Field(..., min_length=5, max_length=40)
+    name: str | None = Field(default="", max_length=120)
+    phone: str | None = Field(default="", max_length=40)
     email: str | None = Field(default=None, max_length=200)
     message: str = Field(..., min_length=3, max_length=4000)
     source: str = Field(default="manual", max_length=80)
@@ -2799,6 +2799,32 @@ def contains_sensitive_manual_enquiry_content(*values):
     return any(marker in text for marker in sensitive_markers)
 
 
+def manual_capture_buyer_name(source, name):
+    clean_name = (name or "").strip()
+    if clean_name:
+        return clean_name[:120]
+    source_label = {
+        "whatsapp": "WhatsApp",
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "tiktok": "TikTok",
+        "xiaohongshu": "Xiaohongshu",
+        "referral": "Referral",
+        "manual": "Manual",
+    }.get(source, source.replace("-", " ").title() if source else "Manual")
+    return f"{source_label} Buyer"[:120]
+
+
+def manual_capture_contact_identifier(source, name, phone):
+    clean_contact = (phone or "").strip()
+    if clean_contact:
+        return clean_contact[:40]
+    handle = re.sub(r"[^a-z0-9@_.-]+", "-", (name or "").strip().lower()).strip("-")
+    if not handle:
+        handle = "buyer"
+    return f"{source}:{handle}"[:40]
+
+
 def upsert_channel_connection(profile, channel, req):
     catalog = channel_catalog_item(channel)
     external_account_id = req.external_account_id.strip()
@@ -4290,7 +4316,7 @@ def enquiry_auto_follow_up_date(classification, profile=None):
 
 def whatsapp_reply_url(phone, reply_draft):
     digits = normalize_phone_for_whatsapp(phone)
-    if not digits:
+    if not digits or len(digits) < 5:
         return None
     return f"https://wa.me/{digits}?text={quote(reply_draft)}"
 
@@ -9345,7 +9371,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             </div>
             <div class="toolbar">
                 <label><span data-lang="en">Buyer name</span><span data-lang="zh" class="lang-hidden">买家名字</span><input id="manualLeadName" placeholder="Alex Tan"></label>
-                <label><span data-lang="en">Phone / WhatsApp</span><span data-lang="zh" class="lang-hidden">电话 / WhatsApp</span><input id="manualLeadPhone" placeholder="6012xxxxxxx"></label>
+                <label><span data-lang="en">Phone / handle optional</span><span data-lang="zh" class="lang-hidden">电话 / 平台 handle（选填）</span><input id="manualLeadPhone" placeholder="6012xxxxxxx or @buyer"></label>
                 <label><span data-lang="en">Source</span><span data-lang="zh" class="lang-hidden">来源</span>
                     <select id="manualLeadSource">
                         <option value="whatsapp">WhatsApp</option>
@@ -9358,6 +9384,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     </select>
                 </label>
             </div>
+            <p class="mini-note"><span data-lang="en">If the buyer has not shared a phone number yet, leave it blank or paste their social handle. NexaFlow will still analyze the DM and show the next follow-up question.</span><span data-lang="zh" class="lang-hidden">如果买家还没给电话号码，可以留空或填写平台 handle。NexaFlow 仍然会分析私信，并显示下一句该怎么跟。</span></p>
             <label><span data-lang="en">Buyer message</span><span data-lang="zh" class="lang-hidden">买家内容</span><textarea id="manualLeadMessage" placeholder="Example: Saw your Civic on TikTok. Can loan? Monthly below RM900, can view today?"></textarea></label>
             <div class="toolbar">
                 <label><span data-lang="en">Email optional</span><span data-lang="zh" class="lang-hidden">Email（选填）</span><input id="manualLeadEmail" placeholder="buyer@example.com"></label>
@@ -12368,11 +12395,13 @@ def create_merchant_manual_enquiry(
             detail="Do not paste identity documents, bank statements, payslips, or other sensitive files into manual buyer capture.",
         )
     source = re.sub(r"[^a-z0-9_-]+", "-", (req.source or "manual").strip().lower()).strip("-") or "manual"
+    buyer_name = manual_capture_buyer_name(source, req.name)
+    buyer_contact = manual_capture_contact_identifier(source, buyer_name, req.phone)
     enquiry_req = EnquiryCreateRequest(
         business_slug=profile["slug"],
         business_type=profile["business_type"],
-        name=req.name,
-        phone=req.phone,
+        name=buyer_name,
+        phone=buyer_contact,
         email=req.email,
         message=req.message,
         source=source,
