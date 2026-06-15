@@ -622,6 +622,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "Meta auto-sync setup" in channels.text
     assert "metaSetupContent" in channels.text
     assert "loadMetaSetup" in channels.text
+    assert "Send pilot test" in channels.text
+    assert "sendMetaPilotTest" in channels.text
     assert "/admin/dashboard" not in channels.text
 
     legacy_channels = client.get(f"/apps/enquiry/channels/{slug}")
@@ -1713,6 +1715,67 @@ def test_merchant_channel_connections_are_private_and_audited():
     assert "not_stored" in audit_payload
     assert "secret-token" not in audit_payload
     assert "access_token" not in audit_payload
+
+
+def test_merchant_can_run_meta_pilot_test_after_channel_mapping():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"meta-pilot-{suffix}"
+    instagram_account_id = f"ig-pilot-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Meta Pilot Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+            "offer_summary": "used cars with loan support",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    blocked = client.post(
+        f"/apps/enquiry/api/merchant/channel-connections/instagram/pilot-test?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked.status_code == 409
+
+    connection = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/instagram?business_slug={slug}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "Pilot Instagram",
+            "external_account_id": instagram_account_id,
+            "data_processing_acknowledged": True,
+            "notes": "Pilot test mapping only.",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert connection.status_code == 200
+
+    result = client.post(
+        f"/apps/enquiry/api/merchant/channel-connections/instagram/pilot-test?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert result.status_code == 200
+    body = result.json()
+    assert body["status"] == "created"
+    assert body["channel"] == "instagram"
+    assert body["inbox_url"] == f"/inbox/{slug}"
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=instagram",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    saved = next(item for item in listing.json()["enquiries"] if "Meta pilot test" in item["message"])
+    assert saved["source"] == "instagram"
+    assert saved["phone"].startswith("instagram:")
+    assert saved["merchant_notification_status"] == "not_required"
+    assert saved["analysis_source"] in {"rules_v1", "ai:gpt-4o-mini"}
+    assert saved["whatsapp_url"] is None
 
 
 def test_merchant_meta_setup_readiness_requires_meta_secrets_and_https(monkeypatch):

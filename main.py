@@ -2652,6 +2652,15 @@ def list_channel_connections(business_slug):
     return {row["channel"]: row_to_channel_connection(row) for row in rows}
 
 
+def get_saved_channel_connection(business_slug, channel):
+    with db_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM channel_connections WHERE business_slug = ? AND channel = ?",
+            (normalize_slug(business_slug), channel),
+        ).fetchone()
+    return row_to_channel_connection(row) if row else None
+
+
 def channel_connection_response(profile):
     saved = list_channel_connections(profile["slug"])
     connections = []
@@ -3120,7 +3129,7 @@ def record_channel_message(connection_info, profile, event, enquiry):
         )
 
 
-def create_enquiry_from_meta_event(connection_info, profile, event):
+def create_enquiry_from_meta_event(connection_info, profile, event, notify_merchant=True):
     if channel_message_exists(event["channel"], event["external_message_id"]):
         return {"status": "duplicate", "external_message_id": event["external_message_id"]}
     phone_or_handle = event["customer_handle"] if event["channel"] == "whatsapp" else f"{event['channel']}:{event['customer_handle'] or event['external_message_id']}"
@@ -3145,12 +3154,51 @@ def create_enquiry_from_meta_event(connection_info, profile, event):
     enquiry = create_enquiry_record(
         enquiry_req,
         actor_type="meta_webhook",
-        notify_merchant=True,
+        notify_merchant=notify_merchant,
         consent_notice_override=consent_notice,
         create_whatsapp_reply=event["create_whatsapp_reply"],
     )
     record_channel_message(connection_info, profile, event, enquiry)
     return {"status": "created", "enquiry_id": enquiry["id"], "external_message_id": event["external_message_id"]}
+
+
+def create_meta_pilot_test_event(profile, channel):
+    if channel not in {"whatsapp", "facebook", "instagram"}:
+        raise HTTPException(status_code=400, detail="Meta pilot test is available for WhatsApp, Facebook, and Instagram only")
+    connection_info = get_saved_channel_connection(profile["slug"], channel)
+    if not connection_info:
+        raise HTTPException(status_code=409, detail=f"Save the {channel} channel connection before running a Meta pilot test")
+    if connection_info["integration_mode"] != "official_api_requested":
+        raise HTTPException(status_code=409, detail=f"Set {channel} to Request auto sync before running a Meta pilot test")
+    if not connection_info["data_processing_acknowledged"]:
+        raise HTTPException(status_code=409, detail=f"Confirm the {channel} data processing acknowledgement first")
+    if not connection_info["external_account_id"]:
+        raise HTTPException(status_code=409, detail=f"Enter the Meta account ID for {channel} before running a pilot test")
+
+    timestamp = now_iso()
+    demo_messages = {
+        "whatsapp": "Meta pilot test: buyer asks if loan can be approved, monthly below RM900, and wants to view today.",
+        "facebook": "Meta pilot test: buyer asks if the Civic is still available and whether viewing tomorrow is possible.",
+        "instagram": "Meta pilot test: buyer asks for lowest deposit on Vios and is comparing another dealer.",
+    }
+    event = {
+        "channel": channel,
+        "account_id": connection_info["external_account_id"],
+        "external_message_id": f"pilot:{channel}:{connection_info['id']}:{timestamp}",
+        "customer_display_name": f"{CHANNEL_CATALOG[channel]['label']} Test Buyer",
+        "customer_handle": "60120000000" if channel == "whatsapp" else f"{channel}-test-user",
+        "message": demo_messages[channel],
+        "received_at": timestamp,
+        "create_whatsapp_reply": channel == "whatsapp",
+    }
+    item = create_enquiry_from_meta_event(connection_info, profile, event, notify_merchant=False)
+    return {
+        **item,
+        "channel": channel,
+        "business_slug": profile["slug"],
+        "message": "Meta pilot test message created in the buyer inbox.",
+        "inbox_url": profile["inbox_url"],
+    }
 
 
 def mask_external_account_id(value):
@@ -10645,6 +10693,7 @@ def merchant_channel_connections_page(business_slug: str):
                             <span class="next-action">${{channelLangSpan("Security", "安全")}}: ${{(item.security_requirements || []).map(value => escapeHtml(value)).join(" · ")}}</span>
                         </details>
                         <button class="btn" onclick="saveChannelConnection('${{item.channel}}')">${{channelLangSpan("Save source", "保存来源")}}</button>
+                        ${{["whatsapp", "facebook", "instagram"].includes(item.channel) ? `<button class="btn secondary" onclick="sendMetaPilotTest('${{item.channel}}')">${{channelLangSpan("Send pilot test", "发送测试私信")}}</button>` : ""}}
                     </section>
                     `;
                 }}
@@ -10688,6 +10737,21 @@ def merchant_channel_connections_page(business_slug: str):
                     }});
                     await loadChannelConnections();
                     status.textContent = channelsText(`${{channel}} connection saved. No passwords or access tokens were stored.`, `${{channel}} 连接已保存。没有保存任何密码或 access token。`);
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
+            async function sendMetaPilotTest(channel) {{
+                const status = document.getElementById("channelStatus");
+                status.textContent = channelsText(`Creating ${{channel}} pilot test buyer...`, `正在创建 ${{channel}} 测试买家...`);
+                try {{
+                    const result = await channelApi(`/apps/enquiry/api/merchant/channel-connections/${{channel}}/pilot-test?business_slug=${{businessSlug}}`, {{
+                        method: "POST"
+                    }});
+                    status.innerHTML = `
+                        ${{channelLangSpan("Pilot test created. Open the buyer inbox and confirm the test buyer appears.", "测试已创建。打开买家 inbox，确认测试买家已经出现。")}}
+                        <br><a href="${{escapeHtml(result.inbox_url || `/inbox/${{businessSlug}}`)}}">${{channelLangSpan("Open buyer inbox", "打开买家 inbox")}}</a>
+                    `;
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -12816,6 +12880,23 @@ def update_merchant_channel_connection(
         authorization=authorization,
     )
     return upsert_channel_connection(profile, channel, req)
+
+
+@app.post("/apps/enquiry/api/merchant/channel-connections/{channel}/pilot-test")
+def create_merchant_meta_pilot_test(
+    channel: str,
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    return create_meta_pilot_test_event(profile, channel)
 
 
 @app.patch("/apps/enquiry/api/merchant/profile")
