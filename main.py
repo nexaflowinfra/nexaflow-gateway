@@ -6750,7 +6750,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
         if whatsapp_url
         else ""
     )
-    merchant_login_nav = '<a class="nav-login" href="/merchant-login">Dealer Login</a>'
+    merchant_login_nav = '<a class="nav-login" href="/merchant-login">Merchant Login</a>'
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -8304,12 +8304,12 @@ def landing_page():
                     <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
                 </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
-                <h1><span data-lang="en">All car buyer DMs in one sales queue.</span><span data-lang="zh" class="lang-hidden">所有买车私信，进一个销售队列。</span></h1>
-                <p class="lead"><span data-lang="en">See who to reply first, what the buyer is stuck on, and what to send next.</span><span data-lang="zh" class="lang-hidden">看清楚谁要先回、客户卡在哪里、下一句怎么讲。</span></p>
-                <p class="lead"><span data-market="sg">Built for Singapore dealers that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span><span data-market="my" class="market-hidden">Built for Malaysia dealers that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span></p>
+                <h1><span data-lang="en">One inbox for every customer enquiry.</span><span data-lang="zh" class="lang-hidden">所有客户询问，进一个 inbox。</span></h1>
+                <p class="lead"><span data-lang="en">See who to reply first, what the customer needs, what is missing, and what to send next.</span><span data-lang="zh" class="lang-hidden">看清楚谁要先回、客户需要什么、还缺什么、下一句怎么讲。</span></p>
+                <p class="lead"><span data-market="sg">Built for Singapore businesses that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span><span data-market="my" class="market-hidden">Built for Malaysia businesses that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span></p>
                 <div class="actions">
                     <a class="btn" href="/dealer-demo"><span data-lang="en">See Sales Demo</span><span data-lang="zh" class="lang-hidden">看销售 Demo</span></a>
-                    <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create Dealer Inbox</span><span data-lang="zh" class="lang-hidden">创建车商 inbox</span></a>
+                    <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create Enquiry Inbox</span><span data-lang="zh" class="lang-hidden">创建询盘 inbox</span></a>
                 </div>
             </div>
             <div class="hero-side">
@@ -8318,32 +8318,32 @@ def landing_page():
                     <div class="preview-board">
                         <div class="preview-list">
                             <div class="preview-lead active">
-                                <strong>Civic TikTok Buyer</strong>
-                                <span><span data-lang="en">Reply first · loan / monthly</span><span data-lang="zh" class="lang-hidden">优先回复 · 贷款 / 月供</span></span>
+                                <strong>WhatsApp Quote Lead</strong>
+                                <span><span data-lang="en">Reply first · price / timing</span><span data-lang="zh" class="lang-hidden">优先回复 · 价格 / 时间</span></span>
                             </div>
                             <div class="preview-lead">
-                                <strong>Vios Instagram Buyer</strong>
-                                <span><span data-lang="en">Price comparison</span><span data-lang="zh" class="lang-hidden">正在比价</span></span>
+                                <strong>Instagram Service Lead</strong>
+                                <span><span data-lang="en">Package comparison</span><span data-lang="zh" class="lang-hidden">正在比较配套</span></span>
                             </div>
                             <div class="preview-lead">
-                                <strong>Mazda WhatsApp Viewer</strong>
-                                <span><span data-lang="en">Viewing not confirmed</span><span data-lang="zh" class="lang-hidden">看车还没确认</span></span>
+                                <strong>TikTok Appointment Lead</strong>
+                                <span><span data-lang="en">Booking not confirmed</span><span data-lang="zh" class="lang-hidden">预约还没确认</span></span>
                             </div>
                         </div>
                         <div class="preview-detail">
-                            <span class="demo-detail-kicker">TikTok · Civic</span>
-                            <h3><span data-lang="en">Civic TikTok Buyer</span><span data-lang="zh" class="lang-hidden">Civic TikTok 买家</span></h3>
+                            <span class="demo-detail-kicker">WhatsApp · Quote</span>
+                            <h3><span data-lang="en">WhatsApp Quote Lead</span><span data-lang="zh" class="lang-hidden">WhatsApp 报价客户</span></h3>
                             <div class="preview-detail-card">
-                                <strong><span data-lang="en">Buyer wants</span><span data-lang="zh" class="lang-hidden">客户想要</span></strong>
-                                <span><span data-lang="en">2018 Honda Civic, loan check, monthly below RM900</span><span data-lang="zh" class="lang-hidden">2018 Honda Civic，查贷款，月供低过 RM900</span></span>
+                                <strong><span data-lang="en">Customer needs</span><span data-lang="zh" class="lang-hidden">客户需求</span></strong>
+                                <span><span data-lang="en">Package price, available slot, and whether a deposit is needed</span><span data-lang="zh" class="lang-hidden">配套价格、可预约时间，以及是否需要订金</span></span>
                             </div>
                             <div class="preview-detail-card">
                                 <strong><span data-lang="en">Stuck on</span><span data-lang="zh" class="lang-hidden">客户卡点</span></strong>
-                                <span><span data-lang="en">Monthly payment or loan readiness</span><span data-lang="zh" class="lang-hidden">月供或贷款条件还没确认</span></span>
+                                <span><span data-lang="en">Price range and appointment timing are not confirmed</span><span data-lang="zh" class="lang-hidden">价格范围和预约时间还没确认</span></span>
                             </div>
                             <div class="preview-detail-card preview-reply">
                                 <strong><span data-lang="en">Next reply</span><span data-lang="zh" class="lang-hidden">下一句回复</span></strong>
-                                <p><span data-lang="en">Can I check your target monthly payment, down payment range, and whether you need loan support?</span><span data-lang="zh" class="lang-hidden">可以告诉我你舒服的月供、首付范围，以及是否需要贷款吗？</span></p>
+                                <p><span data-lang="en">Can I confirm your preferred date, budget range, and the service package you want us to quote?</span><span data-lang="zh" class="lang-hidden">可以确认你想预约的日期、预算范围，以及想了解哪一个服务配套吗？</span></p>
                             </div>
                             <a class="btn secondary" href="/dealer-demo"><span data-lang="en">Open sample queue</span><span data-lang="zh" class="lang-hidden">打开示例队列</span></a>
                         </div>
@@ -8355,30 +8355,30 @@ def landing_page():
         <div class="section-head" id="services">
             <div>
                 <h2><span data-lang="en">What your sales team sees every day</span><span data-lang="zh" class="lang-hidden">销售每天看到什么</span></h2>
-                <p><span data-lang="en">A simple queue for dealers that need fewer missed DMs and clearer follow-up.</span><span data-lang="zh" class="lang-hidden">给车商用的简单队列：少漏私信，也知道下一步怎么跟。</span></p>
+                <p><span data-lang="en">A simple queue for businesses that need fewer missed messages and clearer follow-up.</span><span data-lang="zh" class="lang-hidden">给商家和销售团队用的简单队列：少漏消息，也知道下一步怎么跟。</span></p>
             </div>
         </div>
         <section class="grid">
             <div class="card">
-                <h3><span data-lang="en">All DMs in one queue</span><span data-lang="zh" class="lang-hidden">所有私信进一个队列</span></h3>
+                <h3><span data-lang="en">All messages in one queue</span><span data-lang="zh" class="lang-hidden">所有消息进一个队列</span></h3>
                 <p><span data-lang="en">WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals can be worked from one place.</span><span data-lang="zh" class="lang-hidden">WhatsApp、Instagram、Facebook、TikTok、小红书、电话和介绍来的客户，都在一个地方处理。</span></p>
-                <a class="btn" href="/merchant-signup"><span data-lang="en">Create My Buyer Inbox</span><span data-lang="zh" class="lang-hidden">创建我的买家 inbox</span></a>
+                <a class="btn" href="/merchant-signup"><span data-lang="en">Create My Enquiry Inbox</span><span data-lang="zh" class="lang-hidden">创建我的询盘 inbox</span></a>
             </div>
             <div class="card">
                 <h3><span data-lang="en">Know what is missing</span><span data-lang="zh" class="lang-hidden">知道还缺什么</span></h3>
-                <p><span data-lang="en">AI shows whether the buyer is stuck on loan, monthly payment, budget, price comparison, or viewing time.</span><span data-lang="zh" class="lang-hidden">AI 告诉你客户是卡在贷款、月供、预算、比价，还是看车时间。</span></p>
+                <p><span data-lang="en">AI shows whether the customer is stuck on budget, timing, quotation, requirements, documents, or comparison.</span><span data-lang="zh" class="lang-hidden">AI 告诉你客户是卡在预算、时间、报价、需求、资料，还是比较不同选择。</span></p>
                 <a class="btn secondary" href="/dealer-demo"><span data-lang="en">Try Demo</span><span data-lang="zh" class="lang-hidden">试用 Demo</span></a>
             </div>
             <div class="card">
                 <h3><span data-lang="en">Next reply ready</span><span data-lang="zh" class="lang-hidden">下一句回复准备好</span></h3>
-                <p><span data-lang="en">Sales get a clear next message, then mark replied, follow up later, or book a viewing.</span><span data-lang="zh" class="lang-hidden">销售拿到下一句回复，再标记已回、之后跟进，或安排看车。</span></p>
+                <p><span data-lang="en">Sales get a clear next message, then mark replied, follow up later, or book an appointment.</span><span data-lang="zh" class="lang-hidden">销售拿到下一句回复，再标记已回、之后跟进，或安排预约。</span></p>
                 <a class="btn secondary" href="/merchant-login"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></a>
             </div>
         </section>
 
         <div class="section-head">
             <div>
-                <h2><span data-lang="en">Bring buyer messages into the queue</span><span data-lang="zh" class="lang-hidden">把买家消息带进销售队列</span></h2>
+                <h2><span data-lang="en">Bring customer messages into the queue</span><span data-lang="zh" class="lang-hidden">把客户消息带进销售队列</span></h2>
                 <p><span data-lang="en">Supported channels can sync directly. For platforms with limited private-message access, sales can paste, screenshot, or tag the source.</span><span data-lang="zh" class="lang-hidden">支持的渠道可以直接同步；私信权限有限的平台，可以由销售复制、截图或标记来源。</span></p>
             </div>
         </div>
@@ -8412,7 +8412,7 @@ def landing_page():
                 <h3><span data-lang="en">30-day trial</span><span data-lang="zh" class="lang-hidden">30 天试用</span></h3>
                 <div class="plan-price">Free <span>for trial</span></div>
                 <p><span data-lang="en">Test enquiry capture, assisted import, private inbox, reply drafts, and follow-up reminders.</span><span data-lang="zh" class="lang-hidden">试用询盘收集、辅助导入、私密 inbox、回复草稿和跟进提醒。</span></p>
-                <a class="btn" href="/merchant-signup"><span data-lang="en">Create Buyer Inbox</span><span data-lang="zh" class="lang-hidden">创建买家 inbox</span></a>
+                <a class="btn" href="/merchant-signup"><span data-lang="en">Create Enquiry Inbox</span><span data-lang="zh" class="lang-hidden">创建询盘 inbox</span></a>
             </div>
             <div class="price-card">
                 <h3><span data-lang="en">Enquiry Starter</span><span data-lang="zh" class="lang-hidden">询盘入门版</span></h3>
@@ -8437,19 +8437,19 @@ def landing_page():
         <div class="section-head">
             <div>
                 <h2><span data-lang="en">The daily flow</span><span data-lang="zh" class="lang-hidden">每天使用流程</span></h2>
-                <p><span data-lang="en">No complicated CRM routine. Sales just opens the queue and handles the next buyer.</span><span data-lang="zh" class="lang-hidden">不用复杂 CRM 流程。销售打开队列，处理下一位买家。</span></p>
+                <p><span data-lang="en">No complicated CRM routine. Sales just opens the queue and handles the next customer.</span><span data-lang="zh" class="lang-hidden">不用复杂 CRM 流程。销售打开队列，处理下一位客户。</span></p>
             </div>
         </div>
         <section class="steps">
-            <div class="step"><div><strong><span data-lang="en">Open today&apos;s queue</span><span data-lang="zh" class="lang-hidden">打开今天队列</span></strong><p><span data-lang="en">See the buyers who need attention first.</span><span data-lang="zh" class="lang-hidden">先看今天最需要处理的买家。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Check the AI note</span><span data-lang="zh" class="lang-hidden">看 AI 提醒</span></strong><p><span data-lang="en">Know what car they want, what they are stuck on, and what to ask next.</span><span data-lang="zh" class="lang-hidden">知道客户想看什么车、卡在哪里、下一句问什么。</span></p></div></div>
-            <div class="step"><div><strong><span data-lang="en">Reply or set reminder</span><span data-lang="zh" class="lang-hidden">回复或设提醒</span></strong><p><span data-lang="en">Copy the next reply, then mark replied, remind later, or book a viewing.</span><span data-lang="zh" class="lang-hidden">复制下一句回复，然后标记已回、之后提醒，或安排看车。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Open today&apos;s queue</span><span data-lang="zh" class="lang-hidden">打开今天队列</span></strong><p><span data-lang="en">See the customers who need attention first.</span><span data-lang="zh" class="lang-hidden">先看今天最需要处理的客户。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Check the AI note</span><span data-lang="zh" class="lang-hidden">看 AI 提醒</span></strong><p><span data-lang="en">Know what they asked for, what they are stuck on, and what to ask next.</span><span data-lang="zh" class="lang-hidden">知道客户问什么、卡在哪里、下一句问什么。</span></p></div></div>
+            <div class="step"><div><strong><span data-lang="en">Reply or set reminder</span><span data-lang="zh" class="lang-hidden">回复或设提醒</span></strong><p><span data-lang="en">Copy the next reply, then mark replied, remind later, or book an appointment.</span><span data-lang="zh" class="lang-hidden">复制下一句回复，然后标记已回、之后提醒，或安排预约。</span></p></div></div>
         </section>
 
         <div class="section-head">
             <div>
                 <h2><span data-lang="en">Trust and data protection</span><span data-lang="zh" class="lang-hidden">信任与资料保护</span></h2>
-                <p><span data-lang="en">Buyer data stays behind a private dealer inbox and should be used only for replies, quotations, viewing appointments, loan follow-up, and required records. Dealers can delete individual enquiries when a record is no longer needed.</span><span data-lang="zh" class="lang-hidden">买家资料会放在车商私密 inbox 里，并且应只用于回复、报价、预约看车、贷款跟进和必要记录。当记录不再需要时，车商可以删除单个客户询盘。</span></p>
+                <p><span data-lang="en">Customer enquiry data stays behind a private inbox and should be used only for replies, quotations, appointments, follow-up, support, and required records. Merchants can delete individual enquiries when a record is no longer needed.</span><span data-lang="zh" class="lang-hidden">客户询盘资料会放在私密 inbox 里，并且应只用于回复、报价、预约、跟进、客服和必要记录。当记录不再需要时，商家可以删除单个客户询盘。</span></p>
                 <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refund Policy</a> · <a href="/acceptable-use">Acceptable Use</a></p>
             </div>
         </div>

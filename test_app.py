@@ -41,17 +41,20 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
-    assert "All car buyer DMs in one sales queue." in response.text
-    assert "所有买车私信，进一个销售队列。" in response.text
+    assert "One inbox for every customer enquiry." in response.text
+    assert "所有客户询问，进一个 inbox。" in response.text
     assert "who to reply first" in response.text
-    assert "what the buyer is stuck on" in response.text
+    assert "what the customer needs" in response.text
     assert "What your sales team sees every day" in response.text
-    assert "All DMs in one queue" in response.text
+    assert "All messages in one queue" in response.text
     assert "Know what is missing" in response.text
     assert "Next reply ready" in response.text
-    assert "Bring buyer messages into the queue" in response.text
+    assert "Bring customer messages into the queue" in response.text
     assert "Paste or screenshot when needed" in response.text
     assert "Reply or set reminder" in response.text
+    assert "Create Enquiry Inbox" in response.text
+    assert "WhatsApp Quote Lead" in response.text
+    assert "Customer needs" in response.text
     assert "Simple pricing after trial" in response.text
     assert "30-day trial" in response.text
     assert "SGD 49" in response.text
@@ -71,6 +74,17 @@ def test_landing_page_loads():
     assert 'alt="NexaFlow logo"' in response.text
     assert "nexaflow_home_lang" in response.text
     assert "/dealer-demo" in response.text
+    assert "All car buyer DMs" not in response.text
+    assert "car buyer" not in response.text
+    assert "Create Dealer Inbox" not in response.text
+    assert "Dealer Login" not in response.text
+    assert "Civic" not in response.text
+    assert "Vios" not in response.text
+    assert "Mazda" not in response.text
+    assert "车商" not in response.text
+    assert "买车" not in response.text
+    assert "二手车" not in response.text
+    assert "看车" not in response.text
     assert "<span>1</span>" not in response.text
     icon_asset = client.get("/assets/brand/nexaflow-icon.png")
     assert icon_asset.status_code == 200
