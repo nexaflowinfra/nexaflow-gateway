@@ -5262,7 +5262,7 @@ def dealer_demo_page_body():
     <section class="form-card">
         <div class="section-head">
             <div>
-                <h2>{lang_span("Today&apos;s buyer queue", "今天的买家队列")}</h2>
+                <h2>{lang_span("Today's buyer queue", "今天的买家队列")}</h2>
                 <p>{lang_span("Start from the top, open one buyer, then copy the next reply. Demo data only. No message is sent.", "从最上面开始，点开一个买家，然后复制下一句回复。这里是 Demo 资料，不会发送任何消息。")}</p>
             </div>
         </div>
@@ -5440,7 +5440,7 @@ def dealer_demo_page_body():
         <summary>{lang_span("Demo notes", "Demo 说明")}</summary>
         <section class="action-center">
             <div class="action-card">
-                <h3>{lang_span("Open today&apos;s queue", "打开今天队列")}</h3>
+                <h3>{lang_span("Open today's queue", "打开今天队列")}</h3>
                 <p>{lang_span("See who should be replied first, who needs a loan check, and who is waiting for a viewing confirmation.", "先看谁要优先回复、谁要查贷款、谁在等看车确认。")}</p>
                 <div class="lead-badges">
                     <span class="lead-badge hot">{lang_span("Reply first", "优先回复")} · {hot_count}</span>

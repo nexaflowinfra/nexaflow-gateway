@@ -110,6 +110,8 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     assert "setDealerDemoLang" in response.text
     assert "nexaflow_dealer_demo_lang" in response.text
     assert "今天的买家队列" in response.text
+    assert "Today&amp;apos;s buyer queue" not in response.text
+    assert "Open today&amp;apos;s queue" not in response.text
     assert "TikTok Civic Buyer" in response.text
     assert "Referral Trade-in Buyer" in response.text
     assert "demoLeadDetail" in response.text
