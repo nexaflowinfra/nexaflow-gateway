@@ -6736,6 +6736,14 @@ def nexaflow_brand_icon_image():
     return FileResponse(path, media_type="image/png")
 
 
+@app.get("/assets/demo/nexaflow-dealer-walkthrough.webm")
+def nexaflow_dealer_walkthrough_video():
+    path = MARKETING_DIR / "demo" / "nexaflow-dealer-walkthrough.webm"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Demo video not found.")
+    return FileResponse(path, media_type="video/webm")
+
+
 def merchant_html(title, business_name, body, show_sales_contact=False):
     safe_title = escape_html(title)
     safe_business_name = escape_html(business_name)

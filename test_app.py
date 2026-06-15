@@ -99,6 +99,9 @@ def test_landing_page_loads():
     favicon = client.get("/favicon.ico")
     assert favicon.status_code == 200
     assert favicon.headers["content-type"].startswith("image/png")
+    demo_video = client.get("/assets/demo/nexaflow-dealer-walkthrough.webm")
+    assert demo_video.status_code == 200
+    assert demo_video.headers["content-type"].startswith("video/webm")
 
 
 def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
