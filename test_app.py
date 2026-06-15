@@ -796,6 +796,8 @@ def test_vehicle_enquiry_identifies_sales_followup_signals():
     assert "Price comparison" in signal_labels
     assert "Viewing / appointment" in signal_labels
     assert saved["source"] == "tiktok"
+    assert saved["analysis_source"] == "rules_v1"
+    assert saved["stuck_point"] == "Monthly payment or loan readiness"
     assert "target monthly payment" in saved["next_action"]
     assert "loan support" in saved["reply_draft"]
     assert "Signals:" in saved["auto_summary"]
@@ -827,6 +829,100 @@ def test_analyze_enquiry_returns_complete_vehicle_followup_plan():
     assert "target monthly payment" in analysis["workflow"]["next_action"]
     assert analysis["follow_up_at"] == datetime.now(timezone.utc).date().isoformat()
     assert "target monthly payment" in analysis["reply_draft"]
+
+
+def test_analyze_enquiry_can_use_optional_ai_structured_output(monkeypatch):
+    calls = []
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            return type(
+                "Response",
+                (),
+                {
+                    "choices": [
+                        type(
+                            "Choice",
+                            (),
+                            {
+                                "message": type(
+                                    "Message",
+                                    (),
+                                    {
+                                        "content": json.dumps(
+                                            {
+                                                "intent": "booking",
+                                                "priority": "hot",
+                                                "estimated_value": "high",
+                                                "signals": [{"key": "appointment"}],
+                                                "stuck_point": "Viewing time is not confirmed yet",
+                                                "next_question": "Ask what time they can come to the showroom today.",
+                                                "follow_up_timing": "Follow up the same day if they do not confirm.",
+                                                "auto_summary": "Buyer wants to view the car and needs a fast appointment follow-up.",
+                                                "next_action": "Confirm viewing time before discussing more options.",
+                                                "follow_up_recommendation": "Send one same-day reminder if there is no reply.",
+                                                "reply_draft": "Hi, what time can you come to view the car today?",
+                                            }
+                                        )
+                                    },
+                                )()
+                            },
+                        )()
+                    ]
+                },
+            )()
+
+    class FakeClient:
+        chat = type("Chat", (), {"completions": FakeCompletions()})()
+
+    monkeypatch.setenv("NEXAFLOW_ENQUIRY_AI_ANALYSIS_ENABLED", "true")
+    monkeypatch.setattr(main, "get_provider_client", lambda provider: FakeClient())
+    analysis = main.analyze_enquiry(
+        "AI Buyer",
+        "used_car_dealer",
+        "Can view the Civic today? Need loan also.",
+        {**main.default_enquiry_profile(), "business_type": "used_car_dealer"},
+    )
+    assert calls[0]["response_format"] == {"type": "json_object"}
+    assert analysis["analysis_source"] == "ai:gpt-4o-mini"
+    assert analysis["classification"]["intent"] == "booking"
+    assert analysis["classification"]["priority"] == "hot"
+    assert analysis["guidance"]["stuck_point"] == "Viewing time is not confirmed yet"
+    assert analysis["signals"][0]["key"] == "appointment"
+    assert analysis["reply_draft"].startswith("Hi, what time")
+
+
+def test_analyze_enquiry_falls_back_when_ai_output_is_invalid(monkeypatch):
+    class BadCompletions:
+        def create(self, **kwargs):
+            return type(
+                "Response",
+                (),
+                {
+                    "choices": [
+                        type(
+                            "Choice",
+                            (),
+                            {"message": type("Message", (), {"content": "not-json"})()},
+                        )()
+                    ]
+                },
+            )()
+
+    class BadClient:
+        chat = type("Chat", (), {"completions": BadCompletions()})()
+
+    monkeypatch.setenv("NEXAFLOW_ENQUIRY_AI_ANALYSIS_ENABLED", "true")
+    monkeypatch.setattr(main, "get_provider_client", lambda provider: BadClient())
+    analysis = main.analyze_enquiry(
+        "Fallback Buyer",
+        "used_car_dealer",
+        "Can loan? Monthly below RM900.",
+        {**main.default_enquiry_profile(), "business_type": "used_car_dealer"},
+    )
+    assert analysis["analysis_source"] == "rules_v1"
+    assert analysis["guidance"]["stuck_point"] == "Monthly payment or loan readiness"
 
 
 def test_carpet_care_enquiry_does_not_trigger_vehicle_followup():
@@ -1285,6 +1381,7 @@ def test_merchant_can_manually_capture_social_dm_with_followup_guidance():
     assert body["source"] == "tiktok"
     assert body["campaign"] == "Civic DM"
     assert body["merchant_notification_status"] == "not_required"
+    assert body["analysis_source"] == "rules_v1"
     assert body["stuck_point"] == "Monthly payment or loan readiness"
     assert "monthly payment" in body["next_question"]
     assert "2 hours" in body["follow_up_timing"]

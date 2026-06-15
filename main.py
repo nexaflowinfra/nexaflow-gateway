@@ -768,7 +768,12 @@ def init_db():
                 auto_summary TEXT,
                 next_action TEXT,
                 follow_up_recommendation TEXT,
+                follow_up_signals_json TEXT,
+                stuck_point TEXT,
+                next_question TEXT,
+                follow_up_timing TEXT,
                 reply_draft TEXT,
+                analysis_source TEXT,
                 whatsapp_url TEXT,
                 merchant_notification_status TEXT,
                 merchant_notification_error TEXT,
@@ -791,6 +796,11 @@ def init_db():
         ensure_column(connection, "enquiries", "auto_summary", "TEXT")
         ensure_column(connection, "enquiries", "next_action", "TEXT")
         ensure_column(connection, "enquiries", "follow_up_recommendation", "TEXT")
+        ensure_column(connection, "enquiries", "follow_up_signals_json", "TEXT")
+        ensure_column(connection, "enquiries", "stuck_point", "TEXT")
+        ensure_column(connection, "enquiries", "next_question", "TEXT")
+        ensure_column(connection, "enquiries", "follow_up_timing", "TEXT")
+        ensure_column(connection, "enquiries", "analysis_source", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_status", "TEXT")
         ensure_column(connection, "enquiries", "merchant_notification_error", "TEXT")
         ensure_column(connection, "enquiries", "internal_note", "TEXT")
@@ -4314,7 +4324,34 @@ def enquiry_auto_follow_up_date(classification, profile=None):
     return follow_up_at.date().isoformat()
 
 
-def analyze_enquiry(name, business_type, message, profile=None):
+ALLOWED_ENQUIRY_INTENTS = {"quotation", "booking", "inventory", "general"}
+ALLOWED_ENQUIRY_PRIORITIES = {"hot", "warm", "normal"}
+ALLOWED_ENQUIRY_VALUES = {"high", "medium", "unknown"}
+ENQUIRY_SIGNAL_LIBRARY = {
+    "finance": ("Finance / loan", "Ask target monthly payment, down payment, and loan readiness."),
+    "monthly_payment": ("Monthly payment", "Clarify comfortable monthly range before pushing an appointment."),
+    "budget": ("Budget / down payment", "Ask budget range and cash upfront so the offer fits."),
+    "comparison": ("Price comparison", "Ask what offer, spec, and monthly payment they are comparing against."),
+    "appointment": ("Viewing / appointment", "Confirm day, time, branch, and whether they need loan support."),
+    "vehicle_fit": ("Vehicle fit", "Confirm model, year, mileage, color, and must-have specs."),
+    "income_check": ("Loan background", "Ask only the needed loan-readiness question and avoid collecting sensitive details too early."),
+    "time_sensitive": ("Time sensitive", "Reply quickly and set a same-day follow-up if they go quiet."),
+    "discovery": ("Needs discovery", "Ask model, budget/monthly payment, loan need, and timeline."),
+}
+
+
+def env_flag_enabled(name, default=False):
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def enquiry_ai_analysis_enabled():
+    return env_flag_enabled("NEXAFLOW_ENQUIRY_AI_ANALYSIS_ENABLED", default=False)
+
+
+def rule_based_enquiry_analysis(name, business_type, message, profile=None):
     profile = profile or default_enquiry_profile()
     analysis_business_type = (business_type or profile.get("business_type") or "general").strip() or "general"
     classification = classify_enquiry(message, analysis_business_type)
@@ -4347,6 +4384,144 @@ def analyze_enquiry(name, business_type, message, profile=None):
         "reply_draft": reply_draft,
         "analysis_source": "rules_v1",
     }
+
+
+def normalized_enquiry_signal(key, fallback_detail=""):
+    normalized_key = re.sub(r"[^a-z0-9_]+", "_", str(key or "").strip().lower()).strip("_")
+    label, detail = ENQUIRY_SIGNAL_LIBRARY.get(
+        normalized_key,
+        (normalized_key.replace("_", " ").title() if normalized_key else "Signal", fallback_detail or ""),
+    )
+    return {
+        "key": normalized_key or "general",
+        "label": label[:80],
+        "detail": (detail or fallback_detail or "")[:220],
+    }
+
+
+def normalize_ai_enquiry_analysis(ai_payload, fallback):
+    if not isinstance(ai_payload, dict):
+        return None
+
+    fallback_classification = fallback["classification"]
+    classification = {
+        "intent": ai_payload.get("intent") if ai_payload.get("intent") in ALLOWED_ENQUIRY_INTENTS else fallback_classification["intent"],
+        "priority": ai_payload.get("priority") if ai_payload.get("priority") in ALLOWED_ENQUIRY_PRIORITIES else fallback_classification["priority"],
+        "estimated_value": (
+            ai_payload.get("estimated_value")
+            if ai_payload.get("estimated_value") in ALLOWED_ENQUIRY_VALUES
+            else fallback_classification["estimated_value"]
+        ),
+    }
+
+    raw_signals = ai_payload.get("signals")
+    signals = []
+    if isinstance(raw_signals, list):
+        for item in raw_signals[:6]:
+            if isinstance(item, dict):
+                signals.append(normalized_enquiry_signal(item.get("key"), item.get("detail", "")))
+            elif isinstance(item, str):
+                signals.append(normalized_enquiry_signal(item))
+    signals = signals or fallback["signals"]
+
+    guidance = {
+        "stuck_point": str(ai_payload.get("stuck_point") or fallback["guidance"]["stuck_point"])[:180],
+        "next_question": str(ai_payload.get("next_question") or fallback["guidance"]["next_question"])[:300],
+        "follow_up_timing": str(ai_payload.get("follow_up_timing") or fallback["guidance"]["follow_up_timing"])[:300],
+    }
+    workflow = {
+        "auto_summary": str(ai_payload.get("auto_summary") or fallback["workflow"]["auto_summary"])[:500],
+        "next_action": str(ai_payload.get("next_action") or fallback["workflow"]["next_action"])[:300],
+        "follow_up_recommendation": str(
+            ai_payload.get("follow_up_recommendation") or fallback["workflow"]["follow_up_recommendation"]
+        )[:300],
+    }
+    reply_draft = str(ai_payload.get("reply_draft") or fallback["reply_draft"])[:900]
+
+    return {
+        **fallback,
+        "classification": classification,
+        "signals": signals,
+        "guidance": guidance,
+        "workflow": workflow,
+        "reply_draft": reply_draft,
+        "analysis_source": f"ai:{os.getenv('NEXAFLOW_ENQUIRY_AI_MODEL_KEY', 'gpt-4o-mini')}",
+    }
+
+
+def enquiry_ai_analysis_prompt(name, business_type, message, profile, fallback):
+    context = {
+        "buyer_name": name,
+        "business_name": profile.get("business_name"),
+        "business_type": business_type,
+        "offer_summary": profile.get("offer_summary"),
+        "reply_tone": profile.get("reply_tone"),
+        "opening_hours": profile.get("opening_hours"),
+        "buyer_message": message,
+        "rules_fallback": {
+            "intent": fallback["classification"]["intent"],
+            "priority": fallback["classification"]["priority"],
+            "estimated_value": fallback["classification"]["estimated_value"],
+            "signals": [item["key"] for item in fallback["signals"]],
+            "stuck_point": fallback["guidance"]["stuck_point"],
+            "next_question": fallback["guidance"]["next_question"],
+        },
+    }
+    return (
+        "Analyze this customer enquiry for a merchant inbox. Return compact JSON only. "
+        "Use these exact enum values: intent=quotation|booking|inventory|general, "
+        "priority=hot|warm|normal, estimated_value=high|medium|unknown. "
+        "signals must use keys from finance, monthly_payment, budget, comparison, appointment, "
+        "vehicle_fit, income_check, time_sensitive, discovery. "
+        "Do not ask for sensitive documents or collect unnecessary personal data. "
+        "Keep reply_draft concise and suitable for the merchant to send or adapt.\n"
+        f"{json.dumps(context, ensure_ascii=False)}"
+    )
+
+
+def ai_enquiry_analysis(name, business_type, message, profile, fallback):
+    if not enquiry_ai_analysis_enabled():
+        return None
+    model_key = os.getenv("NEXAFLOW_ENQUIRY_AI_MODEL_KEY", "gpt-4o-mini")
+    catalog = model_catalog()
+    model_config = catalog.get(model_key)
+    if not model_config:
+        return None
+    provider_client = get_provider_client(model_config["provider"])
+    if provider_client is None:
+        return None
+
+    try:
+        response = provider_client.chat.completions.create(
+            model=model_config["model"],
+            messages=[
+                {
+                    "role": "developer",
+                    "content": (
+                        "You analyze merchant enquiries for NexaFlow. "
+                        "Return only valid JSON with no markdown."
+                    ),
+                },
+                {"role": "user", "content": enquiry_ai_analysis_prompt(name, business_type, message, profile, fallback)},
+            ],
+            response_format={"type": "json_object"},
+            extra_headers={
+                "HTTP-Referer": os.getenv("NEXAFLOW_SITE_URL", "http://localhost:8000"),
+                "X-Title": os.getenv("NEXAFLOW_APP_NAME", "NexaFlow AI Gateway"),
+            } if model_config["provider"] == "openrouter" else None,
+        )
+        content = response.choices[0].message.content
+        parsed = json.loads(content)
+        return normalize_ai_enquiry_analysis(parsed, fallback)
+    except (APIStatusError, json.JSONDecodeError, KeyError, TypeError, AttributeError, ValueError):
+        return None
+
+
+def analyze_enquiry(name, business_type, message, profile=None):
+    profile = profile or default_enquiry_profile()
+    fallback = rule_based_enquiry_analysis(name, business_type, message, profile)
+    ai_analysis = ai_enquiry_analysis(name, fallback["business_type"], message, profile, fallback)
+    return ai_analysis or fallback
 
 
 def whatsapp_reply_url(phone, reply_draft):
@@ -4426,8 +4601,22 @@ def list_data_audit_events(business_slug=None, event_type=None, limit=100):
 
 
 def row_to_enquiry(row):
-    follow_up_signals = enquiry_followup_signals(row["message"], row["business_type"])
+    stored_signals = []
+    if "follow_up_signals_json" in row.keys() and row["follow_up_signals_json"]:
+        try:
+            parsed_signals = json.loads(row["follow_up_signals_json"])
+            if isinstance(parsed_signals, list):
+                stored_signals = [
+                    item for item in parsed_signals
+                    if isinstance(item, dict) and item.get("key") and item.get("label")
+                ]
+        except json.JSONDecodeError:
+            stored_signals = []
+    follow_up_signals = stored_signals or enquiry_followup_signals(row["message"], row["business_type"])
     follow_up_guidance = enquiry_followup_guidance(row["message"], row["business_type"], follow_up_signals)
+    stored_stuck_point = row["stuck_point"] if "stuck_point" in row.keys() else ""
+    stored_next_question = row["next_question"] if "next_question" in row.keys() else ""
+    stored_follow_up_timing = row["follow_up_timing"] if "follow_up_timing" in row.keys() else ""
     return {
         "id": row["id"],
         "business_slug": row["business_slug"],
@@ -4444,9 +4633,10 @@ def row_to_enquiry(row):
         "priority": row["priority"],
         "estimated_value": row["estimated_value"],
         "follow_up_signals": follow_up_signals,
-        "stuck_point": follow_up_guidance["stuck_point"],
-        "next_question": follow_up_guidance["next_question"],
-        "follow_up_timing": follow_up_guidance["follow_up_timing"],
+        "stuck_point": stored_stuck_point or follow_up_guidance["stuck_point"],
+        "next_question": stored_next_question or follow_up_guidance["next_question"],
+        "follow_up_timing": stored_follow_up_timing or follow_up_guidance["follow_up_timing"],
+        "analysis_source": row["analysis_source"] if "analysis_source" in row.keys() else "rules_v1",
         "auto_summary": row["auto_summary"] if "auto_summary" in row.keys() else "",
         "next_action": row["next_action"] if "next_action" in row.keys() else "",
         "follow_up_recommendation": row["follow_up_recommendation"] if "follow_up_recommendation" in row.keys() else "",
@@ -4825,10 +5015,11 @@ def create_enquiry_record(
                 business_slug, name, phone, email, business_type, message, source, campaign,
                 referrer, page_url, intent,
                 priority, estimated_value, auto_summary, next_action, follow_up_recommendation,
-                reply_draft, whatsapp_url, merchant_notification_status,
+                follow_up_signals_json, stuck_point, next_question, follow_up_timing,
+                reply_draft, analysis_source, whatsapp_url, merchant_notification_status,
                 merchant_notification_error, follow_up_at, pdpa_consent, consent_at, consent_notice,
                 status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile["slug"],
@@ -4847,7 +5038,12 @@ def create_enquiry_record(
                 workflow["auto_summary"],
                 workflow["next_action"],
                 workflow["follow_up_recommendation"],
+                json.dumps(analysis["signals"], separators=(",", ":"), ensure_ascii=False),
+                analysis["guidance"]["stuck_point"],
+                analysis["guidance"]["next_question"],
+                analysis["guidance"]["follow_up_timing"],
                 reply_draft,
+                analysis["analysis_source"],
                 whatsapp_url,
                 "pending",
                 None,
