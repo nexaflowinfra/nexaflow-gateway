@@ -4414,7 +4414,7 @@ def enquiry_auto_follow_up_date(classification, profile=None):
     current = datetime.now(timezone.utc)
     if classification["priority"] == "hot":
         hours = int(profile.get("hot_followup_hours") or 0)
-        follow_up_at = current + timedelta(hours=hours)
+        follow_up_at = current if hours <= 24 else current + timedelta(hours=hours)
     else:
         days = int(profile.get("standard_followup_days") or 1)
         follow_up_at = current + timedelta(days=days)
@@ -5649,8 +5649,7 @@ def dealer_demo_page_body():
     <section class="hero compact">
         <div>
             <div class="product-controls demo-controls">
-                <div class="glass-control demo-glass-control">
-                    <span class="control-label">{lang_span("Language", "语言")}</span>
+                <div class="glass-control label-free demo-glass-control">
                     <div class="language-toggle" aria-label="Language" id="demoLangToggle">
                         <button type="button" class="active" onclick="setDealerDemoLang('en')" id="demoLangEn">EN</button>
                         <button type="button" onclick="setDealerDemoLang('zh')" id="demoLangZh">中文</button>
@@ -7359,6 +7358,10 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     letter-spacing: 0;
                     white-space: nowrap;
                 }}
+                .glass-control.label-free {{
+                    gap: 0;
+                    padding: 5px;
+                }}
                 .language-toggle {{
                     display: inline-flex;
                     position: relative;
@@ -8590,6 +8593,10 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                         grid-template-columns: 66px minmax(0, 1fr);
                         justify-content: stretch;
                     }}
+                    .glass-control.label-free {{
+                        grid-template-columns: minmax(0, 1fr);
+                        padding: 5px;
+                    }}
                     .control-label {{ font-size: 10px; }}
                     .glass-control .language-toggle {{ width: 100%; min-width: 0; }}
                     .language-toggle button {{ flex: 1 1 0; min-width: 0; padding: 7px 7px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }}
@@ -8971,15 +8978,13 @@ def landing_page():
         <section class="hero product-hero">
             <div class="hero-copy">
                 <div class="product-controls">
-                    <div class="glass-control">
-                        <span class="control-label">Language</span>
+                    <div class="glass-control label-free">
                         <div class="language-toggle" aria-label="Language" id="langToggle">
                             <button type="button" class="active" onclick="setProductLang('en')" id="langEn">EN</button>
                             <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
                         </div>
                     </div>
-                    <div class="glass-control">
-                        <span class="control-label">Region</span>
+                    <div class="glass-control label-free">
                         <div class="language-toggle" aria-label="Market" id="marketToggle">
                             <button type="button" class="active" onclick="setProductMarket('sg')" id="marketSg">Singapore</button>
                             <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
