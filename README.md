@@ -65,11 +65,13 @@ OPENAI_API_KEY=your-openai-api-key
 OPENROUTER_API_KEY=your-openrouter-api-key
 ADMIN_KEY=your-strong-admin-key
 API_KEY_PEPPER=your-random-api-key-hash-pepper
+NEXAFLOW_ALLOW_QUERY_AUTH=false
 NEXAFLOW_SITE_URL=https://your-domain.example
 NEXAFLOW_APP_NAME=NexaFlow AI Gateway
 PAYMENT_LINK_STARTER=https://your-payment-link/starter
 PAYMENT_LINK_PRO=https://your-payment-link/pro
 PAYMENT_LINK_BUSINESS=https://your-payment-link/business
+ENABLE_LEGACY_PAYMENT_WEBHOOK=false
 PAYMENT_WEBHOOK_SECRET=your-random-payment-webhook-secret
 STRIPE_WEBHOOK_SECRET=whsec_your-stripe-webhook-secret
 RESEND_API_KEY=re_your-resend-api-key
@@ -205,7 +207,7 @@ Content-Type: application/json
 }
 ```
 
-The legacy `POST /v1/chat?api_key=customer_api_key` form is still supported, but production integrations should prefer `X-API-Key` or `Authorization: Bearer customer_api_key`.
+Query-string auth is disabled by default to keep API keys out of browser history and proxy logs. Use `X-API-Key` or `Authorization: Bearer customer_api_key`. If an old integration needs temporary migration time, set `NEXAFLOW_ALLOW_QUERY_AUTH=true` briefly and rotate the affected keys after migration.
 
 `provider` and `model` are optional. If omitted, the router uses `routing_strategy` to choose an allowed configured model that supports the task.
 
@@ -281,9 +283,9 @@ X-Admin-Key: your-admin-key
 
 Shows low-credit email notices and delivery status.
 
-## Payment Webhook
+## Legacy Payment Webhook
 
-Use `/webhooks/payment` after a hosted checkout succeeds. This endpoint is platform-neutral: Stripe, Paddle, Lemon Squeezy, PayPal, or a custom checkout can map a successful payment into this JSON shape.
+`/webhooks/payment` is a legacy platform-neutral endpoint and is disabled by default. Prefer the signed Stripe endpoint below for production. Only enable this endpoint for a trusted internal integration by setting `ENABLE_LEGACY_PAYMENT_WEBHOOK=true`, and never expose it to an unverified checkout provider without adding provider-specific signature verification, timestamp tolerance, amount checks, and replay protection.
 
 ```http
 POST /webhooks/payment

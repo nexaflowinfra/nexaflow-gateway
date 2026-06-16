@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 os.environ.setdefault("ADMIN_KEY", "test-admin")
 os.environ.setdefault("API_KEY_PEPPER", "test-pepper")
+os.environ.setdefault("ENABLE_LEGACY_PAYMENT_WEBHOOK", "true")
 os.environ.setdefault("PAYMENT_WEBHOOK_SECRET", "test-webhook-secret")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "test-stripe-secret")
 os.environ.setdefault("META_WEBHOOK_VERIFY_TOKEN", "test-meta-verify-token")
@@ -32,9 +33,12 @@ def test_health():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-    assert "offsite_backup_configured" in response.json()
-    assert "offsite_backup_config" in response.json()
-    assert response.json()["backup_scheduler"]["enabled"] is True
+    assert response.json()["service"] == "nexaflow-gateway"
+    assert "database_path" not in response.json()
+    assert "backup_path" not in response.json()
+    assert "offsite_backup_config" not in response.json()
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
 
 
 def test_landing_page_loads():
@@ -301,6 +305,17 @@ def test_admin_dashboard_includes_backend_automation_panel():
     assert "/admin/data-retention/cleanup" in response.text
     assert "/admin/data-audit-events" in response.text
     assert "auditEvents" in response.text
+    assert "?admin_key=" not in response.text
+    assert "data-backup-name" in response.text
+    assert "downloadBackup" in response.text
+
+
+def test_admin_query_key_is_disabled_by_default():
+    query_auth = client.get("/admin/clients?admin_key=test-admin")
+    assert query_auth.status_code == 401
+
+    header_auth = client.get("/admin/clients", headers={"X-Admin-Key": "test-admin"})
+    assert header_auth.status_code == 200
 
 
 def test_pricing_page_loads():
@@ -2566,10 +2581,29 @@ def test_admin_data_retention_cleanup_previews_and_deletes_expired_enquiries():
     )
     assert lead.status_code == 200
     old_timestamp = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+    old_retention_date = (datetime.now(timezone.utc) - timedelta(days=1)).date().isoformat()
     with main.db_connection() as connection:
         connection.execute(
             "UPDATE enquiries SET created_at = ?, updated_at = ? WHERE id = ?",
             (old_timestamp, old_timestamp, lead.json()["id"]),
+        )
+        connection.execute(
+            """
+            INSERT INTO channel_messages (
+                business_slug, channel, external_message_id, enquiry_id,
+                customer_display_name, customer_handle, direction, message_preview,
+                received_at, retention_until, created_at
+            ) VALUES (?, 'instagram', ?, ?, 'Expired Buyer', 'expired_handle', 'inbound', ?, ?, ?, ?)
+            """,
+            (
+                slug,
+                f"expired-message-{suffix}",
+                lead.json()["id"],
+                "Old private message preview",
+                old_timestamp,
+                old_retention_date,
+                old_timestamp,
+            ),
         )
 
     unauthorized = client.post(f"/admin/data-retention/cleanup?business_slug={slug}")
@@ -2582,12 +2616,19 @@ def test_admin_data_retention_cleanup_previews_and_deletes_expired_enquiries():
     assert preview.status_code == 200
     assert preview.json()["expired"] == 1
     assert preview.json()["deleted"] == 0
+    assert preview.json()["expired_channel_messages"] == 1
+    assert preview.json()["deleted_channel_messages"] == 0
 
     still_listed = client.get(
         f"/apps/enquiry/api/enquiries?business_slug={slug}",
         headers={"X-Admin-Key": "test-admin"},
     )
     assert any(item["id"] == lead.json()["id"] for item in still_listed.json()["enquiries"])
+    with main.db_connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) AS count FROM channel_messages WHERE business_slug = ?",
+            (slug,),
+        ).fetchone()["count"] == 1
 
     cleaned = client.post(
         f"/admin/data-retention/cleanup?business_slug={slug}&dry_run=false",
@@ -2596,12 +2637,19 @@ def test_admin_data_retention_cleanup_previews_and_deletes_expired_enquiries():
     assert cleaned.status_code == 200
     assert cleaned.json()["expired"] == 1
     assert cleaned.json()["deleted"] == 1
+    assert cleaned.json()["expired_channel_messages"] == 1
+    assert cleaned.json()["deleted_channel_messages"] == 1
 
     after = client.get(
         f"/apps/enquiry/api/enquiries?business_slug={slug}",
         headers={"X-Admin-Key": "test-admin"},
     )
     assert all(item["id"] != lead.json()["id"] for item in after.json()["enquiries"])
+    with main.db_connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) AS count FROM channel_messages WHERE business_slug = ?",
+            (slug,),
+        ).fetchone()["count"] == 0
 
     audit = client.get(
         f"/admin/data-audit-events?business_slug={slug}&event_type=enquiry.retention_deleted",
@@ -2609,6 +2657,7 @@ def test_admin_data_retention_cleanup_previews_and_deletes_expired_enquiries():
     )
     assert audit.status_code == 200
     assert audit.json()["events"][0]["metadata"]["count"] == 1
+    assert audit.json()["events"][0]["metadata"]["channel_messages_deleted"] == 1
     audit_payload = json.dumps(audit.json()["events"])
     assert "Expired Buyer" not in audit_payload
     assert "6590001111" not in audit_payload
@@ -2930,6 +2979,28 @@ def test_customer_can_self_setup_enquiry_business_profile():
     assert listing.json()["profiles"][0]["slug"] == slug
 
 
+def test_customer_query_api_key_is_disabled_by_default():
+    suffix = uuid.uuid4().hex[:8]
+    create = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"query_auth_{suffix}",
+            "plan": "starter",
+            "billing_email": f"query-auth-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert create.status_code == 200
+    api_key = create.json()["api_key"]
+
+    query_auth = client.get(f"/customer/me?api_key={api_key}")
+    assert query_auth.status_code == 401
+
+    header_auth = client.get("/customer/me", headers={"X-API-Key": api_key})
+    assert header_auth.status_code == 200
+    assert header_auth.json()["client_id"] == f"query_auth_{suffix}"
+
+
 def test_customer_enquiry_profile_slug_is_isolated_between_customers():
     suffix = uuid.uuid4().hex[:8]
     slug = f"shared-slug-{suffix}"
@@ -2978,6 +3049,49 @@ def test_customer_enquiry_profile_slug_is_isolated_between_customers():
         headers={"X-API-Key": second.json()["api_key"]},
     )
     assert conflict.status_code == 409
+
+
+def test_customer_cannot_claim_unbound_business_profile():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"unbound-profile-{suffix}"
+    existing = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Unbound Merchant",
+            "business_type": "retail",
+            "contact_email": f"unbound-{suffix}@example.com",
+            "whatsapp_phone": "6591234567",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert existing.status_code == 200
+    assert existing.json()["client_id"] is None
+
+    customer = client.post(
+        "/admin/clients",
+        json={
+            "client_id": f"claim_attempt_{suffix}",
+            "plan": "starter",
+            "billing_email": f"claim-attempt-{suffix}@example.com",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert customer.status_code == 200
+
+    takeover = client.post(
+        "/customer/enquiry/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Takeover Attempt",
+            "business_type": "retail",
+            "contact_email": f"takeover-{suffix}@example.com",
+            "whatsapp_phone": "6597654321",
+            "rotate_access_key": True,
+        },
+        headers={"X-API-Key": customer.json()["api_key"]},
+    )
+    assert takeover.status_code == 409
 
 
 def test_customer_can_send_own_enquiry_onboarding_only():
@@ -3546,11 +3660,29 @@ def test_payment_webhook_ignores_duplicate_event():
     assert second.json()["idempotent"] is True
 
 
-def stripe_signature(payload, secret):
-    timestamp = str(int(time.time()))
+def stripe_signature(payload, secret, timestamp=None):
+    timestamp = str(timestamp if timestamp is not None else int(time.time()))
     signed_payload = f"{timestamp}.{payload}".encode("utf-8")
     digest = hmac.new(secret.encode("utf-8"), signed_payload, "sha256").hexdigest()
     return f"t={timestamp},v1={digest}"
+
+
+def test_stripe_webhook_rejects_expired_signature():
+    payload = json.dumps({
+        "id": f"evt_expired_{uuid.uuid4().hex[:8]}",
+        "type": "checkout.session.completed",
+        "data": {"object": {"id": "cs_expired"}},
+    })
+    expired_timestamp = int(time.time()) - 1000
+    response = client.post(
+        "/webhooks/stripe",
+        content=payload,
+        headers={
+            "Stripe-Signature": stripe_signature(payload, "test-stripe-secret", timestamp=expired_timestamp),
+            "Content-Type": "application/json",
+        },
+    )
+    assert response.status_code == 401
 
 
 def meta_signature(payload, secret="test-meta-app-secret"):

@@ -146,6 +146,32 @@ app = FastAPI(
 )
 
 
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "img-src 'self' data: https:; "
+        "media-src 'self' https:; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'"
+    ),
+}
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    for header, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(header, value)
+    return response
+
+
 @app.on_event("startup")
 def on_startup():
     start_backup_scheduler()
@@ -165,7 +191,7 @@ class ChatRequest(BaseModel):
 
 
 class CreateClientRequest(BaseModel):
-    client_id: str = Field(..., min_length=3, max_length=80)
+    client_id: str = Field(..., min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
     plan: str = "starter"
     credits: int | None = Field(default=None, ge=0)
     billing_email: str | None = None
@@ -1151,14 +1177,18 @@ def insert_usage_log(connection, log):
     )
 
 
+def query_auth_enabled():
+    return os.getenv("NEXAFLOW_ALLOW_QUERY_AUTH", "").lower() in {"1", "true", "yes"}
+
+
 def admin_guard(admin_key: str | None = Query(default=None), x_admin_key: str | None = Header(default=None)):
     expected = os.getenv("ADMIN_KEY")
-    supplied = x_admin_key or admin_key
+    supplied = x_admin_key or (admin_key if query_auth_enabled() else None)
 
     if not expected:
         raise HTTPException(status_code=503, detail="Server missing ADMIN_KEY")
 
-    if supplied != expected:
+    if not hmac.compare_digest(supplied or "", expected):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -1761,6 +1791,15 @@ def verify_stripe_signature(raw_body, signature_header, endpoint_secret):
     if not timestamps or not signatures:
         return False
 
+    try:
+        timestamp = int(timestamps[0])
+    except (TypeError, ValueError):
+        return False
+
+    tolerance_seconds = int(os.getenv("STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300"))
+    if abs(time() - timestamp) > tolerance_seconds:
+        return False
+
     signed_payload = timestamps[0].encode("utf-8") + b"." + raw_body
     expected = hmac.new(
         endpoint_secret.encode("utf-8"),
@@ -1769,6 +1808,10 @@ def verify_stripe_signature(raw_body, signature_header, endpoint_secret):
     ).hexdigest()
 
     return any(hmac.compare_digest(expected, signature) for signature in signatures)
+
+
+def legacy_payment_webhook_enabled():
+    return os.getenv("ENABLE_LEGACY_PAYMENT_WEBHOOK", "").lower() in {"1", "true", "yes"}
 
 
 def verify_meta_signature(raw_body, signature_header, app_secret):
@@ -1955,7 +1998,7 @@ def customer_guard(api_key=None, x_api_key=None, authorization=None):
     if authorization and authorization.lower().startswith("bearer "):
         bearer_token = authorization[7:].strip()
 
-    supplied = x_api_key or bearer_token or api_key
+    supplied = x_api_key or bearer_token or (api_key if query_auth_enabled() else None)
     if not supplied:
         raise HTTPException(status_code=401, detail="Missing customer API key")
 
@@ -3354,7 +3397,7 @@ def upsert_business_profile(req, owner_client_id=None):
             "SELECT created_at, access_key_hash, access_key_prefix, client_id FROM business_profiles WHERE slug = ?",
             (slug,),
         ).fetchone()
-        if existing and owner_client_id and existing["client_id"] not in {None, owner_client_id}:
+        if existing and owner_client_id and existing["client_id"] != owner_client_id:
             raise HTTPException(status_code=409, detail="Business slug is already used by another customer.")
 
         created_at = existing["created_at"] if existing else timestamp
@@ -4090,7 +4133,7 @@ def business_guard(
     x_business_key=None,
     authorization=None,
 ):
-    supplied = x_business_key or business_key or extract_bearer_token(authorization)
+    supplied = x_business_key or extract_bearer_token(authorization) or (business_key if query_auth_enabled() else None)
     profile = get_business_profile_for_access_key(supplied)
     if normalize_slug(business_slug) != profile["slug"]:
         raise HTTPException(status_code=403, detail="Business key cannot access this inbox")
@@ -4875,12 +4918,15 @@ def cleanup_expired_enquiries(business_slug=None, dry_run=True, limit_per_busine
     results = []
     total_expired = 0
     total_deleted = 0
+    total_expired_channel_messages = 0
+    total_deleted_channel_messages = 0
     current = datetime.now(timezone.utc)
 
     for profile in profiles:
         retention_days = int(profile.get("data_retention_days") or 365)
         cutoff = current - timedelta(days=retention_days)
         cutoff_iso = cutoff.isoformat()
+        cutoff_date = current.date().isoformat()
 
         with db_connection() as connection:
             rows = connection.execute(
@@ -4896,6 +4942,35 @@ def cleanup_expired_enquiries(business_slug=None, dry_run=True, limit_per_busine
             ids = [row["id"] for row in rows]
             expired_count = len(ids)
             deleted_count = 0
+            expired_channel_messages_count = 0
+            deleted_channel_messages_count = 0
+
+            message_where = "business_slug = ? AND retention_until IS NOT NULL AND retention_until != '' AND retention_until < ?"
+            message_params = [profile["slug"], cutoff_date]
+            if ids:
+                message_placeholders = ",".join("?" for _ in ids)
+                message_where = f"business_slug = ? AND ((retention_until IS NOT NULL AND retention_until != '' AND retention_until < ?) OR enquiry_id IN ({message_placeholders}))"
+                message_params = [profile["slug"], cutoff_date, *ids]
+            message_rows = connection.execute(
+                f"""
+                SELECT id
+                FROM channel_messages
+                WHERE {message_where}
+                ORDER BY created_at ASC
+                LIMIT ?
+                """,
+                [*message_params, limit_per_business],
+            ).fetchall()
+            message_ids = [row["id"] for row in message_rows]
+            expired_channel_messages_count = len(message_ids)
+
+            if message_ids and not dry_run:
+                message_delete_placeholders = ",".join("?" for _ in message_ids)
+                connection.execute(
+                    f"DELETE FROM channel_messages WHERE business_slug = ? AND id IN ({message_delete_placeholders})",
+                    [profile["slug"], *message_ids],
+                )
+                deleted_channel_messages_count = expired_channel_messages_count
 
             if ids and not dry_run:
                 placeholders = ",".join("?" for _ in ids)
@@ -4911,6 +4986,7 @@ def cleanup_expired_enquiries(business_slug=None, dry_run=True, limit_per_busine
                     business_slug=profile["slug"],
                     metadata={
                         "count": deleted_count,
+                        "channel_messages_deleted": deleted_channel_messages_count,
                         "retention_days": retention_days,
                         "cutoff": cutoff.date().isoformat(),
                     },
@@ -4919,6 +4995,8 @@ def cleanup_expired_enquiries(business_slug=None, dry_run=True, limit_per_busine
 
         total_expired += expired_count
         total_deleted += deleted_count
+        total_expired_channel_messages += expired_channel_messages_count
+        total_deleted_channel_messages += deleted_channel_messages_count
         results.append(
             {
                 "business_slug": profile["slug"],
@@ -4926,6 +5004,8 @@ def cleanup_expired_enquiries(business_slug=None, dry_run=True, limit_per_busine
                 "cutoff": cutoff.date().isoformat(),
                 "expired_count": expired_count,
                 "deleted_count": deleted_count,
+                "expired_channel_messages_count": expired_channel_messages_count,
+                "deleted_channel_messages_count": deleted_channel_messages_count,
                 "dry_run": dry_run,
             }
         )
@@ -4935,6 +5015,8 @@ def cleanup_expired_enquiries(business_slug=None, dry_run=True, limit_per_busine
         "processed": len(results),
         "expired": total_expired,
         "deleted": total_deleted,
+        "expired_channel_messages": total_expired_channel_messages,
+        "deleted_channel_messages": total_deleted_channel_messages,
         "limit_per_business": limit_per_business,
         "results": results,
     }
@@ -6539,21 +6621,7 @@ def plan_margin_report():
 def health():
     return {
         "status": "ok",
-        "storage": "sqlite",
-        "database_path": str(DATABASE_FILE),
-        "backup_path": str(BACKUP_DIR),
-        "backup_scheduler": backup_scheduler_status(),
-        "offsite_backup_configured": offsite_backup_configured(),
-        "offsite_backup_config": offsite_backup_config_status(),
-        "admin_configured": bool(os.getenv("ADMIN_KEY")),
-        "payment_webhook_configured": bool(os.getenv("PAYMENT_WEBHOOK_SECRET")),
-        "stripe_webhook_configured": bool(os.getenv("STRIPE_WEBHOOK_SECRET")),
-        "stripe_billing_portal_configured": stripe_billing_portal_configured(),
-        "email_delivery_configured": email_delivery_configured(),
-        "providers": {
-            provider_key: provider_status(provider_key)
-            for provider_key in PROVIDERS
-        },
+        "service": "nexaflow-gateway",
     }
 
 
@@ -11815,6 +11883,31 @@ def admin_dashboard():
                     status.textContent = error.message;
                 }
             }
+            async function downloadBackup(backupName) {
+                const adminKey = document.getElementById("adminKey").value;
+                const status = document.getElementById("status");
+                status.textContent = "Downloading backup...";
+                try {
+                    const response = await fetch(`/admin/backups/${encodeURIComponent(backupName)}`, {
+                        headers: { "X-Admin-Key": adminKey }
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = backupName;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(url);
+                    status.textContent = `Downloaded backup: ${backupName}`;
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            }
             function renderAutomationResult(result) {
                 const tasks = result.tasks || {};
                 const deploy = tasks.deployment_checks || {};
@@ -11832,6 +11925,7 @@ def admin_dashboard():
                     `Merchant health: ${merchantSummary.high || 0} high risk, ${merchantSummary.due_followups || 0} due follow-up(s)`,
                     `Follow-up digest: processed ${followups.processed || 0}, sent ${followups.sent || 0}, skipped ${followups.skipped || 0}`,
                     `Data retention: expired ${retention.expired || 0}, deleted ${retention.deleted || 0}`,
+                    `Channel messages: expired ${retention.expired_channel_messages || 0}, deleted ${retention.deleted_channel_messages || 0}`,
                     `Backup: ${backup.status || "unknown"} - ${backup.reason || backup.backup?.name || ""}`,
                     `Next: ${result.next_step || ""}`
                 ].join("\\n");
@@ -11994,15 +12088,18 @@ def admin_dashboard():
                     `).join("");
                     document.getElementById("clients").innerHTML = clients.clients.map(client => `
                         <tr>
-                            <td>${client.client_id}</td>
-                            <td>${client.plan}</td>
-                            <td>${client.credits}</td>
-                            <td>${client.status}</td>
-                            <td>${client.billing_email || ""}</td>
-                            <td>${client.api_key_prefix}</td>
-                            <td><button class="btn secondary" onclick="resendApiKey('${client.client_id}')">Resend Key</button></td>
+                            <td>${escapeHtml(client.client_id || "")}</td>
+                            <td>${escapeHtml(client.plan || "")}</td>
+                            <td>${escapeHtml(client.credits ?? "")}</td>
+                            <td>${escapeHtml(client.status || "")}</td>
+                            <td>${escapeHtml(client.billing_email || "")}</td>
+                            <td>${escapeHtml(client.api_key_prefix || "")}</td>
+                            <td><button class="btn secondary" data-resend-client="${escapeHtml(client.client_id || "")}">Resend Key</button></td>
                         </tr>
                     `).join("");
+                    document.querySelectorAll("[data-resend-client]").forEach(button => {
+                        button.addEventListener("click", () => resendApiKey(button.dataset.resendClient || ""));
+                    });
                     document.getElementById("paymentEvents").innerHTML = events.payment_events.map(event => `
                         <tr>
                             <td>${escapeHtml(event.created_at || "")}</td>
@@ -12036,9 +12133,12 @@ def admin_dashboard():
                             <td>${escapeHtml(backup.created_at)}</td>
                             <td>${fmt.format(backup.size_bytes || 0)} bytes</td>
                             <td>${escapeHtml(backup.offsite?.status || "")}</td>
-                            <td><a class="btn secondary" href="/admin/backups/${encodeURIComponent(backup.name)}?admin_key=${encodeURIComponent(adminKey)}">Download</a></td>
+                            <td><button class="btn secondary" data-backup-name="${escapeHtml(backup.name)}">Download</button></td>
                         </tr>
                     `).join("");
+                    document.querySelectorAll("[data-backup-name]").forEach(button => {
+                        button.addEventListener("click", () => downloadBackup(button.dataset.backupName || ""));
+                    });
                     document.getElementById("backupScheduler").textContent = [
                         `Enabled: ${backups.scheduler.enabled}`,
                         `Started: ${backups.scheduler.started}`,
@@ -12250,11 +12350,13 @@ def download_backup(
     if not path.exists():
         raise HTTPException(status_code=404, detail="Backup not found")
 
-    return FileResponse(
+    response = FileResponse(
         path,
         filename=path.name,
         media_type="application/vnd.sqlite3",
     )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.post("/webhooks/payment")
@@ -12262,12 +12364,15 @@ def payment_webhook(
     req: PaymentWebhookRequest,
     x_webhook_secret: str | None = Header(default=None),
 ):
+    if not legacy_payment_webhook_enabled():
+        raise HTTPException(status_code=404, detail="Legacy payment webhook is disabled. Use /webhooks/stripe.")
+
     expected_secret = os.getenv("PAYMENT_WEBHOOK_SECRET")
 
     if not expected_secret:
         raise HTTPException(status_code=503, detail="Server missing PAYMENT_WEBHOOK_SECRET")
 
-    if x_webhook_secret != expected_secret:
+    if not hmac.compare_digest(x_webhook_secret or "", expected_secret):
         raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
     return process_payment_event(req)
