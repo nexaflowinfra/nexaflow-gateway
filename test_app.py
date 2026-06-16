@@ -132,8 +132,9 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     assert "Demo data only. No message is sent." in response.text
     assert "Buyer progress" in response.text
     assert "买家进度" in response.text
-    assert "Create Dealer Inbox" in response.text
-    assert "创建车商 Inbox" in response.text
+    assert "Create Trial Inbox" in response.text
+    assert "创建试用 Inbox" in response.text
+    assert "Test with a real DM" in response.text
     assert "/admin/dashboard" not in response.text
     assert "business_access_key" not in response.text
     assert "nexaflow_business_key_" not in response.text
@@ -615,14 +616,14 @@ def test_business_profile_create_and_public_form_loads():
     assert "nexaflow_channels_lang" in channels.text
     assert "询问来源设置" in channels.text
     assert "不要在这里粘贴平台密码" in channels.text
-    assert "申请自动同步" in channels.text
+    assert "之后申请 Meta 同步" in channels.text
     assert "Never paste platform passwords" in channels.text
-    assert "Request auto sync" in channels.text
+    assert "Request Meta sync later" in channels.text
     assert "Assisted capture" in channels.text
-    assert "Meta auto-sync setup" in channels.text
+    assert "Meta auto-sync setup request" in channels.text
     assert "metaSetupContent" in channels.text
     assert "loadMetaSetup" in channels.text
-    assert "Send pilot test" in channels.text
+    assert "Create local test buyer" in channels.text
     assert "sendMetaPilotTest" in channels.text
     assert "/admin/dashboard" not in channels.text
 
@@ -1735,11 +1736,15 @@ def test_merchant_can_run_meta_pilot_test_after_channel_mapping():
     assert profile.status_code == 200
     business_key = profile.json()["business_access_key"]
 
-    blocked = client.post(
+    local_test = client.post(
         f"/apps/enquiry/api/merchant/channel-connections/instagram/pilot-test?business_slug={slug}",
         headers={"X-Business-Key": business_key},
     )
-    assert blocked.status_code == 409
+    assert local_test.status_code == 200
+    local_body = local_test.json()
+    assert local_body["status"] == "created"
+    assert local_body["channel"] == "instagram"
+    assert "No real Meta DM was sent or received" in local_body["message"]
 
     connection = client.patch(
         f"/apps/enquiry/api/merchant/channel-connections/instagram?business_slug={slug}",
