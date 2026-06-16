@@ -5622,10 +5622,12 @@ def dealer_demo_page_body():
         f"""
         <button type="button" class="demo-queue-card {"active" if index == 0 else ""}" data-demo-id="{card["id"]}" onclick="selectDemoLead({card["id"]})">
             <span class="demo-queue-top">
-                <strong>{escape_html(card["name"])}</strong>
+                <span class="demo-queue-title">
+                    <strong>{escape_html(card["name"])}</strong>
+                    <span class="demo-queue-meta">{lang_span(demo_source_label(card["source"]), demo_source_label_zh(card["source"]))} · {lang_span(demo_status_label(card["status"]), demo_status_label_zh(card["status"]))}</span>
+                </span>
                 <span class="lead-badge {"hot" if card["priority"] == "hot" or card["follow_up_at"] <= today_iso else ""}">{lang_span(demo_priority_label(card["priority"]), demo_priority_label_zh(card["priority"]))}</span>
             </span>
-            <span class="demo-queue-meta">{lang_span(demo_source_label(card["source"]), demo_source_label_zh(card["source"]))} · {lang_span(demo_status_label(card["status"]), demo_status_label_zh(card["status"]))}</span>
             <span class="demo-queue-focus">{lang_span(card["stuck_point"], card["stuck_point_zh"])}</span>
         </button>
         """
@@ -5639,28 +5641,42 @@ def dealer_demo_page_body():
     )
 
     return f"""
+    <style>
+        @media (max-width: 520px) {{
+            .nav-contact {{ display: none; }}
+        }}
+    </style>
     <section class="hero compact">
         <div>
-            <div class="language-toggle" aria-label="Language">
-                <button type="button" class="active" onclick="setDealerDemoLang('en')" id="demoLangEn">EN</button>
-                <button type="button" onclick="setDealerDemoLang('zh')" id="demoLangZh">中文</button>
+            <div class="product-controls demo-controls">
+                <div class="glass-control demo-glass-control">
+                    <span class="control-label">{lang_span("Language", "语言")}</span>
+                    <div class="language-toggle" aria-label="Language" id="demoLangToggle">
+                        <button type="button" class="active" onclick="setDealerDemoLang('en')" id="demoLangEn">EN</button>
+                        <button type="button" onclick="setDealerDemoLang('zh')" id="demoLangZh">中文</button>
+                    </div>
+                </div>
             </div>
             <div class="eyebrow">{lang_span("Dealer Demo", "车商 Demo")}</div>
             <h1>{lang_span("A sales queue for used car enquiries.", "二手车询问的销售队列。")}</h1>
-            <p class="lead">{lang_span("Pick a buyer, see what they want, what they are stuck on, and the next reply your sales team can send.", "点开一个买家，马上看到他想要什么、卡在哪里，以及销售可以发的下一句回复。")}</p>
+            <p class="lead">{lang_span("Open the queue, pick the first buyer, and copy the next reply your sales team can send.", "打开队列，从第一个买家开始，直接复制销售可以发的下一句回复。")}</p>
             <div class="actions">
                 <a class="btn" href="/merchant-signup">{lang_span("Create Trial Inbox", "创建试用 Inbox")}</a>
-                <a class="btn secondary" href="/merchant-signup">{lang_span("Test with a real DM", "用真实私信测试")}</a>
+                <a class="text-link" href="#demoNotes">{lang_span("Test with a real DM", "用真实私信测试")}</a>
             </div>
-            <p class="mini-note">{lang_span("Trial path: create an inbox, load demo buyers or paste one real DM/call, then copy the next reply. Meta auto-sync can be connected later.", "试用路径：先创建 inbox，加载示例买家或放入一条真实私信/电话内容，再复制下一句回复。Meta 自动同步之后再接。")}</p>
         </div>
     </section>
     <section class="form-card">
         <div class="section-head">
             <div>
                 <h2>{lang_span("Today's buyer queue", "今天的买家队列")}</h2>
-                <p>{lang_span("Start from the top, open one buyer, then copy the next reply. Demo data only. No message is sent.", "从最上面开始，点开一个买家，然后复制下一句回复。这里是 Demo 资料，不会发送任何消息。")}</p>
+                <p>{lang_span("Start from the top. Demo data only. No message is sent.", "从最上面开始处理。这里是 Demo 资料，不会发送任何消息。")}</p>
             </div>
+        </div>
+        <div class="demo-kpi-strip" aria-label="Demo queue summary">
+            <span><strong>{hot_count}</strong>{lang_span("Reply first", "优先回复")}</span>
+            <span><strong>{due_count}</strong>{lang_span("Due today", "今天到期")}</span>
+            <span><strong>{len(display_cards)}</strong>{lang_span("In queue", "队列中")}</span>
         </div>
         <div class="dealer-demo-board">
             <div class="demo-queue" aria-label="Demo buyer queue">{lead_cards}</div>
@@ -5695,9 +5711,13 @@ def dealer_demo_page_body():
             }});
             const enButton = document.getElementById("demoLangEn");
             const zhButton = document.getElementById("demoLangZh");
+            const toggle = document.getElementById("demoLangToggle");
             if (enButton && zhButton) {{
                 enButton.classList.toggle("active", lang === "en");
                 zhButton.classList.toggle("active", lang === "zh");
+            }}
+            if (toggle) {{
+                toggle.classList.toggle("is-second", lang === "zh");
             }}
             if (options.persist !== false) {{
                 localStorage.setItem("nexaflow_dealer_demo_lang", lang);
@@ -5775,6 +5795,14 @@ def dealer_demo_page_body():
                     </div>
                     <span class="lead-badge ${{lead.priority === "hot" ? "hot" : ""}}">${{demoLangSpan(demoPriorityLabelEn(lead.priority), demoPriorityLabelZh(lead.priority))}}</span>
                 </div>
+                <div class="demo-reply-box primary">
+                    <strong>${{demoLangSpan("Next reply to send", "建议发送的下一句")}}</strong>
+                    <p>${{demoLangSpan(lead.reply_draft, lead.reply_draft_zh || lead.reply_draft)}}</p>
+                </div>
+                <div class="demo-panel-actions">
+                    <button type="button" class="btn" onclick="copyDemoReply()">${{demoLangSpan("Copy reply", "复制回复")}}</button>
+                    <span id="demoPanelStatus">${{demoLangSpan("Demo only: no message is sent.", "Demo 不会发送任何消息。")}}</span>
+                </div>
                 <div class="demo-detail-grid">
                     <div class="demo-detail-box">
                         <strong>${{demoLangSpan("Buyer wants", "客户想要")}}</strong>
@@ -5784,14 +5812,6 @@ def dealer_demo_page_body():
                         <strong>${{demoLangSpan("Stuck on", "客户卡点")}}</strong>
                         <span>${{demoLangSpan(lead.stuck_point, lead.stuck_point_zh || lead.stuck_point)}}</span>
                     </div>
-                </div>
-                <div class="demo-reply-box">
-                    <strong>${{demoLangSpan("Next reply", "下一句回复")}}</strong>
-                    <p>${{demoLangSpan(lead.reply_draft, lead.reply_draft_zh || lead.reply_draft)}}</p>
-                </div>
-                <div class="demo-panel-actions">
-                    <button type="button" class="btn secondary" onclick="copyDemoReply()">${{demoLangSpan("Copy reply", "复制回复")}}</button>
-                    <span id="demoPanelStatus">${{demoLangSpan("Demo only: no message is sent.", "Demo 不会发送任何消息。")}}</span>
                 </div>
                 <details class="demo-inline-details">
                     <summary>${{demoLangSpan("More buyer details", "更多买家资料")}}</summary>
@@ -5832,10 +5852,10 @@ def dealer_demo_page_body():
         setDealerDemoLang(currentDealerDemoLang(), {{ persist: false }});
         selectDemoLead(selectedDemoLeadId);
     </script>
-    <details class="form-card">
+    <details class="form-card" id="demoNotes">
         <summary>{lang_span("Demo notes", "Demo 说明")}</summary>
-        <section class="action-center">
-            <div class="action-card">
+        <section class="demo-notes-grid">
+            <div>
                 <h3>{lang_span("Open today's queue", "打开今天队列")}</h3>
                 <p>{lang_span("See who should be replied first, who needs a loan check, and who is waiting for a viewing confirmation.", "先看谁要优先回复、谁要查贷款、谁在等看车确认。")}</p>
                 <div class="lead-badges">
@@ -5844,7 +5864,7 @@ def dealer_demo_page_body():
                     <span class="lead-badge">{lang_span("Demo buyers", "Demo 买家")} · {len(cards)}</span>
                 </div>
             </div>
-            <div class="action-card">
+            <div>
                 <h3>{lang_span("All sources, one list", "所有来源，一个列表")}</h3>
                 <p>{lang_span("WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, referral, and direct link enquiries can be worked from the same sales queue.", "WhatsApp、Instagram、Facebook、TikTok、小红书、介绍和 direct link 来的客户，都可以在同一个销售队列处理。")}</p>
                 <div class="lead-badges">{source_badges}</div>
@@ -7126,7 +7146,7 @@ def nexaflow_dealer_walkthrough_video():
     return FileResponse(path, media_type="video/webm")
 
 
-def merchant_html(title, business_name, body, show_sales_contact=False):
+def merchant_html(title, business_name, body, show_sales_contact=False, show_floating_contact=True):
     safe_title = escape_html(title)
     safe_business_name = escape_html(business_name)
     whatsapp_url = sales_whatsapp_url() if show_sales_contact else None
@@ -7137,7 +7157,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
     )
     sales_contact_float = (
         f'<a class="floating-whatsapp" target="_blank" rel="noopener" href="{escape_html(whatsapp_url)}">WhatsApp Us</a>'
-        if whatsapp_url
+        if whatsapp_url and show_floating_contact
         else ""
     )
     merchant_login_nav = '<a class="nav-login" href="/merchant-login">Merchant Login</a>'
@@ -8036,6 +8056,37 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     background: rgba(255,255,255,.03);
                 }}
                 .lead-badge.hot {{ color: #ffffff; border-color: rgba(243,199,106,.5); background: rgba(243,199,106,.12); }}
+                .demo-controls {{
+                    margin-bottom: 18px;
+                }}
+                .demo-glass-control {{
+                    padding-left: 10px;
+                }}
+                .demo-kpi-strip {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 1px;
+                    overflow: hidden;
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background: var(--line);
+                    margin: 0 0 14px;
+                }}
+                .demo-kpi-strip span {{
+                    display: grid;
+                    gap: 3px;
+                    min-width: 0;
+                    background: rgba(0,0,0,.22);
+                    padding: 12px;
+                    color: var(--muted);
+                    font-size: 12px;
+                    font-weight: 800;
+                }}
+                .demo-kpi-strip strong {{
+                    color: var(--ink);
+                    font-size: 22px;
+                    line-height: 1;
+                }}
                 .next-action {{
                     display: block;
                     margin-top: 8px;
@@ -8069,35 +8120,36 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .dealer-demo-board {{
                     display: grid;
-                    grid-template-columns: minmax(300px, .86fr) minmax(360px, 1.14fr);
+                    grid-template-columns: minmax(270px, .72fr) minmax(390px, 1.28fr);
                     gap: 14px;
                     align-items: start;
                 }}
                 .demo-queue {{
                     display: grid;
-                    gap: 10px;
+                    gap: 8px;
                     min-width: 0;
                 }}
                 .demo-queue-card {{
                     width: 100%;
                     border: 1px solid var(--line);
                     border-radius: 8px;
-                    background: var(--surface);
+                    background: rgba(255,255,255,.025);
                     color: var(--ink);
-                    padding: 14px;
+                    padding: 12px;
                     display: grid;
-                    gap: 8px;
+                    gap: 7px;
                     text-align: left;
                     cursor: pointer;
-                    transition: border-color .16s ease, background .16s ease, transform .16s ease;
+                    transition: border-color .16s ease, background .16s ease, transform .16s ease, box-shadow .16s ease;
                     min-width: 0;
                 }}
                 .demo-queue-card:hover,
                 .demo-queue-card.active {{
                     border-color: rgba(243,199,106,.7);
-                    background:
-                        linear-gradient(135deg, rgba(243,199,106,.10), rgba(45,212,191,.05)),
-                        var(--surface);
+                    background: rgba(243,199,106,.07);
+                }}
+                .demo-queue-card.active {{
+                    box-shadow: inset 3px 0 0 var(--gold);
                 }}
                 .demo-queue-card:hover {{
                     transform: translateY(-1px);
@@ -8107,6 +8159,11 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     justify-content: space-between;
                     align-items: flex-start;
                     gap: 10px;
+                }}
+                .demo-queue-title {{
+                    display: grid;
+                    gap: 3px;
+                    min-width: 0;
                 }}
                 .demo-queue-top strong {{
                     color: var(--ink);
@@ -8123,13 +8180,14 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     font-size: 13px;
                     font-weight: 800;
                     line-height: 1.35;
+                    overflow-wrap: anywhere;
                 }}
                 .demo-detail-panel {{
                     border: 1px solid rgba(243,199,106,.28);
                     border-radius: 8px;
-                    background: var(--surface);
-                    padding: 18px;
-                    min-height: 380px;
+                    background: rgba(8,8,8,.78);
+                    padding: 16px;
+                    min-height: 0;
                     position: sticky;
                     top: 88px;
                     min-width: 0;
@@ -8143,7 +8201,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .demo-detail-head h3 {{
                     margin: 4px 0 0;
-                    font-size: 24px;
+                    font-size: 22px;
                 }}
                 .demo-detail-kicker {{
                     color: var(--muted);
@@ -8156,7 +8214,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     display: grid;
                     grid-template-columns: repeat(2, minmax(0, 1fr));
                     gap: 10px;
-                    margin: 14px 0;
+                    margin: 12px 0;
                 }}
                 .demo-detail-box,
                 .demo-message-box,
@@ -8184,14 +8242,21 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     line-height: 1.48;
                 }}
                 .demo-reply-box {{
-                    margin-top: 12px;
+                    margin-top: 10px;
                     border-color: rgba(243,199,106,.42);
                     border-left: 3px solid var(--gold);
                     background: rgba(243,199,106,.075);
                 }}
+                .demo-reply-box.primary {{
+                    margin-top: 12px;
+                    background:
+                        linear-gradient(135deg, rgba(243,199,106,.13), rgba(255,255,255,.025)),
+                        rgba(0,0,0,.24);
+                }}
                 .demo-reply-box p {{
                     color: var(--ink);
                     font-size: 14px;
+                    overflow-wrap: anywhere;
                 }}
                 .demo-inline-details {{
                     border: 1px solid var(--line);
@@ -8222,6 +8287,22 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 .demo-panel-actions span {{
                     color: var(--muted);
                     font-size: 12px;
+                }}
+                .demo-notes-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 16px;
+                }}
+                .demo-notes-grid h3 {{
+                    margin: 0 0 6px;
+                    color: var(--ink);
+                    font-size: 15px;
+                }}
+                .demo-notes-grid p {{
+                    margin: 0;
+                    color: var(--muted);
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
                 .simple-actions {{
                     display: flex;
@@ -8490,7 +8571,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .preview-board, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card, .dealer-demo-board, .demo-detail-grid {{ grid-template-columns: 1fr; }}
+                    .hero, .preview-board, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card, .dealer-demo-board, .demo-detail-grid, .demo-notes-grid {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     nav {{ padding: 13px 14px; gap: 8px; }}
@@ -8519,12 +8600,31 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     .trial-request-head {{ display: grid; }}
                     .trial-followup {{ border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 14px; }}
                     .demo-detail-panel {{ position: static; min-height: 0; }}
+                    .demo-kpi-strip span {{ padding: 10px 8px; }}
+                    .demo-queue-card:nth-of-type(n+4) {{ display: none; }}
+                    .hero.compact,
+                    .hero.compact h1,
+                    .hero.compact .lead,
+                    .form-card,
+                    .demo-glass-control {{
+                        max-width: calc(100vw - 40px);
+                    }}
                     .form-card, .action-card, .share-link-box {{ width: 100%; }}
                     .floating-whatsapp {{ right: 14px; bottom: 14px; min-height: 44px; padding: 10px 14px; max-width: calc(100vw - 28px); }}
                 }}
                 @media (max-width: 430px) {{
                     main {{ padding-left: 20px; padding-right: 20px; }}
                     .hero.product-hero {{ padding-top: 32px; }}
+                }}
+                @media (max-width: 520px) {{
+                    .hero.compact,
+                    .hero.compact h1,
+                    .hero.compact .lead,
+                    .form-card,
+                    .demo-glass-control {{
+                        width: 100%;
+                        max-width: min(350px, calc(100vw - 40px));
+                    }}
                 }}
             </style>
         </head>
@@ -9382,6 +9482,7 @@ def dealer_demo_page():
         "NexaFlow",
         dealer_demo_page_body(),
         show_sales_contact=True,
+        show_floating_contact=False,
     )
 
 
