@@ -7394,6 +7394,62 @@ def merchant_html(title, business_name, body, show_sales_contact=False):
                     margin-bottom: 0;
                     background: rgba(255,255,255,.05);
                     box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 0;
+                    isolation: isolate;
+                }}
+                .glass-control .language-toggle::after {{
+                    content: "";
+                    position: absolute;
+                    z-index: 1;
+                    top: 4px;
+                    bottom: 4px;
+                    left: 4px;
+                    width: calc((100% - 8px) / 2);
+                    border-radius: 999px;
+                    pointer-events: none;
+                    background:
+                        radial-gradient(circle at 28% 18%, rgba(255,255,255,.98), rgba(255,255,255,.38) 34%, transparent 62%),
+                        linear-gradient(135deg, rgba(255,255,255,.88), rgba(243,199,106,.82) 56%, rgba(255,255,255,.68));
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,.98),
+                        inset 0 -10px 18px rgba(243,199,106,.22),
+                        0 6px 18px rgba(0,0,0,.34),
+                        0 0 0 1px rgba(255,255,255,.18);
+                    backdrop-filter: blur(18px) saturate(190%);
+                    -webkit-backdrop-filter: blur(18px) saturate(190%);
+                    transform: translateX(0);
+                    transition:
+                        transform .42s cubic-bezier(.22, 1.18, .36, 1),
+                        box-shadow .24s ease,
+                        filter .24s ease;
+                }}
+                .glass-control .language-toggle.is-second::after {{
+                    transform: translateX(100%);
+                }}
+                .glass-control .language-toggle:active::after {{
+                    filter: brightness(1.04);
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,.98),
+                        inset 0 -8px 18px rgba(243,199,106,.2),
+                        0 4px 14px rgba(0,0,0,.28),
+                        0 0 0 1px rgba(255,255,255,.2);
+                }}
+                .glass-control .language-toggle button {{
+                    background: transparent !important;
+                    box-shadow: none !important;
+                    z-index: 2;
+                    transition: color .2s ease, transform .2s ease;
+                }}
+                .glass-control .language-toggle button.active {{
+                    color: #050505;
+                }}
+                .glass-control .language-toggle button:not(.active) {{
+                    color: rgba(247,243,234,.68);
+                }}
+                .glass-control .language-toggle button:active {{
+                    transform: scale(.985);
                 }}
                 .lang-hidden, .market-hidden {{ display: none !important; }}
                 .btn {{
@@ -8817,14 +8873,14 @@ def landing_page():
                 <div class="product-controls">
                     <div class="glass-control">
                         <span class="control-label">Language</span>
-                        <div class="language-toggle" aria-label="Language">
+                        <div class="language-toggle" aria-label="Language" id="langToggle">
                             <button type="button" class="active" onclick="setProductLang('en')" id="langEn">EN</button>
                             <button type="button" onclick="setProductLang('zh')" id="langZh">中文</button>
                         </div>
                     </div>
                     <div class="glass-control">
                         <span class="control-label">Region</span>
-                        <div class="language-toggle" aria-label="Market">
+                        <div class="language-toggle" aria-label="Market" id="marketToggle">
                             <button type="button" class="active" onclick="setProductMarket('sg')" id="marketSg">Singapore</button>
                             <button type="button" onclick="setProductMarket('my')" id="marketMy">Malaysia</button>
                         </div>
@@ -9012,6 +9068,7 @@ def landing_page():
                 }});
                 document.getElementById("langEn").classList.toggle("active", lang === "en");
                 document.getElementById("langZh").classList.toggle("active", lang === "zh");
+                document.getElementById("langToggle").classList.toggle("is-second", lang === "zh");
                 localStorage.setItem("nexaflow_home_lang", lang);
             }}
             function setProductMarket(market) {{
@@ -9020,6 +9077,7 @@ def landing_page():
                 }});
                 document.getElementById("marketSg").classList.toggle("active", market === "sg");
                 document.getElementById("marketMy").classList.toggle("active", market === "my");
+                document.getElementById("marketToggle").classList.toggle("is-second", market === "my");
                 localStorage.setItem("nexaflow_home_market", market);
             }}
             setProductLang(localStorage.getItem("nexaflow_home_lang") || "en");
