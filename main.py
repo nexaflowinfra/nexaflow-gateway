@@ -8584,7 +8584,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     .nav-actions {{ gap: 8px; }}
                     .nav-login {{ display: none; }}
                     .nav-contact {{ padding: 7px 10px; font-size: 13px; max-width: 94px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-                    .product-controls {{ align-items: stretch; }}
+                    .product-controls {{ align-items: flex-start; gap: 8px; }}
                     .glass-control {{
                         width: 100%;
                         min-width: 0;
@@ -8594,12 +8594,26 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                         justify-content: stretch;
                     }}
                     .glass-control.label-free {{
+                        width: fit-content;
                         grid-template-columns: minmax(0, 1fr);
-                        padding: 5px;
+                        display: inline-flex;
+                        padding: 4px;
                     }}
                     .control-label {{ font-size: 10px; }}
                     .glass-control .language-toggle {{ width: 100%; min-width: 0; }}
                     .language-toggle button {{ flex: 1 1 0; min-width: 0; padding: 7px 7px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }}
+                    .glass-control.label-free .language-toggle {{ width: auto; }}
+                    .glass-control.label-free .language-toggle button {{
+                        flex: 0 0 auto;
+                        min-width: 58px;
+                        padding: 6px 10px;
+                        font-size: 12px;
+                    }}
+                    .glass-control.label-free #marketToggle button {{
+                        min-width: 88px;
+                        padding-left: 10px;
+                        padding-right: 10px;
+                    }}
                     .price-card.trial {{ grid-template-columns: 1fr; }}
                     .trust-strip {{ grid-template-columns: 1fr; }}
                     .signal-row {{ grid-template-columns: 1fr; }}
@@ -8627,8 +8641,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     .hero.compact,
                     .hero.compact h1,
                     .hero.compact .lead,
-                    .form-card,
-                    .demo-glass-control {{
+                    .form-card {{
                         width: 100%;
                         max-width: min(350px, calc(100vw - 40px));
                     }}
