@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-18T00:00:00+08:00",
+  "title": "Design System: NexaFlow Enquiry",
+  "extensions": {
+    "colorMeta": {
+      "night": {
+        "role": "neutral",
+        "displayName": "Nexa Black",
+        "canonical": "#000000",
+        "tonalRamp": ["#000000", "#050505", "#070707", "#0c0c0d", "#141312", "#191715", "#aaa39a", "#f7f3ea"]
+      },
+      "gold": {
+        "role": "primary",
+        "displayName": "Signal Gold",
+        "canonical": "#f3c76a",
+        "tonalRamp": ["#2a1f08", "#4d390f", "#75591c", "#a98432", "#d9ad53", "#f3c76a", "#ffe3a0", "#fff4d8"]
+      },
+      "teal": {
+        "role": "secondary",
+        "displayName": "Connected Teal",
+        "canonical": "#45d5c7",
+        "tonalRamp": ["#06201e", "#0b3935", "#125c55", "#1f867c", "#2fb6aa", "#45d5c7", "#9cf0e8", "#dffcf9"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Action Red",
+        "canonical": "#ef4444",
+        "tonalRamp": ["#2b0505", "#4f0a0a", "#7f1d1d", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fee2e2"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Merchant-Speed Display",
+        "purpose": "Hero headlines and main value propositions only."
+      },
+      "body": {
+        "displayName": "Readable Operating Copy",
+        "purpose": "Plain-language workflow explanations, trust notes, and bilingual content."
+      }
+    },
+    "shadows": [
+      {
+        "name": "brand-mark-glow",
+        "value": "0 0 18px rgba(243,199,106,.18)",
+        "purpose": "Subtle glow around the NexaFlow mark."
+      },
+      {
+        "name": "panel-depth",
+        "value": "0 24px 70px rgba(0,0,0,.28)",
+        "purpose": "Major panels and forms only."
+      },
+      {
+        "name": "preview-depth",
+        "value": "0 28px 90px rgba(0,0,0,.34)",
+        "purpose": "Hero sales queue preview."
+      }
+    ],
+    "motion": [
+      {
+        "name": "glass-thumb-slide",
+        "value": "transform .42s cubic-bezier(.22, 1.18, .36, 1)",
+        "purpose": "Language and region toggle thumb movement."
+      },
+      {
+        "name": "quick-state",
+        "value": "border-color .16s ease, background .16s ease, transform .16s ease, box-shadow .16s ease",
+        "purpose": "Queue-card hover and selected state feedback."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "820px"
+      },
+      {
+        "name": "small-phone",
+        "value": "430px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action the merchant should take next.",
+      "html": "<button class=\"ds-btn-primary\">See Sales Demo</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; padding: 10px 14px; min-height: 40px; background: #f3c76a; color: #000; font-weight: 700; cursor: pointer; } .ds-btn-primary:hover { background: linear-gradient(135deg, #ffe3a0, #fff); } .ds-btn-primary:focus-visible { outline: 2px solid #ffe3a0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A lower-priority action that stays quiet on dark surfaces.",
+      "html": "<button class=\"ds-btn-secondary\">Create Enquiry Inbox</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.095); border-radius: 8px; padding: 10px 14px; min-height: 40px; background: rgba(255,255,255,.025); color: #f7f3ea; font-weight: 700; cursor: pointer; } .ds-btn-secondary:hover { background: #18140d; } .ds-btn-secondary:focus-visible { outline: 2px solid #ffe3a0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Liquid Glass Toggle",
+      "kind": "custom",
+      "refersTo": "glass-toggle",
+      "description": "A compact two-option toggle for language and market selection.",
+      "html": "<div class=\"ds-glass-toggle\"><span class=\"ds-glass-thumb\"></span><button class=\"is-active\">EN</button><button>中文</button></div>",
+      "css": ".ds-glass-toggle { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; padding: 4px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.045)), rgba(255,255,255,.045); box-shadow: inset 0 1px 0 rgba(255,255,255,.24), inset 0 -10px 22px rgba(0,0,0,.16), 0 12px 32px rgba(0,0,0,.22); backdrop-filter: blur(20px) saturate(170%); } .ds-glass-thumb { position: absolute; z-index: 1; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 2); border-radius: 999px; background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(243,199,106,.82) 56%, rgba(255,255,255,.68)); box-shadow: inset 0 1px 0 rgba(255,255,255,.98), 0 6px 18px rgba(0,0,0,.34); } .ds-glass-toggle button { position: relative; z-index: 2; border: 0; border-radius: 999px; padding: 6px 10px; min-width: 58px; background: transparent; color: rgba(247,243,234,.68); font-weight: 850; } .ds-glass-toggle button.is-active { color: #050505; }"
+    },
+    {
+      "name": "Sales Queue Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A compact customer item showing source, priority, and next action.",
+      "html": "<article class=\"ds-queue-card\"><strong>WhatsApp Quote Lead</strong><span>Reply first · price / timing</span></article>",
+      "css": ".ds-queue-card { border: 1px solid rgba(255,255,255,.095); border-radius: 8px; padding: 12px; background: rgba(255,255,255,.025); color: #f7f3ea; display: grid; gap: 6px; } .ds-queue-card strong { color: #f7f3ea; font-size: 14px; } .ds-queue-card span { color: #aaa39a; font-size: 12px; line-height: 1.35; } .ds-queue-card:hover, .ds-queue-card.is-active { border-color: rgba(243,199,106,.58); background: rgba(243,199,106,.08); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calm Sales Control Room",
+    "overview": "NexaFlow should look like a serious, private sales operating system: dark, quiet, premium, and immediately useful. The visual job is to help a busy merchant understand the workflow without reading much.",
+    "keyCharacteristics": [
+      "Warm-black base with restrained gold emphasis.",
+      "Practical queue previews instead of abstract AI decoration.",
+      "Compact controls and cards that work on mobile first.",
+      "Security and data protection shown calmly.",
+      "Bilingual English / Chinese support where adoption needs it."
+    ],
+    "rules": [
+      {
+        "name": "The Rare Gold Rule",
+        "body": "Gold is the decision color. Use it for the one thing the merchant should do next, not as decoration across every card.",
+        "section": "colors"
+      },
+      {
+        "name": "The Merchant-Speed Rule",
+        "body": "If a merchant cannot scan the first viewport in five seconds, the type hierarchy is too busy.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-Until-Useful Rule",
+        "body": "Cards are flat by default. Add stronger depth only when the element is a primary preview, modal-like panel, or floating action.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do lead with the workflow: source, request, missing details, stuck point, next reply, reminder.",
+      "Do keep the homepage broad for merchants and sales teams.",
+      "Do keep gold rare and directional.",
+      "Do preserve bilingual English / Chinese support on adoption-critical pages."
+    ],
+    "donts": [
+      "Don't make the public homepage only for used car dealers.",
+      "Don't make one-click reply the whole value proposition.",
+      "Don't use generic AI SaaS purple-blue gradients, decorative card walls, or abstract AI blobs.",
+      "Don't build a complex enterprise CRM first impression."
+    ]
+  }
+}
