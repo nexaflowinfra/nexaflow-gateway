@@ -253,6 +253,16 @@ class MerchantManualEnquiryCreate(BaseModel):
     processing_acknowledged: bool = False
 
 
+class MerchantCopilotAnalyzeRequest(BaseModel):
+    name: str | None = Field(default="", max_length=120)
+    phone: str | None = Field(default="", max_length=40)
+    email: str | None = Field(default=None, max_length=200)
+    message: str = Field(..., min_length=3, max_length=4000)
+    source: str = Field(default="manual", max_length=80)
+    campaign: str = Field(default="copilot-preview", max_length=120)
+    processing_acknowledged: bool = False
+
+
 class BusinessProfileRequest(BaseModel):
     slug: str = Field(..., min_length=3, max_length=80)
     business_name: str = Field(..., min_length=1, max_length=160)
@@ -4621,6 +4631,78 @@ def analyze_enquiry(name, business_type, message, profile=None):
     return ai_analysis or fallback
 
 
+def copilot_contact_timing(priority, follow_up_at):
+    if priority == "hot":
+        return "reply_now"
+    if follow_up_at:
+        try:
+            follow_up_date = datetime.fromisoformat(str(follow_up_at)[:10]).date()
+            if follow_up_date <= datetime.now(timezone.utc).date():
+                return "follow_up_today"
+        except ValueError:
+            pass
+    if priority == "warm":
+        return "reply_today"
+    return "ask_next_question"
+
+
+def copilot_decision_payload(analysis):
+    classification = analysis["classification"]
+    guidance = analysis["guidance"]
+    workflow = analysis["workflow"]
+    priority = classification["priority"]
+    timing = copilot_contact_timing(priority, analysis.get("follow_up_at"))
+    labels = {
+        "reply_now": "Reply first",
+        "follow_up_today": "Follow up today",
+        "reply_today": "Reply today",
+        "ask_next_question": "Ask next question",
+    }
+    return {
+        "contact_timing": timing,
+        "contact_label": labels.get(timing, "Review"),
+        "recommended_action": workflow["next_action"],
+        "recommended_question": guidance["next_question"],
+        "send_policy": "human_review_required",
+        "send_policy_label": "AI drafts only. Merchant must review before sending.",
+    }
+
+
+def merchant_copilot_analysis_response(profile, req):
+    source = re.sub(r"[^a-z0-9_-]+", "-", (req.source or "manual").strip().lower()).strip("-") or "manual"
+    buyer_name = manual_capture_buyer_name(source, req.name)
+    analysis = analyze_enquiry(buyer_name, profile["business_type"], req.message, profile)
+    classification = analysis["classification"]
+    return {
+        "status": "ok",
+        "mode": "ai_copilot",
+        "business_slug": profile["slug"],
+        "business_name": profile["business_name"],
+        "customer": {
+            "name": buyer_name,
+            "source": source,
+            "campaign": (req.campaign or "").strip(),
+        },
+        "classification": classification,
+        "priority": classification["priority"],
+        "intent": classification["intent"],
+        "estimated_value": classification["estimated_value"],
+        "signals": analysis["signals"],
+        "guidance": analysis["guidance"],
+        "workflow": analysis["workflow"],
+        "decision": copilot_decision_payload(analysis),
+        "reply_draft": analysis["reply_draft"],
+        "follow_up_at": analysis["follow_up_at"],
+        "analysis_source": analysis["analysis_source"],
+        "safety": {
+            "stores_message": False,
+            "auto_sends": False,
+            "requires_human_review": True,
+            "note": "This Copilot preview analyzes the message and prepares a draft only. It does not send a message.",
+        },
+    }
+
+
 def whatsapp_reply_url(phone, reply_draft):
     digits = normalize_phone_for_whatsapp(phone)
     if not digits or len(digits) < 5:
@@ -5793,6 +5875,16 @@ def dealer_demo_page_body():
                         <h3>${{escapeDemoHtml(lead.name)}}</h3>
                     </div>
                     <span class="lead-badge ${{lead.priority === "hot" ? "hot" : ""}}">${{demoLangSpan(demoPriorityLabelEn(lead.priority), demoPriorityLabelZh(lead.priority))}}</span>
+                </div>
+                <div class="demo-copilot-card">
+                    <div>
+                        <strong>${{demoLangSpan("AI Copilot", "AI Copilot")}}</strong>
+                        <span>${{demoLangSpan("Finds the stuck point and prepares the next reply. Salesperson reviews before sending.", "先找出客户卡点并准备下一句回复。销售确认后才发送。")}}</span>
+                    </div>
+                    <div class="lead-badges">
+                        <span class="lead-badge ${{lead.priority === "hot" ? "hot" : ""}}">${{demoLangSpan(demoPriorityLabelEn(lead.priority), demoPriorityLabelZh(lead.priority))}}</span>
+                        <span class="lead-badge">${{demoLangSpan("Human approval", "人工确认")}}</span>
+                    </div>
                 </div>
                 <div class="demo-reply-box primary">
                     <strong>${{demoLangSpan("Next reply to send", "建议发送的下一句")}}</strong>
@@ -7988,6 +8080,57 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     overflow-wrap: anywhere;
                     word-break: break-word;
                 }}
+                .copilot-preview {{
+                    border: 1px solid rgba(243,199,106,.32);
+                    border-radius: 8px;
+                    padding: 14px;
+                    margin: 12px 0;
+                    background:
+                        linear-gradient(135deg, rgba(243,199,106,.10), rgba(45,212,191,.04)),
+                        var(--surface);
+                    color: var(--muted);
+                    display: grid;
+                    gap: 8px;
+                    min-width: 0;
+                }}
+                .copilot-preview > strong,
+                .copilot-preview-head strong {{
+                    color: var(--ink);
+                    font-size: 15px;
+                }}
+                .copilot-preview-head {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 10px;
+                }}
+                .copilot-preview-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 8px;
+                }}
+                .copilot-preview-grid div {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 10px;
+                    background: rgba(0,0,0,.18);
+                    min-width: 0;
+                }}
+                .copilot-preview-grid small {{
+                    display: block;
+                    color: var(--muted);
+                    font-size: 11px;
+                    font-weight: 900;
+                    text-transform: uppercase;
+                    margin-bottom: 5px;
+                }}
+                .copilot-preview-grid b {{
+                    display: block;
+                    color: var(--ink);
+                    font-size: 13px;
+                    line-height: 1.38;
+                    overflow-wrap: anywhere;
+                }}
                 .action-list {{
                     display: grid;
                     gap: 10px;
@@ -8212,6 +8355,28 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     font-weight: 800;
                     text-transform: uppercase;
                     letter-spacing: 0;
+                }}
+                .demo-copilot-card {{
+                    border: 1px solid rgba(45,212,191,.28);
+                    border-radius: 8px;
+                    padding: 12px;
+                    background:
+                        linear-gradient(135deg, rgba(45,212,191,.09), rgba(243,199,106,.055)),
+                        rgba(0,0,0,.2);
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 12px;
+                    align-items: flex-start;
+                }}
+                .demo-copilot-card strong {{
+                    display: block;
+                    color: var(--ink);
+                    margin-bottom: 4px;
+                }}
+                .demo-copilot-card span {{
+                    color: var(--muted);
+                    font-size: 12px;
+                    line-height: 1.45;
                 }}
                 .demo-detail-grid {{
                     display: grid;
@@ -8574,7 +8739,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                 }}
                 .floating-whatsapp:hover {{ background: linear-gradient(135deg, var(--brand-strong), #ffffff); }}
                 @media (max-width: 820px) {{
-                    .hero, .preview-board, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card, .dealer-demo-board, .demo-detail-grid, .demo-notes-grid {{ grid-template-columns: 1fr; }}
+                    .hero, .preview-board, .grid, .ecosystem-grid, .pricing-grid, .steps, .toolbar, .admin-split, .setup-panel, .share-links, .action-center, .pipeline-board, .checklist, .trial-request-card, .trial-contact, .trial-meta, .setup-package-grid, .setup-checklist, .simple-lead-card, .dealer-demo-board, .demo-detail-grid, .demo-notes-grid, .copilot-preview-grid {{ grid-template-columns: 1fr; }}
                     h1 {{ font-size: 32px; }}
                     table {{ display: block; overflow-x: auto; }}
                     nav {{ padding: 13px 14px; gap: 8px; }}
@@ -11487,7 +11652,14 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 <label><span data-lang="en">Car / campaign optional</span><span data-lang="zh" class="lang-hidden">车款 / Campaign（选填）</span><input id="manualLeadCampaign" placeholder="Civic TikTok DM"></label>
             </div>
             <label class="checkbox-label"><input id="manualLeadAck" type="checkbox"> <span><span data-lang="en">I confirm this buyer contacted the business and I am not pasting passwords, OTPs, identity documents, bank statements, payslips, or other sensitive files here.</span><span data-lang="zh" class="lang-hidden">我确认这位买家联系过本车行，并且这里没有粘贴密码、OTP、身份证件、银行文件、薪资单或其他敏感文件。</span></span></label>
-            <button class="btn" onclick="createManualLead()"><span data-lang="en">Add Buyer</span><span data-lang="zh" class="lang-hidden">新增买家</span></button>
+            <div class="copilot-preview" id="manualCopilotPreview">
+                <strong><span data-lang="en">AI Copilot</span><span data-lang="zh" class="lang-hidden">AI Copilot</span></strong>
+                <span><span data-lang="en">Preview the stuck point, next question, and reply draft before saving this buyer.</span><span data-lang="zh" class="lang-hidden">保存买家前，先预览客户卡点、下一句问题和回复草稿。</span></span>
+            </div>
+            <div class="actions">
+                <button class="btn secondary" onclick="previewManualCopilot()"><span data-lang="en">AI Copilot Preview</span><span data-lang="zh" class="lang-hidden">AI 先看一下</span></button>
+                <button class="btn" onclick="createManualLead()"><span data-lang="en">Add Buyer</span><span data-lang="zh" class="lang-hidden">新增买家</span></button>
+            </div>
             <div class="status" id="manualLeadStatus"><span data-lang="en">Use this when buyers DM directly and do not click a link.</span><span data-lang="zh" class="lang-hidden">买家直接私信、不点击 link 的时候，用这里新增。</span></div>
         </section>
         <section class="action-center" id="merchantActionCenter"></section>
@@ -11680,6 +11852,72 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 }}
                 return response.json();
             }}
+            function resetManualCopilotPreview() {{
+                document.getElementById("manualCopilotPreview").innerHTML = `
+                    <strong>${{langSpan("AI Copilot", "AI Copilot")}}</strong>
+                    <span>${{langSpan("Preview the stuck point, next question, and reply draft before saving this buyer.", "保存买家前，先预览客户卡点、下一句问题和回复草稿。")}}</span>
+                `;
+                setInboxLang(inboxLang());
+            }}
+            function renderManualCopilot(result) {{
+                const target = document.getElementById("manualCopilotPreview");
+                const guidance = result.guidance || {{}};
+                const decision = result.decision || {{}};
+                const classification = result.classification || {{}};
+                target.innerHTML = `
+                    <div class="copilot-preview-head">
+                        <strong>${{langSpan("AI Copilot preview", "AI Copilot 预览")}}</strong>
+                        <span class="lead-badge ${{classification.priority === "hot" ? "hot" : ""}}">${{escapeHtml(priorityLabel(classification.priority))}}</span>
+                    </div>
+                    <div class="copilot-preview-grid">
+                        <div>
+                            <small>${{langSpan("Customer stuck point", "客户卡点")}}</small>
+                            <b>${{escapeHtml(guidance.stuck_point || "")}}</b>
+                        </div>
+                        <div>
+                            <small>${{langSpan("Next question", "下一句问题")}}</small>
+                            <b>${{escapeHtml(guidance.next_question || decision.recommended_question || "")}}</b>
+                        </div>
+                        <div>
+                            <small>${{langSpan("When to follow up", "什么时候再跟")}}</small>
+                            <b>${{escapeHtml(guidance.follow_up_timing || "")}}</b>
+                        </div>
+                    </div>
+                    <div class="demo-reply-box primary">
+                        <strong>${{langSpan("Reply draft", "回复草稿")}}</strong>
+                        <p>${{escapeHtml(result.reply_draft || "")}}</p>
+                    </div>
+                    <span class="mini-note">${{langSpan("Copilot only prepares the recommendation. The salesperson still reviews and sends the message.", "Copilot 只准备建议，销售仍然需要确认后才发送。")}}</span>
+                `;
+                setInboxLang(inboxLang());
+            }}
+            async function previewManualCopilot() {{
+                const status = document.getElementById("manualLeadStatus");
+                if (!document.getElementById("manualLeadAck").checked) {{
+                    status.textContent = inboxText("Please confirm the data protection note before AI Copilot preview.", "请先确认资料保护提醒，再让 AI Copilot 分析。");
+                    return;
+                }}
+                status.textContent = inboxText("AI Copilot is checking the buyer message...", "AI Copilot 正在查看买家内容...");
+                try {{
+                    const result = await merchantApi(`/apps/enquiry/api/merchant/copilot/analyze?business_slug=${{businessSlug}}`, {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            name: document.getElementById("manualLeadName").value,
+                            phone: document.getElementById("manualLeadPhone").value,
+                            email: document.getElementById("manualLeadEmail").value,
+                            source: document.getElementById("manualLeadSource").value,
+                            campaign: document.getElementById("manualLeadCampaign").value || "copilot-preview",
+                            message: document.getElementById("manualLeadMessage").value,
+                            processing_acknowledged: document.getElementById("manualLeadAck").checked
+                        }})
+                    }});
+                    renderManualCopilot(result);
+                    status.textContent = inboxText("AI Copilot preview ready. Review it, then add the buyer if it looks right.", "AI Copilot 预览好了。确认没问题后，再新增买家。");
+                }} catch (error) {{
+                    status.textContent = error.message;
+                }}
+            }}
             async function createManualLead() {{
                 const status = document.getElementById("manualLeadStatus");
                 if (!document.getElementById("manualLeadAck").checked) {{
@@ -11707,6 +11945,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     document.getElementById("manualLeadCampaign").value = "";
                     document.getElementById("manualLeadMessage").value = "";
                     document.getElementById("manualLeadAck").checked = false;
+                    resetManualCopilotPreview();
                     markChecklistStep("first_lead");
                     status.innerHTML = `
                         ${{langSpan("Buyer added.", "买家已新增。")}}
@@ -14512,6 +14751,53 @@ def list_merchant_enquiries(
             limit=limit,
         ),
     }
+
+
+@app.post("/apps/enquiry/api/merchant/copilot/analyze")
+def analyze_merchant_copilot_preview(
+    req: MerchantCopilotAnalyzeRequest,
+    business_slug: str,
+    business_key: str | None = None,
+    x_business_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    profile = business_guard(
+        business_slug,
+        business_key=business_key,
+        x_business_key=x_business_key,
+        authorization=authorization,
+    )
+    if not req.processing_acknowledged:
+        raise HTTPException(
+            status_code=400,
+            detail="Please confirm this buyer message can be processed for AI Copilot preview.",
+        )
+    if contains_forbidden_channel_secret(req.name, req.phone, req.email, req.message, req.campaign):
+        raise HTTPException(
+            status_code=400,
+            detail="Do not paste passwords, OTPs, cookies, app secrets, or access tokens into AI Copilot.",
+        )
+    if contains_sensitive_manual_enquiry_content(req.name, req.phone, req.email, req.message, req.campaign):
+        raise HTTPException(
+            status_code=400,
+            detail="Do not paste identity documents, bank statements, payslips, or other sensitive files into AI Copilot.",
+        )
+
+    result = merchant_copilot_analysis_response(profile, req)
+    write_data_audit_event(
+        "enquiry.copilot_previewed",
+        "merchant_copilot",
+        "enquiry",
+        business_slug=profile["slug"],
+        metadata={
+            "source": result["customer"]["source"],
+            "intent": result["intent"],
+            "priority": result["priority"],
+            "analysis_source": result["analysis_source"],
+            "auto_sends": False,
+        },
+    )
+    return result
 
 
 @app.post("/apps/enquiry/api/merchant/enquiries")

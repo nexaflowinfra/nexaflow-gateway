@@ -45,17 +45,17 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
-    assert "One inbox for every customer enquiry." in response.text
-    assert "所有客户询问，进一个 inbox。" in response.text
-    assert "who to reply first" in response.text
-    assert "what the customer needs" in response.text
+    assert "Know who to follow up next." in response.text
+    assert "知道下一位该跟进谁。" in response.text
+    assert "priority, customer needs, missing details" in response.text
+    assert "Customer enquiries, sorted by next action." in response.text
     assert "What your sales team sees every day" in response.text
     assert "All messages in one queue" in response.text
     assert "Know what is missing" in response.text
     assert "Next reply ready" in response.text
     assert "Bring customer messages into the queue" in response.text
     assert "Paste or screenshot when needed" in response.text
-    assert "Reply or set reminder" in response.text
+    assert "Reply in the right app" in response.text
     assert "Create Enquiry Inbox" in response.text
     assert "WhatsApp Quote Lead" in response.text
     assert "Customer needs" in response.text
@@ -127,6 +127,8 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
     assert "客户想要" in response.text
     assert "Stuck on" in response.text
     assert "客户卡点" in response.text
+    assert "AI Copilot" in response.text
+    assert "Human approval" in response.text
     assert "Next reply" in response.text
     assert "下一句回复" in response.text
     assert "More buyer details" in response.text
@@ -1451,6 +1453,87 @@ def test_merchant_can_manually_capture_social_dm_with_followup_guidance():
     assert "60123456789" not in audit_payload
 
 
+def test_merchant_ai_copilot_preview_requires_owner_key_and_does_not_store_message():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"copilot-preview-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Copilot Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+            "offer_summary": "used cars with loan support",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+    payload = {
+        "name": "TikTok Buyer",
+        "phone": "@buyer",
+        "source": "tiktok",
+        "campaign": "Civic DM",
+        "message": "Saw Civic on TikTok. Can loan? monthly below RM900, can view today?",
+        "processing_acknowledged": True,
+    }
+
+    unauthorized = client.post(
+        f"/apps/enquiry/api/merchant/copilot/analyze?business_slug={slug}",
+        json=payload,
+    )
+    assert unauthorized.status_code in {401, 403}
+
+    missing_ack = client.post(
+        f"/apps/enquiry/api/merchant/copilot/analyze?business_slug={slug}",
+        json={**payload, "processing_acknowledged": False},
+        headers={"X-Business-Key": business_key},
+    )
+    assert missing_ack.status_code == 400
+
+    preview = client.post(
+        f"/apps/enquiry/api/merchant/copilot/analyze?business_slug={slug}",
+        json=payload,
+        headers={"X-Business-Key": business_key},
+    )
+    assert preview.status_code == 200
+    body = preview.json()
+    assert body["mode"] == "ai_copilot"
+    assert body["safety"]["auto_sends"] is False
+    assert body["safety"]["requires_human_review"] is True
+    assert body["priority"] in {"hot", "warm"}
+    assert body["guidance"]["stuck_point"] == "Monthly payment or loan readiness"
+    assert "monthly payment" in body["guidance"]["next_question"]
+    assert "loan support" in body["reply_draft"]
+    assert body["decision"]["send_policy"] == "human_review_required"
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    assert listing.json()["stats"]["total"] == 0
+    assert listing.json()["enquiries"] == []
+
+    blocked = client.post(
+        f"/apps/enquiry/api/merchant/copilot/analyze?business_slug={slug}",
+        json={**payload, "message": "otp 123456 and access_token abc"},
+        headers={"X-Business-Key": business_key},
+    )
+    assert blocked.status_code == 400
+
+    audit = client.get(
+        f"/admin/data-audit-events?business_slug={slug}&event_type=enquiry.copilot_previewed",
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert audit.status_code == 200
+    events = audit.json()["events"]
+    assert any(item["actor_type"] == "merchant_copilot" for item in events)
+    audit_payload = json.dumps(events)
+    assert "TikTok Buyer" not in audit_payload
+    assert "Saw Civic" not in audit_payload
+
+
 def test_merchant_can_load_demo_buyers_with_owner_key_only():
     suffix = uuid.uuid4().hex[:8]
     slug = f"demo-seed-{suffix}"
@@ -1837,6 +1920,9 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert "Buyers to contact now" in response.text
     assert "Phone / handle optional" in response.text
     assert "买家还没给电话号码" in response.text
+    assert "AI Copilot Preview" in response.text
+    assert "manualCopilotPreview" in response.text
+    assert "/apps/enquiry/api/merchant/copilot/analyze" in response.text
     assert "merchantPipelineBoard" in response.text
     assert "Today&apos;s buyer follow-up" in response.text
     assert "Today&apos;s numbers" in response.text
