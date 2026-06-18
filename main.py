@@ -8988,8 +8988,364 @@ def landing_page():
         "NexaFlow Enquiry",
         "NexaFlow",
         f"""
-        <section class="hero product-hero">
-            <div class="hero-copy">
+        <style>
+            .home-sales-os {{
+                position: relative;
+                display: grid;
+                grid-template-columns: minmax(0, .82fr) minmax(520px, 1.18fr);
+                gap: 24px;
+                align-items: center;
+                padding: 42px 0 48px;
+                isolation: isolate;
+            }}
+            .home-sales-copy {{
+                min-width: 0;
+            }}
+            .home-sales-os .option-kicker {{
+                display: block;
+                color: var(--brand-strong);
+                font-size: 12px;
+                font-weight: 900;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+            }}
+            .home-sales-copy h1 {{
+                max-width: 680px;
+                font-size: clamp(40px, 6vw, 76px);
+                line-height: .96;
+                margin-bottom: 16px;
+            }}
+            .home-sales-copy .lead {{
+                max-width: 620px;
+            }}
+            .home-os-preview {{
+                position: relative;
+                display: grid;
+                grid-template-columns: 176px minmax(0, 1fr);
+                gap: 12px;
+                min-height: 480px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 14px;
+                padding: 14px;
+                overflow: hidden;
+                background:
+                    linear-gradient(90deg, rgba(243,199,106,.055), transparent 36%),
+                    #050505;
+                box-shadow: 0 28px 90px rgba(0,0,0,.34);
+                isolation: isolate;
+            }}
+            .home-os-preview::before {{
+                content: "";
+                position: absolute;
+                inset: -36%;
+                pointer-events: none;
+                z-index: 0;
+                background:
+                    radial-gradient(circle at 18% 30%, rgba(243,199,106,.16), transparent 24%),
+                    radial-gradient(circle at 82% 20%, rgba(69,213,199,.12), transparent 25%);
+                opacity: .62;
+                transform: translate3d(-1.5%, 0, 0);
+                animation: homeAmbientDrift 11s ease-in-out infinite alternate;
+            }}
+            .home-os-preview::after {{
+                content: "";
+                position: absolute;
+                inset: 0;
+                pointer-events: none;
+                z-index: 0;
+                background: linear-gradient(105deg, transparent 0%, transparent 38%, rgba(243,199,106,.08) 48%, transparent 62%, transparent 100%);
+                transform: translateX(-120%);
+                animation: homeScanPass 6.8s ease-in-out infinite;
+            }}
+            .home-os-sidebar,
+            .home-os-workspace {{
+                position: relative;
+                z-index: 1;
+            }}
+            .home-os-sidebar {{
+                display: grid;
+                align-content: start;
+                gap: 11px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 12px;
+                padding: 13px;
+                background: rgba(10,10,10,.84);
+                backdrop-filter: blur(16px);
+            }}
+            .home-os-sidebar strong {{
+                color: var(--ink);
+                font-size: 17px;
+            }}
+            .home-os-nav-item {{
+                display: flex;
+                justify-content: space-between;
+                gap: 10px;
+                align-items: center;
+                min-height: 36px;
+                border-radius: 8px;
+                padding: 7px 9px;
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 850;
+            }}
+            .home-os-nav-item.active {{
+                color: var(--ink);
+                background: rgba(243,199,106,.12);
+            }}
+            .home-os-workspace {{
+                display: grid;
+                grid-template-rows: auto auto minmax(0, 1fr);
+                gap: 12px;
+                min-width: 0;
+            }}
+            .home-os-topbar {{
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                align-items: flex-start;
+                animation: homeFadeUp .62s cubic-bezier(.22, 1, .36, 1) both;
+            }}
+            .home-os-topbar h2 {{
+                margin: 0;
+                font-size: clamp(25px, 3vw, 38px);
+                line-height: 1.02;
+            }}
+            .home-os-topbar p {{
+                margin: 6px 0 0;
+                font-size: 13px;
+            }}
+            .home-live-strip {{
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                width: fit-content;
+                max-width: 100%;
+                min-height: 38px;
+                border: 1px solid rgba(243,199,106,.22);
+                border-radius: 999px;
+                padding: 7px 10px;
+                background: rgba(0,0,0,.26);
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 800;
+                animation: homeFadeUp .62s cubic-bezier(.22, 1, .36, 1) .08s both;
+            }}
+            .home-live-strip strong {{
+                color: var(--ink);
+            }}
+            .home-live-dot {{
+                width: 7px;
+                height: 7px;
+                border-radius: 999px;
+                background: var(--teal);
+                box-shadow: 0 0 0 rgba(69,213,199,.48);
+                animation: homeLivePulse 1.8s ease-out infinite;
+            }}
+            .home-source-chip {{
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 999px;
+                padding: 3px 7px;
+                color: var(--brand-strong);
+                background: rgba(243,199,106,.07);
+                white-space: nowrap;
+            }}
+            .home-os-board {{
+                position: relative;
+                display: grid;
+                grid-template-columns: minmax(200px, .78fr) minmax(245px, 1fr) minmax(210px, .74fr);
+                gap: 1px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 12px;
+                overflow: hidden;
+                background: rgba(255,255,255,.12);
+                animation: homeFadeUp .7s cubic-bezier(.22, 1, .36, 1) .14s both;
+            }}
+            .home-os-board::before {{
+                content: "";
+                position: absolute;
+                z-index: 2;
+                left: 7%;
+                right: 7%;
+                top: 49%;
+                height: 1px;
+                pointer-events: none;
+                background: linear-gradient(90deg, transparent, rgba(243,199,106,.62), rgba(69,213,199,.42), transparent);
+                opacity: 0;
+                transform: translateX(-18%);
+                animation: homeConnectionBeam 4.6s ease-in-out infinite;
+            }}
+            .home-os-column {{
+                display: grid;
+                align-content: start;
+                gap: 10px;
+                padding: 13px;
+                background: rgba(12,12,13,.97);
+            }}
+            .home-os-column-title {{
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 900;
+                text-transform: uppercase;
+            }}
+            .home-ticket,
+            .home-os-panel {{
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 8px;
+                background: rgba(255,255,255,.025);
+            }}
+            .home-ticket {{
+                position: relative;
+                padding: 11px;
+                transition: transform .22s cubic-bezier(.22, 1, .36, 1), border-color .22s ease, background .22s ease, box-shadow .22s ease;
+                animation: homeTicketIn .52s cubic-bezier(.22, 1, .36, 1) both;
+                animation-delay: calc(var(--i, 0) * 70ms + 220ms);
+            }}
+            .home-ticket.priority {{
+                border-color: rgba(243,199,106,.6);
+                background: rgba(243,199,106,.08);
+                transform: translateY(-2px);
+                box-shadow: 0 14px 34px rgba(0,0,0,.28), 0 0 0 1px rgba(243,199,106,.08);
+            }}
+            .home-ticket.priority::after {{
+                content: "";
+                position: absolute;
+                inset: -2px;
+                border-radius: 10px;
+                border: 1px solid rgba(243,199,106,.38);
+                opacity: 0;
+                animation: homePriorityPulse 2.4s ease-out infinite;
+            }}
+            .home-ticket strong,
+            .home-os-panel strong {{
+                display: block;
+                color: var(--ink);
+                margin-bottom: 4px;
+            }}
+            .home-ticket span,
+            .home-os-panel span,
+            .home-os-panel p {{
+                display: block;
+                color: var(--muted);
+                font-size: 12px;
+                line-height: 1.45;
+                margin: 0;
+            }}
+            .home-os-panel {{
+                padding: 12px;
+                background: rgba(0,0,0,.26);
+                transition: border-color .22s ease, background .22s ease, transform .22s cubic-bezier(.22, 1, .36, 1);
+                animation: homePanelIn .52s cubic-bezier(.22, 1, .36, 1) both;
+                animation-delay: calc(var(--i, 0) * 80ms + 320ms);
+            }}
+            .home-os-panel.next {{
+                border-color: rgba(243,199,106,.36);
+                background: rgba(243,199,106,.075);
+                animation-name: homePanelIn, homeReplyGlow;
+                animation-duration: .52s, 3.4s;
+                animation-delay: calc(var(--i, 0) * 80ms + 320ms), 1s;
+                animation-timing-function: cubic-bezier(.22, 1, .36, 1), ease-in-out;
+                animation-fill-mode: both, none;
+                animation-iteration-count: 1, infinite;
+            }}
+            .home-os-panel.is-refreshing {{
+                transform: translateY(-2px);
+                border-color: rgba(69,213,199,.34);
+            }}
+            @keyframes homeAmbientDrift {{
+                from {{ transform: translate3d(-1.5%, -1%, 0) scale(1); }}
+                to {{ transform: translate3d(1.5%, 1%, 0) scale(1.03); }}
+            }}
+            @keyframes homeScanPass {{
+                0%, 18% {{ transform: translateX(-120%); opacity: 0; }}
+                36%, 58% {{ opacity: .9; }}
+                78%, 100% {{ transform: translateX(120%); opacity: 0; }}
+            }}
+            @keyframes homeLivePulse {{
+                0% {{ box-shadow: 0 0 0 0 rgba(69,213,199,.46); }}
+                72%, 100% {{ box-shadow: 0 0 0 10px rgba(69,213,199,0); }}
+            }}
+            @keyframes homeFadeUp {{
+                from {{ opacity: 0; transform: translateY(12px); filter: blur(6px); }}
+                to {{ opacity: 1; transform: translateY(0); filter: blur(0); }}
+            }}
+            @keyframes homeTicketIn {{
+                from {{ opacity: 0; transform: translateY(10px); }}
+                to {{ opacity: 1; transform: translateY(0); }}
+            }}
+            @keyframes homePanelIn {{
+                from {{ opacity: 0; transform: translateY(10px); }}
+                to {{ opacity: 1; transform: translateY(0); }}
+            }}
+            @keyframes homePriorityPulse {{
+                0% {{ opacity: .5; transform: scale(.99); }}
+                76%, 100% {{ opacity: 0; transform: scale(1.045); }}
+            }}
+            @keyframes homeReplyGlow {{
+                0%, 100% {{ box-shadow: 0 0 0 rgba(243,199,106,0); }}
+                50% {{ box-shadow: 0 0 28px rgba(243,199,106,.14); }}
+            }}
+            @keyframes homeConnectionBeam {{
+                0%, 24% {{ opacity: 0; transform: translateX(-18%); }}
+                38%, 58% {{ opacity: .72; }}
+                82%, 100% {{ opacity: 0; transform: translateX(18%); }}
+            }}
+            @media (max-width: 980px) {{
+                .home-sales-os {{
+                    grid-template-columns: 1fr;
+                    padding-top: 30px;
+                }}
+                .home-os-preview {{
+                    grid-template-columns: 1fr;
+                    min-height: 0;
+                }}
+                .home-os-sidebar {{
+                    display: none;
+                }}
+            }}
+            @media (max-width: 680px) {{
+                .home-sales-copy h1 {{
+                    font-size: 36px;
+                }}
+                .home-os-preview {{
+                    padding: 12px;
+                }}
+                .home-os-topbar {{
+                    display: grid;
+                }}
+                .home-os-board {{
+                    grid-template-columns: 1fr;
+                }}
+                .home-os-column {{
+                    padding: 12px;
+                }}
+                .home-os-column.ai-note .home-os-panel:not(.next) {{
+                    display: none;
+                }}
+                .home-live-strip {{
+                    width: 100%;
+                }}
+            }}
+            @media (prefers-reduced-motion: reduce) {{
+                .home-os-preview::before,
+                .home-os-preview::after,
+                .home-os-board::before,
+                .home-live-dot,
+                .home-os-topbar,
+                .home-live-strip,
+                .home-os-board,
+                .home-ticket,
+                .home-ticket.priority::after,
+                .home-os-panel,
+                .home-os-panel.next {{
+                    animation: none !important;
+                    transition-duration: .01ms !important;
+                    transform: none !important;
+                    filter: none !important;
+                }}
+            }}
+        </style>
+        <section class="home-sales-os">
+            <div class="home-sales-copy">
                 <div class="product-controls">
                     <div class="glass-control label-free">
                         <div class="language-toggle" aria-label="Language" id="langToggle">
@@ -9005,48 +9361,71 @@ def landing_page():
                     </div>
                 </div>
                 <div class="eyebrow">NexaFlow Enquiry</div>
-                <h1><span data-lang="en">One inbox for every customer enquiry.</span><span data-lang="zh" class="lang-hidden">所有客户询问，进一个 inbox。</span></h1>
-                <p class="lead"><span data-lang="en">See who to reply first, what the customer needs, what is missing, and what to send next.</span><span data-lang="zh" class="lang-hidden">看清楚谁要先回、客户需要什么、还缺什么、下一句怎么讲。</span></p>
+                <h1><span data-lang="en">Know who to follow up next.</span><span data-lang="zh" class="lang-hidden">知道下一位该跟进谁。</span></h1>
+                <p class="lead"><span data-lang="en">One sales inbox for scattered customer enquiries. NexaFlow shows priority, customer needs, missing details, and the next reply direction.</span><span data-lang="zh" class="lang-hidden">把分散的客户询问集中到一个销售 inbox。NexaFlow 会显示优先级、客户需求、还缺什么，以及下一句回复方向。</span></p>
                 <p class="lead"><span data-market="sg">Built for Singapore businesses that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span><span data-market="my" class="market-hidden">Built for Malaysia businesses that receive enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span></p>
                 <div class="actions">
-                    <a class="btn" href="/dealer-demo"><span data-lang="en">See Sales Demo</span><span data-lang="zh" class="lang-hidden">看销售 Demo</span></a>
-                    <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create Enquiry Inbox</span><span data-lang="zh" class="lang-hidden">创建询盘 inbox</span></a>
+                    <a class="btn" href="/merchant-signup"><span data-lang="en">Create Enquiry Inbox</span><span data-lang="zh" class="lang-hidden">创建询盘 inbox</span></a>
+                    <a class="btn secondary" href="/dealer-demo"><span data-lang="en">See Sales Demo</span><span data-lang="zh" class="lang-hidden">看销售 Demo</span></a>
                 </div>
             </div>
-            <div class="hero-side">
-                <div class="hero-preview">
-                    <div class="preview-top"><span data-lang="en">Live sales queue preview</span><span data-lang="zh" class="lang-hidden">销售队列预览</span><span class="pill good">Demo</span></div>
-                    <div class="preview-board">
-                        <div class="preview-list">
-                            <div class="preview-lead active">
-                                <strong>WhatsApp Quote Lead</strong>
+            <div class="home-os-preview" id="homeSalesPreview" aria-label="NexaFlow sales inbox preview">
+                <aside class="home-os-sidebar" aria-hidden="true">
+                    <strong>NexaFlow</strong>
+                    <div class="home-os-nav-item active"><span>Today</span><span>12</span></div>
+                    <div class="home-os-nav-item"><span>Need reply</span><span>5</span></div>
+                    <div class="home-os-nav-item"><span>Appointments</span><span>3</span></div>
+                    <div class="home-os-nav-item"><span>Follow-up</span><span>8</span></div>
+                </aside>
+                <div class="home-os-workspace">
+                    <div class="home-os-topbar">
+                        <div>
+                            <span class="option-kicker">Today&apos;s queue</span>
+                            <h2><span data-lang="en">Customer enquiries, sorted by next action.</span><span data-lang="zh" class="lang-hidden">客户询问，按下一步排序。</span></h2>
+                            <p><span data-lang="en">The first view is not settings. It is the next customer to handle.</span><span data-lang="zh" class="lang-hidden">第一眼看到的不是设置，而是下一位要处理的客户。</span></p>
+                        </div>
+                        <span class="pill good">Live demo</span>
+                    </div>
+                    <div class="home-live-strip" aria-live="polite"><span class="home-live-dot"></span><span id="homeLiveText"><span data-lang="en">Live sorting <strong>WhatsApp Quote Lead</strong></span><span data-lang="zh" class="lang-hidden">正在排序 <strong>WhatsApp 报价客户</strong></span></span><span class="home-source-chip" id="homeLiveSource">WhatsApp</span></div>
+                    <div class="home-os-board">
+                        <div class="home-os-column">
+                            <div class="home-os-column-title"><span data-lang="en">Customer queue</span><span data-lang="zh" class="lang-hidden">客户队列</span></div>
+                            <div class="home-ticket priority" data-home-ticket="0" style="--i:0">
+                                <strong><span data-lang="en">WhatsApp Quote Lead</span><span data-lang="zh" class="lang-hidden">WhatsApp 报价客户</span></strong>
                                 <span><span data-lang="en">Reply first · price / timing</span><span data-lang="zh" class="lang-hidden">优先回复 · 价格 / 时间</span></span>
                             </div>
-                            <div class="preview-lead">
-                                <strong>Instagram Service Lead</strong>
-                                <span><span data-lang="en">Package comparison</span><span data-lang="zh" class="lang-hidden">正在比较配套</span></span>
+                            <div class="home-ticket" data-home-ticket="1" style="--i:1">
+                                <strong><span data-lang="en">Instagram Service Lead</span><span data-lang="zh" class="lang-hidden">Instagram 服务询问</span></strong>
+                                <span><span data-lang="en">Comparing packages</span><span data-lang="zh" class="lang-hidden">正在比较配套</span></span>
                             </div>
-                            <div class="preview-lead">
-                                <strong>TikTok Appointment Lead</strong>
+                            <div class="home-ticket" data-home-ticket="2" style="--i:2">
+                                <strong><span data-lang="en">TikTok Appointment Lead</span><span data-lang="zh" class="lang-hidden">TikTok 预约客户</span></strong>
                                 <span><span data-lang="en">Booking not confirmed</span><span data-lang="zh" class="lang-hidden">预约还没确认</span></span>
                             </div>
                         </div>
-                        <div class="preview-detail">
-                            <span class="demo-detail-kicker">WhatsApp · Quote</span>
-                            <h3><span data-lang="en">WhatsApp Quote Lead</span><span data-lang="zh" class="lang-hidden">WhatsApp 报价客户</span></h3>
-                            <div class="preview-detail-card">
+                        <div class="home-os-column ai-note">
+                            <div class="home-os-column-title"><span data-lang="en">AI note</span><span data-lang="zh" class="lang-hidden">AI 重点</span></div>
+                            <div class="home-os-panel" data-home-dynamic="request" style="--i:0">
                                 <strong><span data-lang="en">Customer needs</span><span data-lang="zh" class="lang-hidden">客户需求</span></strong>
-                                <span><span data-lang="en">Package price, available slot, and whether a deposit is needed</span><span data-lang="zh" class="lang-hidden">配套价格、可预约时间，以及是否需要订金</span></span>
+                                <span><span data-lang="en">Package price, available slot, and whether a deposit is needed.</span><span data-lang="zh" class="lang-hidden">配套价格、可预约时间，以及是否需要订金。</span></span>
                             </div>
-                            <div class="preview-detail-card">
+                            <div class="home-os-panel" data-home-dynamic="stuck" style="--i:1">
                                 <strong><span data-lang="en">Stuck on</span><span data-lang="zh" class="lang-hidden">客户卡点</span></strong>
-                                <span><span data-lang="en">Price range and appointment timing are not confirmed</span><span data-lang="zh" class="lang-hidden">价格范围和预约时间还没确认</span></span>
+                                <span><span data-lang="en">Price range and appointment timing are not confirmed.</span><span data-lang="zh" class="lang-hidden">价格范围和预约时间还没确认。</span></span>
                             </div>
-                            <div class="preview-detail-card preview-reply">
+                            <div class="home-os-panel next" data-home-dynamic="next" style="--i:2">
+                                <strong><span data-lang="en">Next question</span><span data-lang="zh" class="lang-hidden">下一句问题</span></strong>
+                                <p><span data-lang="en">Ask for date, budget range, and package preference before pushing for appointment.</span><span data-lang="zh" class="lang-hidden">先问日期、预算范围和想了解的配套，再推进预约。</span></p>
+                            </div>
+                        </div>
+                        <div class="home-os-column">
+                            <div class="home-os-column-title"><span data-lang="en">Follow-up</span><span data-lang="zh" class="lang-hidden">跟进</span></div>
+                            <div class="home-os-panel next" data-home-dynamic="reply" style="--i:0">
                                 <strong><span data-lang="en">Next reply</span><span data-lang="zh" class="lang-hidden">下一句回复</span></strong>
-                                <p><span data-lang="en">Can I confirm your preferred date, budget range, and the service package you want us to quote?</span><span data-lang="zh" class="lang-hidden">可以确认你想预约的日期、预算范围，以及想了解哪一个服务配套吗？</span></p>
+                                <p><span data-lang="en">Hi, can I confirm your preferred date and budget range first? Then I can quote the right package.</span><span data-lang="zh" class="lang-hidden">你好，可以先确认你想预约的日期和预算范围吗？我再帮你报价合适的配套。</span></p>
                             </div>
-                            <a class="btn secondary" href="/dealer-demo"><span data-lang="en">Open sample queue</span><span data-lang="zh" class="lang-hidden">打开示例队列</span></a>
+                            <a class="btn" href="/dealer-demo"><span data-lang="en">Open sample queue</span><span data-lang="zh" class="lang-hidden">打开示例队列</span></a>
+                            <a class="btn secondary" href="/merchant-login"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家登录</span></a>
                         </div>
                     </div>
                 </div>
@@ -9200,6 +9579,97 @@ def landing_page():
             }}
             setProductLang(localStorage.getItem("nexaflow_home_lang") || "en");
             setProductMarket(localStorage.getItem("nexaflow_home_market") || "sg");
+            (function () {{
+                const preview = document.getElementById("homeSalesPreview");
+                const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                if (!preview || reduce) {{
+                    return;
+                }}
+                const states = [
+                    {{
+                        source: "WhatsApp",
+                        lead: "WhatsApp Quote Lead",
+                        leadZh: "WhatsApp 报价客户",
+                        requestEn: "Package price, available slot, and whether a deposit is needed.",
+                        requestZh: "配套价格、可预约时间，以及是否需要订金。",
+                        stuckEn: "Price range and appointment timing are not confirmed.",
+                        stuckZh: "价格范围和预约时间还没确认。",
+                        nextEn: "Ask for date, budget range, and package preference before pushing for appointment.",
+                        nextZh: "先问日期、预算范围和想了解的配套，再推进预约。",
+                        replyEn: "Hi, can I confirm your preferred date and budget range first? Then I can quote the right package.",
+                        replyZh: "你好，可以先确认你想预约的日期和预算范围吗？我再帮你报价合适的配套。"
+                    }},
+                    {{
+                        source: "Instagram",
+                        lead: "Instagram Service Lead",
+                        leadZh: "Instagram 服务询问",
+                        requestEn: "Asked for package differences, availability, and which option is better.",
+                        requestZh: "客户在问配套差别、可预约时间，以及哪个选择比较适合。",
+                        stuckEn: "Customer is comparing options and has not chosen a package yet.",
+                        stuckZh: "客户还在比较不同选择，还没决定配套。",
+                        nextEn: "Ask what they are comparing against and recommend one package based on budget.",
+                        nextZh: "先问客户正在比较什么，再根据预算推荐一个配套。",
+                        replyEn: "I can help compare. Which package or price are you looking at now, and what budget range should I keep to?",
+                        replyZh: "我可以帮你比较。你现在在看哪个配套或价格？预算大概想控制在多少？"
+                    }},
+                    {{
+                        source: "TikTok",
+                        lead: "TikTok Appointment Lead",
+                        leadZh: "TikTok 预约客户",
+                        requestEn: "Interested after seeing a TikTok post but has not confirmed a visit time.",
+                        requestZh: "客户看了 TikTok 后有兴趣，但还没确认预约时间。",
+                        stuckEn: "Appointment timing is the blocker; do not push too many details yet.",
+                        stuckZh: "目前卡在预约时间，不要一次推太多细节。",
+                        nextEn: "Offer two simple appointment windows and ask which is easier.",
+                        nextZh: "给两个简单的预约时间选择，让客户选比较方便的。",
+                        replyEn: "Would today evening or tomorrow afternoon be easier for you? I can reserve a slot first.",
+                        replyZh: "今天傍晚或明天下午哪个比较方便？我可以先帮你保留时间。"
+                    }}
+                ];
+                const tickets = Array.from(preview.querySelectorAll("[data-home-ticket]"));
+                const liveText = preview.querySelector("#homeLiveText");
+                const liveSource = preview.querySelector("#homeLiveSource");
+                const panels = {{
+                    request: preview.querySelector("[data-home-dynamic='request']"),
+                    stuck: preview.querySelector("[data-home-dynamic='stuck']"),
+                    next: preview.querySelector("[data-home-dynamic='next']"),
+                    reply: preview.querySelector("[data-home-dynamic='reply']")
+                }};
+                let index = 0;
+                function setPanelText(panel, en, zh) {{
+                    if (!panel) {{
+                        return;
+                    }}
+                    const body = Array.from(panel.children).find(child => child.tagName === "SPAN" || child.tagName === "P");
+                    if (!body) {{
+                        return;
+                    }}
+                    body.innerHTML = '<span data-lang="en">' + en + '</span><span data-lang="zh" class="lang-hidden">' + zh + '</span>';
+                    panel.classList.remove("is-refreshing");
+                    void panel.offsetWidth;
+                    panel.classList.add("is-refreshing");
+                    window.setTimeout(() => panel.classList.remove("is-refreshing"), 320);
+                }}
+                function setHomeState(nextIndex) {{
+                    index = nextIndex % states.length;
+                    const state = states[index];
+                    tickets.forEach((ticket, ticketIndex) => {{
+                        ticket.classList.toggle("priority", ticketIndex === index);
+                    }});
+                    if (liveText) {{
+                        liveText.innerHTML = '<span data-lang="en">Live sorting <strong>' + state.lead + '</strong></span><span data-lang="zh" class="lang-hidden">正在排序 <strong>' + state.leadZh + '</strong></span>';
+                    }}
+                    if (liveSource) {{
+                        liveSource.textContent = state.source;
+                    }}
+                    setPanelText(panels.request, state.requestEn, state.requestZh);
+                    setPanelText(panels.stuck, state.stuckEn, state.stuckZh);
+                    setPanelText(panels.next, state.nextEn, state.nextZh);
+                    setPanelText(panels.reply, state.replyEn, state.replyZh);
+                    setProductLang(localStorage.getItem("nexaflow_home_lang") || "en");
+                }}
+                window.setInterval(() => setHomeState(index + 1), 3400);
+            }})();
         </script>
         """,
         show_sales_contact=True,
