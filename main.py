@@ -125,6 +125,7 @@ OUTPUT_TOKEN_WEIGHT = 4
 
 request_windows = {}
 enquiry_windows = {}
+product_assistant_windows = {}
 backup_scheduler_state = {
     "enabled": AUTO_BACKUP_ENABLED,
     "interval_seconds": AUTO_BACKUP_INTERVAL_SECONDS,
@@ -188,6 +189,12 @@ class ChatRequest(BaseModel):
     model: str | None = None
     provider: str | None = None
     routing_strategy: str = Field(default="profit", pattern="^(profit|cost|default)$")
+
+
+class ProductAssistantRequest(BaseModel):
+    message: str = Field(..., min_length=2, max_length=800)
+    language: str | None = Field(default=None, pattern="^(en|zh)?$")
+    page: str = Field(default="home", max_length=80)
 
 
 class CreateClientRequest(BaseModel):
@@ -6367,6 +6374,174 @@ def enforce_rate_limit(client_id, limit):
     request_windows[client_id] = timestamps
 
 
+def public_request_identity(request: Request):
+    forwarded_for = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    client_ip = (
+        request.headers.get("cf-connecting-ip")
+        or forwarded_for
+        or (request.client.host if request.client else "unknown")
+    )
+    user_agent = request.headers.get("user-agent", "")[:120]
+    user_agent_hash = sha256(user_agent.encode("utf-8")).hexdigest()[:10]
+    return f"{client_ip}:{user_agent_hash}"
+
+
+def enforce_public_rate_limit(window_store, client_id, limit=8, window_seconds=600):
+    current = time()
+    window_start = current - window_seconds
+    timestamps = [ts for ts in window_store.get(client_id, []) if ts >= window_start]
+
+    if len(timestamps) >= limit:
+        raise HTTPException(status_code=429, detail="Too many product assistant questions. Please try again later.")
+
+    timestamps.append(current)
+    window_store[client_id] = timestamps
+
+
+def product_assistant_language(message, language=None):
+    if language in {"en", "zh"}:
+        return language
+
+    return "zh" if re.search(r"[\u4e00-\u9fff]", message or "") else "en"
+
+
+def product_assistant_topic(message):
+    text = (message or "").lower()
+    if re.search(r"price|pricing|plan|starter|growth|business|cost|fee|trial|价|价格|收费|配套|月费|试用", text):
+        return "pricing"
+    if re.search(r"meta|whatsapp|instagram|facebook|messenger|tiktok|xiaohongshu|小红书|社媒|私信|同步|接入|连接", text):
+        return "channels"
+    if re.search(r"safe|security|privacy|data|pdpa|token|password|hack|安全|隐私|资料|数据|黑客|密码", text):
+        return "security"
+    if re.search(r"ai|copilot|auto|自动|回复|分类|判断|客户|follow|提醒|跟进|卡点|优先", text):
+        return "ai_followup"
+    if re.search(r"demo|setup|start|register|signup|onboard|开始|注册|创建|怎么用|如何用", text):
+        return "setup"
+    return "general"
+
+
+def product_assistant_fallback_answer(message, language):
+    topic = product_assistant_topic(message)
+    answers = {
+        "pricing": {
+            "en": (
+                "NexaFlow starts with a 30-day trial. After that, Starter is for up to 100 enquiries/month, "
+                "Growth is for about 101-500 enquiries/month, and Business is for 500+ or custom workflows. "
+                "The core AI follow-up features are already included from Starter."
+            ),
+            "zh": (
+                "NexaFlow 可以先试用 30 天。之后 Starter 适合每月 100 个询盘以内，"
+                "Growth 适合大约 101-500 个询盘，Business 适合 500+ 或需要客制流程。"
+                "AI 分类、客户卡点判断、回复草稿和跟进提醒，从 Starter 就会有。"
+            ),
+        },
+        "channels": {
+            "en": (
+                "NexaFlow is built to bring enquiries from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, "
+                "calls, and referrals into one queue. Official Meta auto-sync needs Meta Developer setup and approval; "
+                "before that, the pilot can use buyer links plus manual or assisted capture."
+            ),
+            "zh": (
+                "NexaFlow 的目标是把 WhatsApp、Instagram、Facebook、TikTok、小红书、电话和介绍来的询盘集中到一个队列。"
+                "Meta 官方自动同步需要完成 Meta Developer 设置和审核；在通过之前，可以先用买家 link 加手动或辅助导入来试跑。"
+            ),
+        },
+        "security": {
+            "en": (
+                "NexaFlow is designed with a private inbox, access keys, webhook signature checks, rate limits, "
+                "and security headers. We do not ask merchants for social media passwords. Customer data should be used only "
+                "for replies, quotes, appointments, follow-up, support, and required records."
+            ),
+            "zh": (
+                "NexaFlow 会用私密 inbox、access key、webhook 签名检查、限流和安全 headers 来保护系统。"
+                "我们不会要求商家提供社交媒体密码。客户资料只应当用于回复、报价、预约、跟进、客服和必要记录。"
+            ),
+        },
+        "ai_followup": {
+            "en": (
+                "The AI does not just write a one-click reply. It helps sales see who to reply first, what the customer wants, "
+                "what is missing, where the customer is stuck, and what the next reply should ask."
+            ),
+            "zh": (
+                "这个 AI 不是只做一键回复。它会帮销售看谁要先回、客户想要什么、还缺什么、客户卡在哪里，"
+                "以及下一句应该怎么问，方便销售自己判断和跟进。"
+            ),
+        },
+        "setup": {
+            "en": (
+                "The fastest way to start is to create an enquiry inbox, add a few real or test enquiries, and review the sales queue. "
+                "Then connect official Meta channels once Meta Developer access is ready."
+            ),
+            "zh": (
+                "最快开始方式是先创建一个 enquiry inbox，放几条真实或测试询盘进去，看销售队列和 AI 跟进建议。"
+                "之后等 Meta Developer 权限准备好，再接官方 Meta 渠道。"
+            ),
+        },
+        "general": {
+            "en": (
+                "NexaFlow is a sales inbox for scattered customer enquiries. It helps merchants see priority, customer needs, "
+                "missing details, next reply direction, and follow-up reminders. Ask me about pricing, setup, Meta sync, or data protection."
+            ),
+            "zh": (
+                "NexaFlow 是给商家处理分散客户询盘的销售 inbox。它会显示优先级、客户需求、缺少资料、下一句回复方向和跟进提醒。"
+                "你可以问我价格、设置、Meta 同步或资料保护。"
+            ),
+        },
+    }
+    return answers[topic][language]
+
+
+def product_assistant_suggestions(language):
+    if language == "zh":
+        return ["如何接 WhatsApp/IG？", "价格怎么分？", "AI 会帮销售做什么？", "客户资料安全吗？"]
+
+    return ["How does Meta sync work?", "Which plan should I choose?", "What does AI do?", "Is customer data safe?"]
+
+
+def product_assistant_system_prompt(language):
+    answer_language = "Chinese" if language == "zh" else "English"
+    return (
+        "You are the public product assistant for NexaFlow Enquiry. Answer only questions about NexaFlow, "
+        "merchant onboarding, enquiry inbox workflow, Meta/WhatsApp/Instagram/Facebook setup, TikTok/Xiaohongshu assisted capture, "
+        "AI follow-up, pricing, trial, data protection, or sales demo. If the question is unrelated, briefly redirect to NexaFlow. "
+        "Do not request passwords, OTP codes, access tokens, API keys, full customer records, NRIC/passport numbers, or bank details. "
+        "Do not promise guaranteed conversions or perfect security. Keep the reply concise, practical, and under 110 words. "
+        f"Reply in {answer_language}.\n\n"
+        "Facts: NexaFlow gives merchants one sales inbox for scattered customer enquiries. AI helps identify priority, customer needs, "
+        "missing details, stuck point, next reply direction, and follow-up reminders. Official WhatsApp Business, Facebook Messenger, "
+        "and Instagram DM sync requires Meta Developer setup, webhook configuration, permissions, and approval. Before approval, merchants "
+        "can use buyer links plus manual or assisted capture. TikTok and Xiaohongshu are supported by manual/assisted capture first. "
+        "Trial is 30 days. Starter is for up to 100 enquiries/month, Growth for about 101-500 enquiries/month, Business for 500+ or custom workflows. "
+        "Core AI follow-up is included from Starter. NexaFlow does not ask for social media passwords. Customer enquiry data should be used only "
+        "for replies, quotations, appointments, follow-up, support, and required records."
+    )
+
+
+def generate_product_assistant_answer(message, language):
+    provider_client = get_provider_client("openai")
+    if provider_client is None:
+        return product_assistant_fallback_answer(message, language), "product_faq"
+
+    try:
+        response = provider_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "developer", "content": product_assistant_system_prompt(language)},
+                {"role": "user", "content": message},
+            ],
+            max_tokens=240,
+            temperature=0.2,
+        )
+    except Exception:
+        return product_assistant_fallback_answer(message, language), "product_faq"
+
+    answer = (response.choices[0].message.content or "").strip()
+    if not answer:
+        return product_assistant_fallback_answer(message, language), "product_faq"
+
+    return answer[:1200], "ai:gpt-4o-mini"
+
+
 def parse_log_timestamp(value):
     try:
         timestamp = datetime.fromisoformat(value)
@@ -9454,6 +9629,171 @@ def landing_page():
                 38%, 58% {{ opacity: .72; }}
                 82%, 100% {{ opacity: 0; transform: translateX(18%); }}
             }}
+            .product-ai-widget {{
+                position: fixed;
+                right: 22px;
+                bottom: 88px;
+                z-index: 45;
+                display: grid;
+                justify-items: end;
+                pointer-events: none;
+            }}
+            .product-ai-toggle,
+            .product-ai-panel {{
+                pointer-events: auto;
+            }}
+            .product-ai-toggle {{
+                min-height: 48px;
+                border: 1px solid rgba(243,199,106,.42);
+                border-radius: 999px;
+                padding: 12px 16px;
+                background:
+                    linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.03)),
+                    rgba(14,14,14,.82);
+                color: var(--ink);
+                box-shadow: 0 18px 46px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.18);
+                backdrop-filter: blur(22px) saturate(1.45);
+                font-weight: 900;
+                cursor: pointer;
+            }}
+            .product-ai-toggle:hover {{
+                border-color: rgba(243,199,106,.72);
+                background:
+                    linear-gradient(135deg, rgba(243,199,106,.24), rgba(255,255,255,.035)),
+                    rgba(14,14,14,.88);
+            }}
+            .product-ai-panel {{
+                display: none;
+                width: min(380px, calc(100vw - 32px));
+                max-height: min(620px, calc(100vh - 170px));
+                margin-bottom: 12px;
+                overflow: hidden;
+                border: 1px solid rgba(255,255,255,.14);
+                border-radius: 14px;
+                background:
+                    linear-gradient(145deg, rgba(255,255,255,.09), rgba(255,255,255,.025)),
+                    rgba(9,9,9,.94);
+                box-shadow: 0 26px 88px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.13);
+                backdrop-filter: blur(26px) saturate(1.35);
+            }}
+            .product-ai-panel.is-open {{
+                display: grid;
+                grid-template-rows: auto minmax(0, 1fr) auto;
+                animation: homeFadeUp .2s cubic-bezier(.22, 1, .36, 1) both;
+            }}
+            .product-ai-head {{
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                align-items: flex-start;
+                padding: 16px 16px 12px;
+                border-bottom: 1px solid rgba(255,255,255,.09);
+            }}
+            .product-ai-head strong {{
+                display: block;
+                color: var(--ink);
+                font-size: 16px;
+            }}
+            .product-ai-head span {{
+                display: block;
+                color: var(--muted);
+                font-size: 12px;
+                margin-top: 3px;
+            }}
+            .product-ai-close {{
+                width: 34px;
+                height: 34px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 999px;
+                background: rgba(255,255,255,.035);
+                color: var(--ink);
+                font-size: 18px;
+                cursor: pointer;
+            }}
+            .product-ai-messages {{
+                display: grid;
+                gap: 9px;
+                align-content: start;
+                min-height: 190px;
+                max-height: 340px;
+                overflow: auto;
+                padding: 14px 16px;
+            }}
+            .product-ai-bubble {{
+                max-width: 92%;
+                border: 1px solid rgba(255,255,255,.1);
+                border-radius: 12px;
+                padding: 10px 11px;
+                background: rgba(255,255,255,.045);
+                color: var(--muted);
+                font-size: 13px;
+                line-height: 1.48;
+                white-space: pre-wrap;
+            }}
+            .product-ai-bubble.user {{
+                justify-self: end;
+                border-color: rgba(243,199,106,.36);
+                background: rgba(243,199,106,.11);
+                color: var(--ink);
+            }}
+            .product-ai-bubble.system {{
+                max-width: 100%;
+                background: rgba(69,213,199,.08);
+                border-color: rgba(69,213,199,.18);
+            }}
+            .product-ai-quick {{
+                display: flex;
+                gap: 7px;
+                flex-wrap: wrap;
+                padding: 0 16px 12px;
+            }}
+            .product-ai-quick button {{
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 999px;
+                padding: 7px 9px;
+                background: rgba(255,255,255,.035);
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 800;
+                cursor: pointer;
+            }}
+            .product-ai-quick button:hover {{
+                color: var(--ink);
+                border-color: rgba(243,199,106,.38);
+            }}
+            .product-ai-form {{
+                display: grid;
+                gap: 9px;
+                padding: 12px 16px 16px;
+                border-top: 1px solid rgba(255,255,255,.09);
+            }}
+            .product-ai-form textarea {{
+                width: 100%;
+                min-height: 76px;
+                resize: vertical;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 10px;
+                padding: 10px;
+                background: rgba(0,0,0,.46);
+                color: var(--ink);
+                font: inherit;
+                font-size: 14px;
+            }}
+            .product-ai-form textarea:focus {{
+                outline: none;
+                border-color: rgba(243,199,106,.55);
+                box-shadow: 0 0 0 3px rgba(243,199,106,.12);
+            }}
+            .product-ai-actions {{
+                display: flex;
+                justify-content: space-between;
+                gap: 10px;
+                align-items: center;
+            }}
+            .product-ai-note {{
+                color: var(--muted);
+                font-size: 11px;
+            }}
             @media (max-width: 980px) {{
                 .home-sales-os {{
                     grid-template-columns: 1fr;
@@ -9488,6 +9828,23 @@ def landing_page():
                 }}
                 .home-live-strip {{
                     width: 100%;
+                }}
+                .product-ai-widget {{
+                    right: 14px;
+                    bottom: 72px;
+                }}
+                .product-ai-toggle {{
+                    min-height: 42px;
+                    padding: 9px 12px;
+                    font-size: 14px;
+                }}
+                .product-ai-panel {{
+                    width: calc(100vw - 28px);
+                    max-height: min(560px, calc(100vh - 132px));
+                    margin-bottom: 10px;
+                }}
+                .product-ai-messages {{
+                    max-height: 270px;
                 }}
             }}
             @media (prefers-reduced-motion: reduce) {{
@@ -9723,6 +10080,38 @@ def landing_page():
             <p><span data-lang="en">Customer enquiry data stays behind a private inbox and should be used only for replies, quotations, appointments, follow-up, support, and required records. Merchants can delete individual enquiries when a record is no longer needed.</span><span data-lang="zh" class="lang-hidden">客户询盘资料会放在私密 inbox 里，并且应只用于回复、报价、预约、跟进、客服和必要记录。当记录不再需要时，商家可以删除单个客户询盘。</span></p>
             <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refund Policy</a> · <a href="/acceptable-use">Acceptable Use</a></p>
         </section>
+        <div class="product-ai-widget" id="nexaflowProductAssistant">
+            <section class="product-ai-panel" id="productAiPanel" aria-label="NexaFlow AI product assistant">
+                <div class="product-ai-head">
+                    <div>
+                        <strong><span data-lang="en">Ask NexaFlow AI</span><span data-lang="zh" class="lang-hidden">问 NexaFlow AI</span></strong>
+                        <span><span data-lang="en">Product, setup, pricing, and data protection questions.</span><span data-lang="zh" class="lang-hidden">可以问产品、设置、价格和资料保护。</span></span>
+                    </div>
+                    <button class="product-ai-close" type="button" onclick="toggleProductAssistant(false)" aria-label="Close">×</button>
+                </div>
+                <div class="product-ai-messages" id="productAiMessages">
+                    <div class="product-ai-bubble system"><span data-lang="en">Hi, I can explain how NexaFlow works for merchants. Ask about Meta sync, pricing, AI follow-up, or security.</span><span data-lang="zh" class="lang-hidden">你好，我可以解释 NexaFlow 怎么帮商家处理询盘。你可以问 Meta 同步、价格、AI 跟进或资料安全。</span></div>
+                </div>
+                <div>
+                    <div class="product-ai-quick">
+                        <button type="button" onclick="askProductAssistantQuick('How does Meta sync work?', 'Meta 同步怎么做？')"><span data-lang="en">Meta sync</span><span data-lang="zh" class="lang-hidden">Meta 同步</span></button>
+                        <button type="button" onclick="askProductAssistantQuick('Which plan should I choose?', '我应该选哪个配套？')"><span data-lang="en">Pricing</span><span data-lang="zh" class="lang-hidden">价格配套</span></button>
+                        <button type="button" onclick="askProductAssistantQuick('What does the AI help sales do?', 'AI 会帮销售做什么？')"><span data-lang="en">AI follow-up</span><span data-lang="zh" class="lang-hidden">AI 跟进</span></button>
+                        <button type="button" onclick="askProductAssistantQuick('Is customer data safe?', '客户资料安全吗？')"><span data-lang="en">Security</span><span data-lang="zh" class="lang-hidden">资料安全</span></button>
+                    </div>
+                    <div class="product-ai-form">
+                        <textarea id="productAiInput" maxlength="800" placeholder="Ask about NexaFlow..."></textarea>
+                        <div class="product-ai-actions">
+                            <span class="product-ai-note"><span data-lang="en">Do not enter passwords, OTPs, or customer IDs.</span><span data-lang="zh" class="lang-hidden">不要输入密码、OTP 或客户证件号码。</span></span>
+                            <button class="btn" type="button" id="productAiSend" onclick="askProductAssistant()"><span data-lang="en">Ask AI</span><span data-lang="zh" class="lang-hidden">发送</span></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <button class="product-ai-toggle" type="button" onclick="toggleProductAssistant()" aria-controls="productAiPanel" aria-expanded="false">
+                <span data-lang="en">Ask AI</span><span data-lang="zh" class="lang-hidden">问 AI</span>
+            </button>
+        </div>
         <script>
             function setProductLang(lang) {{
                 document.querySelectorAll("[data-lang]").forEach(item => {{
@@ -9732,6 +10121,10 @@ def landing_page():
                 document.getElementById("langZh").classList.toggle("active", lang === "zh");
                 document.getElementById("langToggle").classList.toggle("is-second", lang === "zh");
                 localStorage.setItem("nexaflow_home_lang", lang);
+                const productAiInput = document.getElementById("productAiInput");
+                if (productAiInput) {{
+                    productAiInput.placeholder = lang === "zh" ? "输入你想问 NexaFlow 的问题..." : "Ask about NexaFlow...";
+                }}
             }}
             function setProductMarket(market) {{
                 document.querySelectorAll("[data-market]").forEach(item => {{
@@ -9742,8 +10135,99 @@ def landing_page():
                 document.getElementById("marketToggle").classList.toggle("is-second", market === "my");
                 localStorage.setItem("nexaflow_home_market", market);
             }}
+            function currentProductLang() {{
+                return localStorage.getItem("nexaflow_home_lang") || "en";
+            }}
+            function toggleProductAssistant(force) {{
+                const panel = document.getElementById("productAiPanel");
+                const toggle = document.querySelector(".product-ai-toggle");
+                if (!panel || !toggle) {{
+                    return;
+                }}
+                const shouldOpen = typeof force === "boolean" ? force : !panel.classList.contains("is-open");
+                panel.classList.toggle("is-open", shouldOpen);
+                toggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+                if (shouldOpen) {{
+                    window.setTimeout(() => {{
+                        const input = document.getElementById("productAiInput");
+                        if (input) {{
+                            input.focus();
+                        }}
+                    }}, 60);
+                }}
+            }}
+            function appendProductAssistantMessage(role, text) {{
+                const messages = document.getElementById("productAiMessages");
+                if (!messages) {{
+                    return null;
+                }}
+                const bubble = document.createElement("div");
+                bubble.className = "product-ai-bubble " + role;
+                bubble.textContent = text;
+                messages.appendChild(bubble);
+                messages.scrollTop = messages.scrollHeight;
+                return bubble;
+            }}
+            async function askProductAssistantQuick(en, zh) {{
+                await askProductAssistant(currentProductLang() === "zh" ? zh : en);
+            }}
+            async function askProductAssistant(prefilled) {{
+                const input = document.getElementById("productAiInput");
+                const send = document.getElementById("productAiSend");
+                const message = (prefilled || (input ? input.value : "") || "").trim();
+                const lang = currentProductLang();
+                if (!message) {{
+                    if (input) {{
+                        input.focus();
+                    }}
+                    return;
+                }}
+                toggleProductAssistant(true);
+                appendProductAssistantMessage("user", message);
+                if (input && !prefilled) {{
+                    input.value = "";
+                }}
+                if (send) {{
+                    send.disabled = true;
+                    send.style.opacity = ".72";
+                }}
+                const loading = appendProductAssistantMessage("system", lang === "zh" ? "正在整理答案..." : "Thinking through the answer...");
+                try {{
+                    const response = await fetch("/api/product-assistant", {{
+                        method: "POST",
+                        headers: {{"Content-Type": "application/json"}},
+                        body: JSON.stringify({{message: message, language: lang, page: "home"}})
+                    }});
+                    const payload = await response.json().catch(() => ({{}}));
+                    if (!response.ok) {{
+                        throw new Error(payload.detail || "Request failed");
+                    }}
+                    if (loading) {{
+                        loading.textContent = payload.answer || (lang === "zh" ? "暂时没有答案。" : "I do not have an answer yet.");
+                    }}
+                }} catch (error) {{
+                    if (loading) {{
+                        loading.textContent = lang === "zh"
+                            ? "暂时回答不到。你也可以直接点 WhatsApp 联系 NexaFlow。"
+                            : "I cannot answer right now. You can also contact NexaFlow on WhatsApp.";
+                    }}
+                }} finally {{
+                    if (send) {{
+                        send.disabled = false;
+                        send.style.opacity = "1";
+                    }}
+                }}
+            }}
             setProductLang(localStorage.getItem("nexaflow_home_lang") || "en");
             setProductMarket(localStorage.getItem("nexaflow_home_market") || "sg");
+            document.addEventListener("keydown", event => {{
+                if (event.key === "Escape") {{
+                    toggleProductAssistant(false);
+                }}
+                if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && document.activeElement && document.activeElement.id === "productAiInput") {{
+                    askProductAssistant();
+                }}
+            }});
             (function () {{
                 const preview = document.getElementById("homeSalesPreview");
                 const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -15347,6 +15831,27 @@ def customer_rotate_api_key(
         "api_key": new_api_key,
         "rotated": True,
         "warning": "Store this API key now. The previous key can no longer be used.",
+    }
+
+
+@app.post("/api/product-assistant")
+def product_assistant(req: ProductAssistantRequest, request: Request):
+    language = product_assistant_language(req.message, req.language)
+    identity = public_request_identity(request)
+    enforce_public_rate_limit(product_assistant_windows, f"product-assistant:{identity}", limit=8, window_seconds=600)
+
+    answer, source = generate_product_assistant_answer(req.message.strip(), language)
+    return {
+        "status": "ok",
+        "answer": answer,
+        "language": language,
+        "source": source,
+        "suggestions": product_assistant_suggestions(language),
+        "safety": {
+            "stores_message": False,
+            "scope": "nexaflow_product_questions",
+            "sensitive_data_not_required": True,
+        },
     }
 
 

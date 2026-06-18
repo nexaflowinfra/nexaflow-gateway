@@ -84,6 +84,10 @@ def test_landing_page_loads():
     assert "/assets/brand/nexaflow-icon.png" in response.text
     assert 'alt="NexaFlow logo"' in response.text
     assert "nexaflow_home_lang" in response.text
+    assert "nexaflowProductAssistant" in response.text
+    assert "Ask NexaFlow AI" in response.text
+    assert "/api/product-assistant" in response.text
+    assert "Do not enter passwords, OTPs, or customer IDs." in response.text
     assert "/dealer-demo" in response.text
     assert "All car buyer DMs" not in response.text
     assert "car buyer" not in response.text
@@ -106,6 +110,49 @@ def test_landing_page_loads():
     demo_video = client.get("/assets/demo/nexaflow-dealer-walkthrough.webm")
     assert demo_video.status_code == 200
     assert demo_video.headers["content-type"].startswith("video/webm")
+
+
+def test_product_assistant_uses_guarded_faq_fallback(monkeypatch):
+    main.product_assistant_windows.clear()
+    monkeypatch.setattr(main, "get_provider_client", lambda provider: None)
+
+    response = client.post(
+        "/api/product-assistant",
+        json={"message": "Meta 同步 WhatsApp 和 Instagram 要怎么做？", "language": "zh"},
+        headers={"X-Forwarded-For": f"203.0.113.{uuid.uuid4().int % 200 + 1}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["language"] == "zh"
+    assert payload["source"] == "product_faq"
+    assert "Meta Developer" in payload["answer"]
+    assert "WhatsApp" in payload["answer"]
+    assert payload["safety"]["stores_message"] is False
+    assert payload["safety"]["sensitive_data_not_required"] is True
+    assert "客户资料安全吗？" in payload["suggestions"]
+
+
+def test_product_assistant_rate_limits_public_questions(monkeypatch):
+    main.product_assistant_windows.clear()
+    monkeypatch.setattr(main, "get_provider_client", lambda provider: None)
+    headers = {"X-Forwarded-For": f"198.51.100.{uuid.uuid4().int % 200 + 1}"}
+
+    for _ in range(8):
+        response = client.post(
+            "/api/product-assistant",
+            json={"message": "pricing?", "language": "en"},
+            headers=headers,
+        )
+        assert response.status_code == 200
+
+    blocked = client.post(
+        "/api/product-assistant",
+        json={"message": "pricing?", "language": "en"},
+        headers=headers,
+    )
+    assert blocked.status_code == 429
 
 
 def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
