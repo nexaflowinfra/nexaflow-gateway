@@ -9469,6 +9469,31 @@ def ui_options_page():
                 background:
                     linear-gradient(90deg, rgba(243,199,106,.055), transparent 36%),
                     #050505;
+                position: relative;
+                overflow: hidden;
+                isolation: isolate;
+            }
+            .option-b-screen::before {
+                content: "";
+                position: absolute;
+                inset: -40%;
+                pointer-events: none;
+                background:
+                    radial-gradient(circle at 18% 30%, rgba(243,199,106,.16), transparent 24%),
+                    radial-gradient(circle at 82% 20%, rgba(69,213,199,.12), transparent 25%);
+                opacity: .62;
+                transform: translate3d(-1.5%, 0, 0);
+                animation: bAmbientDrift 11s ease-in-out infinite alternate;
+            }
+            .option-b-screen::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                pointer-events: none;
+                z-index: 0;
+                background: linear-gradient(105deg, transparent 0%, transparent 38%, rgba(243,199,106,.08) 48%, transparent 62%, transparent 100%);
+                transform: translateX(-120%);
+                animation: bScanPass 6.8s ease-in-out infinite;
             }
             .b-sidebar {
                 border: 1px solid var(--option-line);
@@ -9478,9 +9503,20 @@ def ui_options_page():
                 display: grid;
                 align-content: start;
                 gap: 12px;
+                position: relative;
+                z-index: 1;
+                backdrop-filter: blur(16px);
             }
             .b-sidebar strong {
                 font-size: 18px;
+            }
+            .b-live-dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 999px;
+                background: var(--teal);
+                box-shadow: 0 0 0 rgba(69,213,199,.48);
+                animation: bLivePulse 1.8s ease-out infinite;
             }
             .b-nav-item {
                 display: flex;
@@ -9500,19 +9536,50 @@ def ui_options_page():
             }
             .b-workspace {
                 display: grid;
-                grid-template-rows: auto minmax(0, 1fr);
+                grid-template-rows: auto auto minmax(0, 1fr);
                 gap: 12px;
+                position: relative;
+                z-index: 1;
             }
             .b-topbar {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 12px;
+                animation: bFadeUp .62s cubic-bezier(.22, 1, .36, 1) both;
             }
             .b-topbar h3 {
                 margin: 0;
                 font-size: clamp(28px, 4vw, 46px);
                 line-height: 1.02;
+            }
+            .b-live-strip {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-height: 38px;
+                border: 1px solid rgba(243,199,106,.22);
+                border-radius: 999px;
+                padding: 7px 10px;
+                background: rgba(0,0,0,.26);
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 800;
+                width: fit-content;
+                max-width: 100%;
+                animation: bFadeUp .62s cubic-bezier(.22, 1, .36, 1) .08s both;
+            }
+            .b-live-strip strong {
+                color: var(--ink);
+                font-weight: 900;
+            }
+            .b-source-chip {
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 999px;
+                padding: 3px 7px;
+                color: var(--brand-strong);
+                background: rgba(243,199,106,.07);
+                white-space: nowrap;
             }
             .b-board {
                 display: grid;
@@ -9522,6 +9589,22 @@ def ui_options_page():
                 border-radius: 12px;
                 overflow: hidden;
                 background: var(--option-line);
+                position: relative;
+                animation: bFadeUp .7s cubic-bezier(.22, 1, .36, 1) .14s both;
+            }
+            .b-board::before {
+                content: "";
+                position: absolute;
+                z-index: 2;
+                left: 7%;
+                right: 7%;
+                top: 49%;
+                height: 1px;
+                pointer-events: none;
+                background: linear-gradient(90deg, transparent, rgba(243,199,106,.62), rgba(69,213,199,.42), transparent);
+                opacity: 0;
+                transform: translateX(-18%);
+                animation: bConnectionBeam 4.6s ease-in-out infinite;
             }
             .b-column {
                 background: rgba(12,12,13,.97);
@@ -9541,10 +9624,25 @@ def ui_options_page():
                 border-radius: 8px;
                 padding: 11px;
                 background: rgba(255,255,255,.025);
+                position: relative;
+                transition: transform .22s cubic-bezier(.22, 1, .36, 1), border-color .22s ease, background .22s ease, box-shadow .22s ease;
+                animation: bTicketIn .52s cubic-bezier(.22, 1, .36, 1) both;
+                animation-delay: calc(var(--i, 0) * 70ms + 220ms);
             }
             .b-ticket.priority {
                 border-color: rgba(243,199,106,.6);
                 background: rgba(243,199,106,.08);
+                transform: translateY(-2px);
+                box-shadow: 0 14px 34px rgba(0,0,0,.28), 0 0 0 1px rgba(243,199,106,.08);
+            }
+            .b-ticket.priority::after {
+                content: "";
+                position: absolute;
+                inset: -2px;
+                border-radius: 10px;
+                border: 1px solid rgba(243,199,106,.38);
+                opacity: 0;
+                animation: bPriorityPulse 2.4s ease-out infinite;
             }
             .b-ticket strong,
             .b-panel strong {
@@ -9565,10 +9663,61 @@ def ui_options_page():
                 border-radius: 8px;
                 padding: 12px;
                 background: rgba(0,0,0,.26);
+                transition: border-color .22s ease, background .22s ease, transform .22s cubic-bezier(.22, 1, .36, 1);
+                animation: bPanelIn .52s cubic-bezier(.22, 1, .36, 1) both;
+                animation-delay: calc(var(--i, 0) * 80ms + 320ms);
             }
             .b-panel.next {
                 border-color: rgba(243,199,106,.36);
                 background: rgba(243,199,106,.075);
+                animation-name: bPanelIn, bReplyGlow;
+                animation-duration: .52s, 3.4s;
+                animation-delay: calc(var(--i, 0) * 80ms + 320ms), 1s;
+                animation-timing-function: cubic-bezier(.22, 1, .36, 1), ease-in-out;
+                animation-fill-mode: both, none;
+                animation-iteration-count: 1, infinite;
+            }
+            .b-panel.is-refreshing {
+                transform: translateY(-2px);
+                border-color: rgba(69,213,199,.34);
+            }
+            @keyframes bAmbientDrift {
+                from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+                to { transform: translate3d(1.5%, 1%, 0) scale(1.03); }
+            }
+            @keyframes bScanPass {
+                0%, 18% { transform: translateX(-120%); opacity: 0; }
+                36%, 58% { opacity: .9; }
+                78%, 100% { transform: translateX(120%); opacity: 0; }
+            }
+            @keyframes bLivePulse {
+                0% { box-shadow: 0 0 0 0 rgba(69,213,199,.46); }
+                72%, 100% { box-shadow: 0 0 0 10px rgba(69,213,199,0); }
+            }
+            @keyframes bFadeUp {
+                from { opacity: 0; transform: translateY(12px); filter: blur(6px); }
+                to { opacity: 1; transform: translateY(0); filter: blur(0); }
+            }
+            @keyframes bTicketIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes bPanelIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes bPriorityPulse {
+                0% { opacity: .5; transform: scale(.99); }
+                76%, 100% { opacity: 0; transform: scale(1.045); }
+            }
+            @keyframes bReplyGlow {
+                0%, 100% { box-shadow: 0 0 0 rgba(243,199,106,0); }
+                50% { box-shadow: 0 0 28px rgba(243,199,106,.14); }
+            }
+            @keyframes bConnectionBeam {
+                0%, 24% { opacity: 0; transform: translateX(-18%); }
+                38%, 58% { opacity: .72; }
+                82%, 100% { opacity: 0; transform: translateX(18%); }
             }
             .option-c-screen {
                 position: relative;
@@ -9748,6 +9897,24 @@ def ui_options_page():
                     flex-direction: column;
                 }
             }
+            @media (prefers-reduced-motion: reduce) {
+                .option-b-screen::before,
+                .option-b-screen::after,
+                .b-board::before,
+                .b-live-dot,
+                .b-topbar,
+                .b-live-strip,
+                .b-board,
+                .b-ticket,
+                .b-ticket.priority::after,
+                .b-panel,
+                .b-panel.next {
+                    animation: none !important;
+                    transition-duration: .01ms !important;
+                    transform: none !important;
+                    filter: none !important;
+                }
+            }
         </style>
         <div class="ui-options-page">
             <section class="ui-options-intro">
@@ -9829,22 +9996,23 @@ def ui_options_page():
                             </div>
                             <a class="mock-btn" href="/merchant-signup">Create Inbox</a>
                         </div>
+                        <div class="b-live-strip" aria-live="polite"><span class="b-live-dot"></span><span id="bLiveText">Live sorting <strong>WhatsApp Quote Lead</strong></span><span class="b-source-chip" id="bLiveSource">WhatsApp</span></div>
                         <div class="b-board">
                             <div class="b-column">
                                 <div class="b-column-title">Buyer queue</div>
-                                <div class="b-ticket priority"><strong>WhatsApp Quote Lead</strong><span>Price + appointment timing</span></div>
-                                <div class="b-ticket"><strong>IG Loan Question</strong><span>Income and loan details missing</span></div>
-                                <div class="b-ticket"><strong>TikTok Comparison</strong><span>Comparing options</span></div>
+                                <div class="b-ticket priority" data-b-ticket="0" style="--i:0"><strong>WhatsApp Quote Lead</strong><span>Price + appointment timing</span></div>
+                                <div class="b-ticket" data-b-ticket="1" style="--i:1"><strong>IG Loan Question</strong><span>Income and loan details missing</span></div>
+                                <div class="b-ticket" data-b-ticket="2" style="--i:2"><strong>TikTok Comparison</strong><span>Comparing options</span></div>
                             </div>
                             <div class="b-column">
                                 <div class="b-column-title">AI note</div>
-                                <div class="b-panel"><strong>Customer request</strong><span>Asked for price, availability, and whether booking requires deposit.</span></div>
-                                <div class="b-panel"><strong>Stuck point</strong><span>Budget range and preferred appointment time are still missing.</span></div>
-                                <div class="b-panel next"><strong>Next question</strong><p>Ask for date, budget range, and package preference before pushing for appointment.</p></div>
+                                <div class="b-panel" data-b-dynamic="request" style="--i:0"><strong>Customer request</strong><span>Asked for price, availability, and whether booking requires deposit.</span></div>
+                                <div class="b-panel" data-b-dynamic="stuck" style="--i:1"><strong>Stuck point</strong><span>Budget range and preferred appointment time are still missing.</span></div>
+                                <div class="b-panel next" data-b-dynamic="next" style="--i:2"><strong>Next question</strong><p>Ask for date, budget range, and package preference before pushing for appointment.</p></div>
                             </div>
                             <div class="b-column">
                                 <div class="b-column-title">Follow-up</div>
-                                <div class="b-panel next"><strong>Reply draft</strong><p>Hi, can I confirm your preferred date and budget range first? Then I can quote the right package.</p></div>
+                                <div class="b-panel next" data-b-dynamic="reply" style="--i:0"><strong>Reply draft</strong><p>Hi, can I confirm your preferred date and budget range first? Then I can quote the right package.</p></div>
                                 <a class="mock-btn" href="/dealer-demo">Open Demo Queue</a>
                                 <a class="mock-btn ghost" href="/merchant-login">Merchant Login</a>
                             </div>
@@ -9913,6 +10081,78 @@ def ui_options_page():
                 </div>
             </section>
         </div>
+        <script>
+            (function () {
+                const option = document.getElementById("option-b");
+                const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                if (!option || reduce) {
+                    return;
+                }
+                const states = [
+                    {
+                        source: "WhatsApp",
+                        lead: "WhatsApp Quote Lead",
+                        request: "Asked for price, availability, and whether booking requires deposit.",
+                        stuck: "Budget range and preferred appointment time are still missing.",
+                        next: "Ask for date, budget range, and package preference before pushing for appointment.",
+                        reply: "Hi, can I confirm your preferred date and budget range first? Then I can quote the right package."
+                    },
+                    {
+                        source: "Instagram",
+                        lead: "IG Loan Question",
+                        request: "Asked whether loan support is available and how monthly payment is calculated.",
+                        stuck: "Income range, down payment, and target monthly payment are not clear yet.",
+                        next: "Ask income range, down payment amount, and comfortable monthly payment before giving a loan direction.",
+                        reply: "Sure, I can guide you. What income range, down payment, and monthly payment are you comfortable with?"
+                    },
+                    {
+                        source: "TikTok",
+                        lead: "TikTok Comparison",
+                        request: "Comparing the same option with other sellers and checking whether the price is worth it.",
+                        stuck: "Customer is comparing price, package, timing, and trust before deciding.",
+                        next: "Ask what they are comparing against, then answer the exact concern instead of pushing too early.",
+                        reply: "I understand you are comparing. Which package, price, or timing are you comparing with? I can explain the difference clearly."
+                    }
+                ];
+                const tickets = Array.from(option.querySelectorAll("[data-b-ticket]"));
+                const liveText = option.querySelector("#bLiveText");
+                const liveSource = option.querySelector("#bLiveSource");
+                const dynamicPanels = {
+                    request: option.querySelector("[data-b-dynamic='request'] span"),
+                    stuck: option.querySelector("[data-b-dynamic='stuck'] span"),
+                    next: option.querySelector("[data-b-dynamic='next'] p"),
+                    reply: option.querySelector("[data-b-dynamic='reply'] p")
+                };
+                let index = 0;
+                function setState(nextIndex) {
+                    index = nextIndex % states.length;
+                    const state = states[index];
+                    tickets.forEach((ticket, ticketIndex) => {
+                        ticket.classList.toggle("priority", ticketIndex === index);
+                    });
+                    if (liveText) {
+                        liveText.innerHTML = `Live sorting <strong>${state.lead}</strong>`;
+                    }
+                    if (liveSource) {
+                        liveSource.textContent = state.source;
+                    }
+                    Object.entries(dynamicPanels).forEach(([key, element]) => {
+                        if (!element) {
+                            return;
+                        }
+                        element.textContent = state[key];
+                        const panel = element.closest(".b-panel");
+                        if (panel) {
+                            panel.classList.remove("is-refreshing");
+                            void panel.offsetWidth;
+                            panel.classList.add("is-refreshing");
+                            window.setTimeout(() => panel.classList.remove("is-refreshing"), 320);
+                        }
+                    });
+                }
+                window.setInterval(() => setState(index + 1), 3300);
+            })();
+        </script>
         """,
         show_sales_contact=True,
         show_floating_contact=False,
