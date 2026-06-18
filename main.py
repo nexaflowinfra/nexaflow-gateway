@@ -6407,6 +6407,8 @@ def product_assistant_language(message, language=None):
 
 def product_assistant_topic(message):
     text = (message or "").lower()
+    if re.search(r"api|gateway|中转|接口|developer|builder|automation|openai|openrouter|model|credit|credits|token|tokens", text):
+        return "api_gateway"
     if re.search(r"price|pricing|plan|starter|growth|business|cost|fee|trial|价|价格|收费|配套|月费|试用", text):
         return "pricing"
     if re.search(r"meta|whatsapp|instagram|facebook|messenger|tiktok|xiaohongshu|小红书|社媒|私信|同步|接入|连接", text):
@@ -6425,14 +6427,26 @@ def product_assistant_fallback_answer(message, language):
     answers = {
         "pricing": {
             "en": (
-                "NexaFlow starts with a 30-day trial. After that, Starter is for up to 100 enquiries/month, "
-                "Growth is for about 101-500 enquiries/month, and Business is for 500+ or custom workflows. "
-                "The core AI follow-up features are already included from Starter."
+                "NexaFlow has separate pricing tracks. Enquiry starts with a 30-day trial: Starter for up to 100 enquiries/month, "
+                "Growth for about 101-500, and Business for 500+ or custom workflows. API Gateway uses API plans, credits, "
+                "usage limits, and customer API keys for developers."
             ),
             "zh": (
-                "NexaFlow 可以先试用 30 天。之后 Starter 适合每月 100 个询盘以内，"
-                "Growth 适合大约 101-500 个询盘，Business 适合 500+ 或需要客制流程。"
-                "AI 分类、客户卡点判断、回复草稿和跟进提醒，从 Starter 就会有。"
+                "NexaFlow 现在分成两个产品线。Enquiry 可以先试用 30 天：Starter 适合每月 100 个询盘以内，"
+                "Growth 适合大约 101-500 个询盘，Business 适合 500+ 或客制流程。API Gateway 则用 API 配套、credits、"
+                "用量限制和客户 API key 给开发者使用。"
+            ),
+        },
+        "api_gateway": {
+            "en": (
+                "NexaFlow API Gateway is the original API middle-layer product. It lets developers call /v1/chat with customer API keys, "
+                "while NexaFlow handles credits, plans, rate limits, usage logs, model routing, billing hooks, and key rotation. "
+                "It is separate from NexaFlow Enquiry, which is for merchant customer follow-up."
+            ),
+            "zh": (
+                "NexaFlow API Gateway 就是原本的 API 中转站产品。开发者可以用客户 API key 调用 /v1/chat，"
+                "NexaFlow 负责 credits、配套、限流、用量记录、模型路由、billing hook 和 key 轮换。"
+                "它和 NexaFlow Enquiry 分开；Enquiry 是给商家处理客户询盘和跟进。"
             ),
         },
         "channels": {
@@ -6493,27 +6507,29 @@ def product_assistant_fallback_answer(message, language):
 
 def product_assistant_suggestions(language):
     if language == "zh":
-        return ["如何接 WhatsApp/IG？", "价格怎么分？", "AI 会帮销售做什么？", "客户资料安全吗？"]
+        return ["API 中转站是什么？", "Enquiry 是什么？", "价格怎么分？", "两个产品差别？"]
 
-    return ["How does Meta sync work?", "Which plan should I choose?", "What does AI do?", "Is customer data safe?"]
+    return ["What is API Gateway?", "What is Enquiry?", "Which plan should I choose?", "Which product fits me?"]
 
 
 def product_assistant_system_prompt(language):
     answer_language = "Chinese" if language == "zh" else "English"
     return (
         "You are the public product assistant for NexaFlow Enquiry. Answer only questions about NexaFlow, "
-        "merchant onboarding, enquiry inbox workflow, Meta/WhatsApp/Instagram/Facebook setup, TikTok/Xiaohongshu assisted capture, "
-        "AI follow-up, pricing, trial, data protection, or sales demo. If the question is unrelated, briefly redirect to NexaFlow. "
+        "NexaFlow API Gateway, merchant onboarding, enquiry inbox workflow, Meta/WhatsApp/Instagram/Facebook setup, "
+        "TikTok/Xiaohongshu assisted capture, AI follow-up, API keys, credits, model routing, pricing, trial, data protection, "
+        "or sales demo. If the question is unrelated, briefly redirect to NexaFlow. "
         "Do not request passwords, OTP codes, access tokens, API keys, full customer records, NRIC/passport numbers, or bank details. "
         "Do not promise guaranteed conversions or perfect security. Keep the reply concise, practical, and under 110 words. "
         f"Reply in {answer_language}.\n\n"
-        "Facts: NexaFlow gives merchants one sales inbox for scattered customer enquiries. AI helps identify priority, customer needs, "
+        "Facts: NexaFlow has two separate products. NexaFlow Enquiry gives merchants one sales inbox for scattered customer enquiries. AI helps identify priority, customer needs, "
         "missing details, stuck point, next reply direction, and follow-up reminders. Official WhatsApp Business, Facebook Messenger, "
         "and Instagram DM sync requires Meta Developer setup, webhook configuration, permissions, and approval. Before approval, merchants "
         "can use buyer links plus manual or assisted capture. TikTok and Xiaohongshu are supported by manual/assisted capture first. "
         "Trial is 30 days. Starter is for up to 100 enquiries/month, Growth for about 101-500 enquiries/month, Business for 500+ or custom workflows. "
-        "Core AI follow-up is included from Starter. NexaFlow does not ask for social media passwords. Customer enquiry data should be used only "
-        "for replies, quotations, appointments, follow-up, support, and required records."
+        "Core AI follow-up is included from Starter. NexaFlow API Gateway is the original API middle layer for developers: /v1/chat, customer API keys, "
+        "credits, rate limits, daily limits, usage logs, model routing, billing hooks, customer portal, and admin client management. "
+        "NexaFlow does not ask for social media passwords. Customer enquiry data should be used only for replies, quotations, appointments, follow-up, support, and required records."
     )
 
 
@@ -7350,8 +7366,9 @@ def base_html(title, body):
                 <nav>
                     <a class="brand" href="/"><span class="mark"></span><span>NexaFlow</span></a>
                     <div class="nav-links">
+                        <a href="/api-gateway">API Gateway</a>
+                        <a href="/enquiry">Enquiry</a>
                         <a href="/pricing">Pricing</a>
-                        <a href="/ai-enquiry">Enquiry App</a>
                         <a href="/portal">Portal</a>
                         <a href="/admin/dashboard">Admin</a>
                         <a href="/docs">API Docs</a>
@@ -9322,6 +9339,413 @@ def acceptable_use_page():
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
+    contact_url = sales_whatsapp_url("Hi NexaFlow, I want to understand which NexaFlow product fits my business")
+    request_link = escape_html(contact_url or "/contact-trial")
+    return merchant_html(
+        "NexaFlow",
+        "NexaFlow",
+        f"""
+        <style>
+            .suite-hero {{
+                display: grid;
+                grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr);
+                gap: 32px;
+                align-items: center;
+                padding: 54px 0 46px;
+            }}
+            .suite-hero h1 {{
+                max-width: 680px;
+                font-size: clamp(42px, 6vw, 74px);
+                line-height: .96;
+            }}
+            .suite-hero .lead {{
+                max-width: 620px;
+            }}
+            .suite-map {{
+                display: grid;
+                gap: 12px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 14px;
+                padding: 14px;
+                background:
+                    linear-gradient(135deg, rgba(243,199,106,.09), transparent 38%),
+                    rgba(10,10,10,.86);
+                box-shadow: 0 28px 90px rgba(0,0,0,.34);
+            }}
+            .suite-map-row {{
+                display: grid;
+                grid-template-columns: 120px minmax(0, 1fr);
+                gap: 12px;
+                align-items: stretch;
+            }}
+            .suite-label {{
+                display: grid;
+                place-items: center;
+                border: 1px solid rgba(243,199,106,.24);
+                border-radius: 10px;
+                color: var(--brand-strong);
+                font-size: 12px;
+                font-weight: 900;
+                text-transform: uppercase;
+                background: rgba(243,199,106,.06);
+            }}
+            .suite-mini-panel {{
+                border: 1px solid rgba(255,255,255,.1);
+                border-radius: 10px;
+                padding: 14px;
+                background: rgba(255,255,255,.035);
+            }}
+            .suite-mini-panel strong {{
+                display: block;
+                color: var(--ink);
+                margin-bottom: 4px;
+            }}
+            .suite-mini-panel span {{
+                color: var(--muted);
+                font-size: 13px;
+            }}
+            .product-split-grid {{
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 16px;
+                margin-top: 18px;
+            }}
+            .product-card {{
+                position: relative;
+                display: grid;
+                gap: 18px;
+                min-height: 360px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 14px;
+                padding: 22px;
+                background:
+                    linear-gradient(145deg, rgba(255,255,255,.055), transparent 44%),
+                    rgba(12,12,13,.92);
+                overflow: hidden;
+            }}
+            .product-card::before {{
+                content: "";
+                position: absolute;
+                inset: 0;
+                pointer-events: none;
+                background: linear-gradient(90deg, transparent, rgba(243,199,106,.08), transparent);
+                transform: translateX(-110%);
+                animation: suiteCardSweep 7s ease-in-out infinite;
+            }}
+            .product-card.api::before {{
+                animation-delay: 1.2s;
+                background: linear-gradient(90deg, transparent, rgba(69,213,199,.08), transparent);
+            }}
+            .product-card > * {{
+                position: relative;
+                z-index: 1;
+            }}
+            .product-card h2 {{
+                margin: 0 0 10px;
+                font-size: 28px;
+            }}
+            .product-card ul {{
+                display: grid;
+                gap: 8px;
+                margin: 0;
+                padding-left: 18px;
+                color: var(--muted);
+            }}
+            .product-tagline {{
+                color: var(--brand-strong);
+                font-size: 12px;
+                font-weight: 900;
+                text-transform: uppercase;
+            }}
+            .suite-ai {{
+                position: fixed;
+                right: 22px;
+                bottom: 88px;
+                z-index: 45;
+                display: grid;
+                justify-items: end;
+                pointer-events: none;
+            }}
+            .suite-ai-toggle,
+            .suite-ai-panel {{
+                pointer-events: auto;
+            }}
+            .suite-ai-toggle {{
+                min-height: 46px;
+                border: 1px solid rgba(243,199,106,.42);
+                border-radius: 999px;
+                padding: 11px 15px;
+                background: linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.03)), rgba(14,14,14,.82);
+                color: var(--ink);
+                box-shadow: 0 18px 46px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.18);
+                backdrop-filter: blur(22px) saturate(1.45);
+                font-weight: 900;
+                cursor: pointer;
+            }}
+            .suite-ai-panel {{
+                display: none;
+                width: min(380px, calc(100vw - 32px));
+                margin-bottom: 12px;
+                border: 1px solid rgba(255,255,255,.14);
+                border-radius: 14px;
+                background: linear-gradient(145deg, rgba(255,255,255,.09), rgba(255,255,255,.025)), rgba(9,9,9,.94);
+                box-shadow: 0 26px 88px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.13);
+                backdrop-filter: blur(26px) saturate(1.35);
+                overflow: hidden;
+            }}
+            .suite-ai-panel.is-open {{
+                display: grid;
+            }}
+            .suite-ai-head,
+            .suite-ai-form {{
+                padding: 14px;
+                border-bottom: 1px solid rgba(255,255,255,.09);
+            }}
+            .suite-ai-head strong {{
+                display: block;
+                color: var(--ink);
+            }}
+            .suite-ai-head span,
+            .suite-ai-note {{
+                color: var(--muted);
+                font-size: 12px;
+            }}
+            .suite-ai-messages {{
+                display: grid;
+                gap: 9px;
+                max-height: 280px;
+                overflow: auto;
+                padding: 14px;
+            }}
+            .suite-ai-bubble {{
+                border: 1px solid rgba(255,255,255,.1);
+                border-radius: 12px;
+                padding: 10px;
+                color: var(--muted);
+                background: rgba(255,255,255,.045);
+                font-size: 13px;
+                white-space: pre-wrap;
+            }}
+            .suite-ai-bubble.user {{
+                justify-self: end;
+                color: var(--ink);
+                border-color: rgba(243,199,106,.34);
+                background: rgba(243,199,106,.1);
+            }}
+            .suite-ai-form {{
+                display: grid;
+                gap: 9px;
+                border-bottom: 0;
+                border-top: 1px solid rgba(255,255,255,.09);
+            }}
+            .suite-ai-form textarea {{
+                width: 100%;
+                min-height: 72px;
+                resize: vertical;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 10px;
+                padding: 10px;
+                background: rgba(0,0,0,.46);
+                color: var(--ink);
+                font: inherit;
+            }}
+            .suite-ai-actions {{
+                display: flex;
+                justify-content: space-between;
+                gap: 10px;
+                align-items: center;
+            }}
+            @keyframes suiteCardSweep {{
+                0%, 26% {{ transform: translateX(-110%); opacity: 0; }}
+                42%, 62% {{ opacity: .8; }}
+                86%, 100% {{ transform: translateX(110%); opacity: 0; }}
+            }}
+            @media (max-width: 860px) {{
+                .suite-hero,
+                .product-split-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                .suite-map-row {{
+                    grid-template-columns: 1fr;
+                }}
+                .suite-label {{
+                    min-height: 42px;
+                }}
+                .suite-ai {{
+                    right: 14px;
+                    bottom: 72px;
+                }}
+            }}
+        </style>
+        <section class="suite-hero">
+            <div>
+                <div class="eyebrow">NexaFlow</div>
+                <h1>Two products. One operating layer.</h1>
+                <p class="lead">NexaFlow is split into two clear products: an API gateway for developers and an enquiry inbox for merchants that need better customer follow-up.</p>
+                <div class="actions">
+                    <a class="btn" href="/enquiry">Open Enquiry</a>
+                    <a class="btn secondary" href="/api-gateway">Open API Gateway</a>
+                </div>
+            </div>
+            <div class="suite-map" aria-label="NexaFlow product map">
+                <div class="suite-map-row">
+                    <div class="suite-label">Merchants</div>
+                    <div class="suite-mini-panel"><strong>NexaFlow Enquiry</strong><span>One inbox for WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals. AI shows who to reply first and what to ask next.</span></div>
+                </div>
+                <div class="suite-map-row">
+                    <div class="suite-label">Builders</div>
+                    <div class="suite-mini-panel"><strong>NexaFlow API Gateway</strong><span>Paid AI API access with API keys, plans, credits, model routing, usage logs, and customer portal.</span></div>
+                </div>
+            </div>
+        </section>
+        <section class="product-split-grid">
+            <article class="product-card enquiry">
+                <div>
+                    <div class="product-tagline">For sales teams and service merchants</div>
+                    <h2>NexaFlow Enquiry</h2>
+                    <p>Collect scattered customer enquiries, understand the customer need, identify missing details, and prepare the next follow-up.</p>
+                </div>
+                <ul>
+                    <li>Sales queue for daily follow-up</li>
+                    <li>AI priority, customer stuck point, and reply direction</li>
+                    <li>Buyer link, manual capture, and Meta sync readiness</li>
+                </ul>
+                <div class="actions">
+                    <a class="btn" href="/enquiry">View Enquiry Product</a>
+                    <a class="btn secondary" href="/dealer-demo">Sales Demo</a>
+                </div>
+            </article>
+            <article class="product-card api">
+                <div>
+                    <div class="product-tagline">For developers and automation teams</div>
+                    <h2>NexaFlow API Gateway</h2>
+                    <p>Use NexaFlow as a controlled AI API middle layer for chat completions, billing, credits, model routing, and account management.</p>
+                </div>
+                <ul>
+                    <li>Customer API keys and hashed key storage</li>
+                    <li>Credits, usage limits, rate limits, and logs</li>
+                    <li>Admin dashboard, billing hooks, and customer portal</li>
+                </ul>
+                <div class="actions">
+                    <a class="btn" href="/api-gateway">View API Gateway</a>
+                    <a class="btn secondary" href="/portal">Customer Portal</a>
+                </div>
+            </article>
+        </section>
+        <section class="trust-strip">
+            <p>Use the Enquiry product when the customer is a merchant handling social DMs. Use the API Gateway when the customer needs programmatic AI access for apps, automations, or internal tools.</p>
+            <p><a href="/pricing">Pricing</a> · <a href="/docs">API Docs</a> · <a href="/privacy">Privacy Policy</a> · <a href="{request_link}" target="_blank" rel="noopener">Ask on WhatsApp</a></p>
+        </section>
+        <div class="suite-ai" id="nexaflowSuiteAssistant">
+            <section class="suite-ai-panel" id="suiteAiPanel" aria-label="NexaFlow product assistant">
+                <div class="suite-ai-head">
+                    <strong>Ask NexaFlow AI</strong>
+                    <span>Ask which product fits, how API Gateway works, or how Enquiry works.</span>
+                </div>
+                <div class="suite-ai-messages" id="suiteAiMessages">
+                    <div class="suite-ai-bubble">Hi, I can explain the difference between NexaFlow Enquiry and NexaFlow API Gateway.</div>
+                </div>
+                <div class="suite-ai-form">
+                    <textarea id="suiteAiInput" maxlength="800" placeholder="Ask about NexaFlow..."></textarea>
+                    <div class="suite-ai-actions">
+                        <span class="suite-ai-note">Do not enter passwords, OTPs, tokens, or customer IDs.</span>
+                        <button class="btn" type="button" id="suiteAiSend" onclick="askSuiteAssistant()">Ask AI</button>
+                    </div>
+                </div>
+            </section>
+            <button class="suite-ai-toggle" type="button" onclick="toggleSuiteAssistant()">Ask AI</button>
+        </div>
+        <script>
+            function toggleSuiteAssistant(force) {{
+                const panel = document.getElementById("suiteAiPanel");
+                if (!panel) return;
+                const shouldOpen = typeof force === "boolean" ? force : !panel.classList.contains("is-open");
+                panel.classList.toggle("is-open", shouldOpen);
+                if (shouldOpen) {{
+                    window.setTimeout(() => document.getElementById("suiteAiInput")?.focus(), 60);
+                }}
+            }}
+            function appendSuiteMessage(role, text) {{
+                const messages = document.getElementById("suiteAiMessages");
+                const bubble = document.createElement("div");
+                bubble.className = "suite-ai-bubble " + role;
+                bubble.textContent = text;
+                messages.appendChild(bubble);
+                messages.scrollTop = messages.scrollHeight;
+                return bubble;
+            }}
+            async function askSuiteAssistant() {{
+                const input = document.getElementById("suiteAiInput");
+                const send = document.getElementById("suiteAiSend");
+                const message = (input?.value || "").trim();
+                if (!message) return;
+                toggleSuiteAssistant(true);
+                appendSuiteMessage("user", message);
+                input.value = "";
+                send.disabled = true;
+                const loading = appendSuiteMessage("system", "Thinking through the answer...");
+                try {{
+                    const response = await fetch("/api/product-assistant", {{
+                        method: "POST",
+                        headers: {{"Content-Type": "application/json"}},
+                        body: JSON.stringify({{message: message, language: "en", page: "home"}})
+                    }});
+                    const payload = await response.json().catch(() => ({{}}));
+                    if (!response.ok) throw new Error(payload.detail || "Request failed");
+                    loading.textContent = payload.answer || "I do not have an answer yet.";
+                }} catch (error) {{
+                    loading.textContent = "I cannot answer right now. You can also contact NexaFlow on WhatsApp.";
+                }} finally {{
+                    send.disabled = false;
+                }}
+            }}
+        </script>
+        """,
+        show_sales_contact=True,
+    )
+
+
+@app.get("/api-gateway", response_class=HTMLResponse)
+def api_gateway_page():
+    return base_html(
+        "NexaFlow API Gateway",
+        """
+        <section class="hero">
+            <div>
+                <div class="eyebrow">NexaFlow API Gateway</div>
+                <h1>AI API access with keys, credits, usage limits, and billing.</h1>
+                <p class="lead">The original NexaFlow product is still here: a paid API middle layer for builders who need controlled chat completions without exposing provider keys directly.</p>
+                <div class="actions">
+                    <a class="btn" href="/docs">API Docs</a>
+                    <a class="btn secondary" href="/portal">Customer Portal</a>
+                    <a class="btn secondary" href="/pricing">Pricing</a>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Gateway flow</h3>
+                <div class="steps">
+                    <div class="step"><div><strong>1. Create client</strong><p>Admin creates a client, plan, credits, and API key.</p></div></div>
+                    <div class="step"><div><strong>2. Call /v1/chat</strong><p>Customer sends requests with an API key by header or bearer token.</p></div></div>
+                    <div class="step"><div><strong>3. Meter usage</strong><p>NexaFlow applies rate limits, usage guardrails, credits, and logs.</p></div></div>
+                </div>
+            </div>
+        </section>
+        <section class="grid">
+            <div class="card"><h3>API Key Control</h3><p>Customer API keys are guarded, hashed where possible, and can be rotated from the portal.</p></div>
+            <div class="card"><h3>Credits and Plans</h3><p>Starter, Pro, and Business plans control credits, rate limits, daily usage, and model tiers.</p></div>
+            <div class="card"><h3>Model Routing</h3><p>Route requests by configured provider, task, and strategy while keeping provider keys server-side.</p></div>
+            <div class="card"><h3>Admin Operations</h3><p>Manage clients, top-ups, resend keys, usage stats, backup checks, and account health from the admin dashboard.</p></div>
+        </section>
+        <section class="trust-strip">
+            <p><strong>Separate from NexaFlow Enquiry:</strong> use API Gateway for programmatic AI access. Use Enquiry for merchant customer-message follow-up.</p>
+            <p><a href="/enquiry">View Enquiry product</a> · <a href="/terms">Terms</a> · <a href="/acceptable-use">Acceptable Use</a></p>
+        </section>
+        """,
+    )
+
+
+@app.get("/enquiry", response_class=HTMLResponse)
+def enquiry_landing_page():
     contact_url = sales_whatsapp_url("Hi NexaFlow, I want to create an enquiry link for my business")
     request_link = escape_html(contact_url or "/contact-trial")
     return merchant_html(

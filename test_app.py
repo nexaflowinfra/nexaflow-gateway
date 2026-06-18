@@ -45,6 +45,36 @@ def test_landing_page_loads():
     response = client.get("/")
     assert response.status_code == 200
     assert "NexaFlow" in response.text
+    assert "Two products. One operating layer." in response.text
+    assert "NexaFlow Enquiry" in response.text
+    assert "NexaFlow API Gateway" in response.text
+    assert "/enquiry" in response.text
+    assert "/api-gateway" in response.text
+    assert "/dealer-demo" in response.text
+    assert "/portal" in response.text
+    assert "nexaflowSuiteAssistant" in response.text
+    assert "/api/product-assistant" in response.text
+    assert "API Gateway" in response.text
+    assert "customer enquiries" in response.text
+    assert "API middle layer" in response.text
+    assert "Know who to follow up next." not in response.text
+    assert "Create Dealer Inbox" not in response.text
+    assert "All car buyer DMs" not in response.text
+    icon_asset = client.get("/assets/brand/nexaflow-icon.png")
+    assert icon_asset.status_code == 200
+    assert icon_asset.headers["content-type"].startswith("image/png")
+    favicon = client.get("/favicon.ico")
+    assert favicon.status_code == 200
+    assert favicon.headers["content-type"].startswith("image/png")
+    demo_video = client.get("/assets/demo/nexaflow-dealer-walkthrough.webm")
+    assert demo_video.status_code == 200
+    assert demo_video.headers["content-type"].startswith("video/webm")
+
+
+def test_enquiry_landing_page_loads():
+    response = client.get("/enquiry")
+    assert response.status_code == 200
+    assert "NexaFlow" in response.text
     assert "Know who to follow up next." in response.text
     assert "知道下一位该跟进谁。" in response.text
     assert "priority, customer needs, missing details" in response.text
@@ -101,15 +131,21 @@ def test_landing_page_loads():
     assert "二手车" not in response.text
     assert "看车" not in response.text
     assert "<span>1</span>" not in response.text
-    icon_asset = client.get("/assets/brand/nexaflow-icon.png")
-    assert icon_asset.status_code == 200
-    assert icon_asset.headers["content-type"].startswith("image/png")
-    favicon = client.get("/favicon.ico")
-    assert favicon.status_code == 200
-    assert favicon.headers["content-type"].startswith("image/png")
-    demo_video = client.get("/assets/demo/nexaflow-dealer-walkthrough.webm")
-    assert demo_video.status_code == 200
-    assert demo_video.headers["content-type"].startswith("video/webm")
+
+
+def test_api_gateway_product_page_loads():
+    response = client.get("/api-gateway")
+    assert response.status_code == 200
+    assert "NexaFlow API Gateway" in response.text
+    assert "AI API access with keys, credits, usage limits, and billing." in response.text
+    assert "/v1/chat" in response.text
+    assert "Customer API keys" in response.text
+    assert "Credits and Plans" in response.text
+    assert "Model Routing" in response.text
+    assert "/docs" in response.text
+    assert "/portal" in response.text
+    assert "/enquiry" in response.text
+    assert "NexaFlow Enquiry" in response.text
 
 
 def test_product_assistant_uses_guarded_faq_fallback(monkeypatch):
@@ -131,7 +167,7 @@ def test_product_assistant_uses_guarded_faq_fallback(monkeypatch):
     assert "WhatsApp" in payload["answer"]
     assert payload["safety"]["stores_message"] is False
     assert payload["safety"]["sensitive_data_not_required"] is True
-    assert "客户资料安全吗？" in payload["suggestions"]
+    assert "API 中转站是什么？" in payload["suggestions"]
 
 
 def test_product_assistant_rate_limits_public_questions(monkeypatch):
