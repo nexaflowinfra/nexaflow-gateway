@@ -9206,6 +9206,719 @@ def landing_page():
     )
 
 
+@app.get("/ui-options", response_class=HTMLResponse)
+def ui_options_page():
+    return merchant_html(
+        "NexaFlow UI Options",
+        "NexaFlow",
+        """
+        <style>
+            .ui-options-page {
+                --option-line: rgba(255,255,255,.12);
+                --option-panel: rgba(12,12,13,.82);
+                --option-panel-strong: rgba(20,19,18,.94);
+                display: grid;
+                gap: 28px;
+            }
+            .ui-options-intro {
+                max-width: 820px;
+                padding: 26px 0 4px;
+            }
+            .ui-options-intro h1 {
+                max-width: 760px;
+                margin-bottom: 12px;
+            }
+            .ui-options-intro .lead {
+                max-width: 760px;
+            }
+            .option-nav {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 18px;
+            }
+            .option-nav a {
+                display: inline-flex;
+                align-items: center;
+                min-height: 36px;
+                border: 1px solid var(--option-line);
+                border-radius: 999px;
+                padding: 7px 11px;
+                color: var(--ink);
+                text-decoration: none;
+                background: rgba(255,255,255,.035);
+                font-weight: 800;
+                font-size: 13px;
+            }
+            .option-shell {
+                border: 1px solid var(--option-line);
+                border-radius: 14px;
+                overflow: hidden;
+                background:
+                    radial-gradient(circle at 12% 18%, rgba(243,199,106,.12), transparent 28%),
+                    linear-gradient(135deg, rgba(255,255,255,.055), rgba(255,255,255,.018)),
+                    #050505;
+                box-shadow: 0 28px 90px rgba(0,0,0,.34);
+            }
+            .option-head {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 14px;
+                align-items: start;
+                padding: 18px;
+                border-bottom: 1px solid var(--option-line);
+                background: rgba(255,255,255,.028);
+            }
+            .option-kicker {
+                display: block;
+                color: var(--brand-strong);
+                font-size: 12px;
+                font-weight: 900;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+            }
+            .option-head h2 {
+                margin: 0 0 6px;
+                font-size: 26px;
+            }
+            .option-head p {
+                margin: 0;
+                max-width: 760px;
+            }
+            .option-tag {
+                border: 1px solid rgba(243,199,106,.42);
+                border-radius: 999px;
+                padding: 7px 10px;
+                color: var(--brand-strong);
+                font-size: 12px;
+                font-weight: 900;
+                background: rgba(243,199,106,.07);
+                white-space: nowrap;
+            }
+            .option-screen {
+                min-height: 560px;
+                padding: 24px;
+            }
+            .option-screen * {
+                min-width: 0;
+            }
+            .tiny-toggle-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 20px;
+            }
+            .tiny-glass {
+                display: inline-grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                position: relative;
+                width: fit-content;
+                border: 1px solid rgba(255,255,255,.18);
+                border-radius: 999px;
+                padding: 3px;
+                background:
+                    linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.035)),
+                    rgba(255,255,255,.045);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 12px 30px rgba(0,0,0,.22);
+                backdrop-filter: blur(18px) saturate(160%);
+            }
+            .tiny-glass::after {
+                content: "";
+                position: absolute;
+                top: 3px;
+                bottom: 3px;
+                left: 3px;
+                width: calc((100% - 6px) / 2);
+                border-radius: 999px;
+                background:
+                    radial-gradient(circle at 24% 16%, rgba(255,255,255,.95), rgba(255,255,255,.3) 38%, transparent 66%),
+                    linear-gradient(135deg, rgba(255,255,255,.9), rgba(243,199,106,.82));
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.92), 0 5px 16px rgba(0,0,0,.3);
+            }
+            .tiny-glass span {
+                position: relative;
+                z-index: 1;
+                display: inline-flex;
+                justify-content: center;
+                align-items: center;
+                min-width: 58px;
+                min-height: 30px;
+                padding: 4px 10px;
+                color: rgba(247,243,234,.68);
+                font-size: 12px;
+                font-weight: 900;
+            }
+            .tiny-glass span:first-child {
+                color: #050505;
+            }
+            .tiny-glass.market span {
+                min-width: 84px;
+            }
+            .option-a-grid {
+                display: grid;
+                grid-template-columns: minmax(0, .92fr) minmax(360px, 1.08fr);
+                gap: 26px;
+                align-items: center;
+            }
+            .option-a-copy h3 {
+                margin: 0 0 14px;
+                font-size: clamp(38px, 6vw, 72px);
+                line-height: .98;
+                letter-spacing: 0;
+            }
+            .option-a-copy p {
+                font-size: 18px;
+                max-width: 600px;
+            }
+            .option-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 22px;
+            }
+            .mock-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 42px;
+                border-radius: 8px;
+                padding: 10px 14px;
+                text-decoration: none;
+                font-weight: 900;
+                background: var(--brand);
+                color: #000;
+            }
+            .mock-btn.ghost {
+                background: rgba(255,255,255,.035);
+                color: var(--ink);
+                border: 1px solid var(--option-line);
+            }
+            .calm-preview {
+                border: 1px solid var(--option-line);
+                border-radius: 12px;
+                overflow: hidden;
+                background: rgba(8,8,8,.92);
+                box-shadow: 0 24px 80px rgba(0,0,0,.38);
+            }
+            .calm-preview-top {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 14px;
+                border-bottom: 1px solid var(--option-line);
+                color: var(--muted);
+                font-size: 13px;
+                font-weight: 900;
+            }
+            .calm-preview-body {
+                display: grid;
+                grid-template-columns: minmax(150px, .75fr) minmax(220px, 1fr);
+                gap: 1px;
+                background: var(--option-line);
+            }
+            .calm-list,
+            .calm-detail {
+                background: rgba(12,12,13,.98);
+                padding: 12px;
+            }
+            .calm-lead {
+                border: 1px solid var(--option-line);
+                border-radius: 8px;
+                padding: 11px;
+                margin-bottom: 8px;
+                background: rgba(255,255,255,.025);
+            }
+            .calm-lead.active {
+                border-color: rgba(243,199,106,.58);
+                background: rgba(243,199,106,.08);
+            }
+            .calm-lead strong,
+            .calm-detail-card strong {
+                display: block;
+                color: var(--ink);
+                margin-bottom: 4px;
+            }
+            .calm-lead span,
+            .calm-detail-card span,
+            .calm-detail-card p {
+                display: block;
+                color: var(--muted);
+                font-size: 12px;
+                line-height: 1.45;
+                margin: 0;
+            }
+            .calm-detail h4 {
+                margin: 3px 0 10px;
+                font-size: 20px;
+            }
+            .calm-detail-card {
+                border: 1px solid var(--option-line);
+                border-radius: 8px;
+                padding: 10px;
+                margin-bottom: 9px;
+                background: rgba(0,0,0,.24);
+            }
+            .calm-detail-card.next {
+                border-color: rgba(243,199,106,.34);
+                background: rgba(243,199,106,.07);
+            }
+            .option-b-screen {
+                display: grid;
+                grid-template-columns: 210px minmax(0, 1fr);
+                gap: 14px;
+                background:
+                    linear-gradient(90deg, rgba(243,199,106,.055), transparent 36%),
+                    #050505;
+            }
+            .b-sidebar {
+                border: 1px solid var(--option-line);
+                border-radius: 12px;
+                padding: 14px;
+                background: rgba(10,10,10,.86);
+                display: grid;
+                align-content: start;
+                gap: 12px;
+            }
+            .b-sidebar strong {
+                font-size: 18px;
+            }
+            .b-nav-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                min-height: 38px;
+                padding: 8px 10px;
+                border-radius: 8px;
+                color: var(--muted);
+                font-size: 13px;
+                font-weight: 800;
+            }
+            .b-nav-item.active {
+                background: rgba(243,199,106,.12);
+                color: var(--ink);
+            }
+            .b-workspace {
+                display: grid;
+                grid-template-rows: auto minmax(0, 1fr);
+                gap: 12px;
+            }
+            .b-topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+            }
+            .b-topbar h3 {
+                margin: 0;
+                font-size: clamp(28px, 4vw, 46px);
+                line-height: 1.02;
+            }
+            .b-board {
+                display: grid;
+                grid-template-columns: minmax(210px, .8fr) minmax(260px, 1fr) minmax(220px, .75fr);
+                gap: 1px;
+                border: 1px solid var(--option-line);
+                border-radius: 12px;
+                overflow: hidden;
+                background: var(--option-line);
+            }
+            .b-column {
+                background: rgba(12,12,13,.97);
+                padding: 13px;
+                display: grid;
+                align-content: start;
+                gap: 10px;
+            }
+            .b-column-title {
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 900;
+                text-transform: uppercase;
+            }
+            .b-ticket {
+                border: 1px solid var(--option-line);
+                border-radius: 8px;
+                padding: 11px;
+                background: rgba(255,255,255,.025);
+            }
+            .b-ticket.priority {
+                border-color: rgba(243,199,106,.6);
+                background: rgba(243,199,106,.08);
+            }
+            .b-ticket strong,
+            .b-panel strong {
+                display: block;
+                color: var(--ink);
+                margin-bottom: 4px;
+            }
+            .b-ticket span,
+            .b-panel span,
+            .b-panel p {
+                color: var(--muted);
+                font-size: 12px;
+                line-height: 1.45;
+                margin: 0;
+            }
+            .b-panel {
+                border: 1px solid var(--option-line);
+                border-radius: 8px;
+                padding: 12px;
+                background: rgba(0,0,0,.26);
+            }
+            .b-panel.next {
+                border-color: rgba(243,199,106,.36);
+                background: rgba(243,199,106,.075);
+            }
+            .option-c-screen {
+                position: relative;
+                overflow: hidden;
+                background:
+                    radial-gradient(circle at 50% 24%, rgba(69,213,199,.13), transparent 24%),
+                    radial-gradient(circle at 80% 18%, rgba(243,199,106,.14), transparent 28%),
+                    #030303;
+            }
+            .c-hero {
+                display: grid;
+                grid-template-columns: minmax(0, .9fr) minmax(320px, 1.1fr);
+                gap: 26px;
+                align-items: center;
+            }
+            .c-copy h3 {
+                margin: 0 0 14px;
+                font-size: clamp(40px, 6vw, 76px);
+                line-height: .96;
+            }
+            .c-copy p {
+                max-width: 590px;
+                font-size: 18px;
+            }
+            .ecosystem-stage {
+                position: relative;
+                min-height: 390px;
+                border: 1px solid var(--option-line);
+                border-radius: 16px;
+                background:
+                    linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+                    rgba(8,8,8,.84);
+                overflow: hidden;
+                box-shadow: 0 28px 90px rgba(0,0,0,.36);
+            }
+            .ecosystem-stage img {
+                width: 100%;
+                height: 100%;
+                min-height: 390px;
+                object-fit: cover;
+                opacity: .62;
+                filter: saturate(1.08) contrast(1.04);
+            }
+            .ecosystem-overlay {
+                position: absolute;
+                inset: 0;
+                display: grid;
+                align-content: end;
+                gap: 10px;
+                padding: 18px;
+                background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.64));
+            }
+            .module-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .module-pill {
+                border: 1px solid rgba(255,255,255,.15);
+                border-radius: 999px;
+                padding: 7px 10px;
+                background: rgba(0,0,0,.42);
+                color: var(--ink);
+                font-size: 12px;
+                font-weight: 900;
+                backdrop-filter: blur(12px);
+            }
+            .module-pill.active {
+                color: #000;
+                background: linear-gradient(135deg, #fff, var(--brand));
+            }
+            .c-bottom-queue {
+                margin-top: 18px;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 10px;
+            }
+            .c-mini-card {
+                border: 1px solid var(--option-line);
+                border-radius: 10px;
+                padding: 12px;
+                background: rgba(12,12,13,.84);
+            }
+            .c-mini-card strong {
+                display: block;
+                color: var(--ink);
+                margin-bottom: 4px;
+            }
+            .c-mini-card span {
+                color: var(--muted);
+                font-size: 12px;
+            }
+            .option-decision {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
+            }
+            .decision-card {
+                border: 1px solid var(--option-line);
+                border-radius: 10px;
+                padding: 15px;
+                background: rgba(255,255,255,.025);
+            }
+            .decision-card strong {
+                display: block;
+                color: var(--ink);
+                margin-bottom: 5px;
+            }
+            .decision-card p {
+                margin: 0;
+                font-size: 13px;
+            }
+            @media (max-width: 920px) {
+                .option-a-grid,
+                .option-b-screen,
+                .c-hero,
+                .option-decision {
+                    grid-template-columns: 1fr;
+                }
+                .option-screen {
+                    min-height: 0;
+                    padding: 18px;
+                }
+                .b-sidebar {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+                .b-sidebar strong {
+                    grid-column: 1 / -1;
+                }
+                .b-board,
+                .calm-preview-body,
+                .c-bottom-queue {
+                    grid-template-columns: 1fr;
+                }
+                .ecosystem-stage,
+                .ecosystem-stage img {
+                    min-height: 300px;
+                }
+            }
+            @media (max-width: 520px) {
+                .ui-options-intro {
+                    padding-top: 18px;
+                }
+                .option-head {
+                    grid-template-columns: 1fr;
+                    padding: 15px;
+                }
+                .option-head h2 {
+                    font-size: 22px;
+                }
+                .option-screen {
+                    padding: 14px;
+                }
+                .tiny-glass span {
+                    min-width: 48px;
+                    min-height: 28px;
+                    font-size: 11px;
+                    padding: 4px 8px;
+                }
+                .tiny-glass.market span {
+                    min-width: 74px;
+                }
+                .option-a-copy h3,
+                .c-copy h3,
+                .b-topbar h3 {
+                    font-size: 34px;
+                }
+                .option-a-copy p,
+                .c-copy p {
+                    font-size: 16px;
+                }
+                .b-sidebar {
+                    grid-template-columns: 1fr;
+                }
+                .b-topbar {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+            }
+        </style>
+        <div class="ui-options-page">
+            <section class="ui-options-intro">
+                <span class="option-kicker">Impeccable UI Direction Set</span>
+                <h1>3 个 NexaFlow 产品页 UI 方向。</h1>
+                <p class="lead">这三个方向都基于现在的产品定位：NexaFlow 是给商家集中询盘、判断客户卡点、准备下一步跟进的 sales inbox。先选方向，再把正式首页往那个方向整理。</p>
+                <div class="option-nav">
+                    <a href="#option-a">A · Calm Inbox</a>
+                    <a href="#option-b">B · Sales OS</a>
+                    <a href="#option-c">C · Ecosystem</a>
+                </div>
+            </section>
+
+            <section class="option-shell" id="option-a">
+                <div class="option-head">
+                    <div>
+                        <span class="option-kicker">Option A</span>
+                        <h2>Calm Inbox · 最接近现在主页，但更高级更干净</h2>
+                        <p>适合正式主页：一眼讲清楚价值，不让 demo 或设置抢走注意力。重点是 “one inbox + next follow-up”。</p>
+                    </div>
+                    <span class="option-tag">Homepage safest</span>
+                </div>
+                <div class="option-screen option-a-grid">
+                    <div class="option-a-copy">
+                        <div class="tiny-toggle-row">
+                            <div class="tiny-glass"><span>EN</span><span>中文</span></div>
+                            <div class="tiny-glass market"><span>Singapore</span><span>Malaysia</span></div>
+                        </div>
+                        <span class="option-kicker">NexaFlow Enquiry</span>
+                        <h3>One inbox for every customer enquiry.</h3>
+                        <p>See who to reply first, what the customer needs, what is missing, and what to send next.</p>
+                        <div class="option-actions">
+                            <a class="mock-btn" href="/dealer-demo">See Sales Demo</a>
+                            <a class="mock-btn ghost" href="/merchant-signup">Create Enquiry Inbox</a>
+                        </div>
+                    </div>
+                    <div class="calm-preview">
+                        <div class="calm-preview-top"><span>Live sales queue preview</span><span class="pill good">Demo</span></div>
+                        <div class="calm-preview-body">
+                            <div class="calm-list">
+                                <div class="calm-lead active"><strong>WhatsApp Quote Lead</strong><span>Reply first · price / timing</span></div>
+                                <div class="calm-lead"><strong>Instagram Service Lead</strong><span>Comparing packages</span></div>
+                                <div class="calm-lead"><strong>TikTok Appointment Lead</strong><span>Booking not confirmed</span></div>
+                            </div>
+                            <div class="calm-detail">
+                                <span class="option-kicker">WhatsApp · Quote</span>
+                                <h4>WhatsApp Quote Lead</h4>
+                                <div class="calm-detail-card"><strong>Customer needs</strong><span>Package price, available slot, and deposit details.</span></div>
+                                <div class="calm-detail-card"><strong>Stuck on</strong><span>Price range and appointment timing are not confirmed.</span></div>
+                                <div class="calm-detail-card next"><strong>Next reply</strong><p>Can I confirm your preferred date, budget range, and the service package you want us to quote?</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="option-shell" id="option-b">
+                <div class="option-head">
+                    <div>
+                        <span class="option-kicker">Option B</span>
+                        <h2>Sales OS · 产品感最强，直接展示中介每天会用什么</h2>
+                        <p>适合给销售型客户看：第一屏就像一个真实 inbox，强调 “今天先回谁、为什么、下一句怎么讲”。</p>
+                    </div>
+                    <span class="option-tag">Best for demo conversion</span>
+                </div>
+                <div class="option-screen option-b-screen">
+                    <aside class="b-sidebar">
+                        <strong>NexaFlow</strong>
+                        <div class="b-nav-item active"><span>Today</span><span>12</span></div>
+                        <div class="b-nav-item"><span>Need reply</span><span>5</span></div>
+                        <div class="b-nav-item"><span>Appointments</span><span>3</span></div>
+                        <div class="b-nav-item"><span>Follow-up</span><span>8</span></div>
+                    </aside>
+                    <div class="b-workspace">
+                        <div class="b-topbar">
+                            <div>
+                                <span class="option-kicker">Today&apos;s queue</span>
+                                <h3>Know who to follow up next.</h3>
+                            </div>
+                            <a class="mock-btn" href="/merchant-signup">Create Inbox</a>
+                        </div>
+                        <div class="b-board">
+                            <div class="b-column">
+                                <div class="b-column-title">Buyer queue</div>
+                                <div class="b-ticket priority"><strong>WhatsApp Quote Lead</strong><span>Price + appointment timing</span></div>
+                                <div class="b-ticket"><strong>IG Loan Question</strong><span>Income and loan details missing</span></div>
+                                <div class="b-ticket"><strong>TikTok Comparison</strong><span>Comparing options</span></div>
+                            </div>
+                            <div class="b-column">
+                                <div class="b-column-title">AI note</div>
+                                <div class="b-panel"><strong>Customer request</strong><span>Asked for price, availability, and whether booking requires deposit.</span></div>
+                                <div class="b-panel"><strong>Stuck point</strong><span>Budget range and preferred appointment time are still missing.</span></div>
+                                <div class="b-panel next"><strong>Next question</strong><p>Ask for date, budget range, and package preference before pushing for appointment.</p></div>
+                            </div>
+                            <div class="b-column">
+                                <div class="b-column-title">Follow-up</div>
+                                <div class="b-panel next"><strong>Reply draft</strong><p>Hi, can I confirm your preferred date and budget range first? Then I can quote the right package.</p></div>
+                                <a class="mock-btn" href="/dealer-demo">Open Demo Queue</a>
+                                <a class="mock-btn ghost" href="/merchant-login">Merchant Login</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="option-shell" id="option-c">
+                <div class="option-head">
+                    <div>
+                        <span class="option-kicker">Option C</span>
+                        <h2>Ecosystem · 更像 NexaFlow 品牌主页，不只是一款 enquiry 工具</h2>
+                        <p>适合你想把 NexaFlow 做成长期 AI business operating system：Enquiry 是第一个入口，后面还能延展 CRM、Billing、Inventory、Automation。</p>
+                    </div>
+                    <span class="option-tag">Most brand-led</span>
+                </div>
+                <div class="option-screen option-c-screen">
+                    <div class="c-hero">
+                        <div class="c-copy">
+                            <div class="tiny-toggle-row">
+                                <div class="tiny-glass"><span>EN</span><span>中文</span></div>
+                                <div class="tiny-glass market"><span>Singapore</span><span>Malaysia</span></div>
+                            </div>
+                            <span class="option-kicker">NexaFlow Enquiry</span>
+                            <h3>The first inbox in your business OS.</h3>
+                            <p>Start with customer enquiries. Expand into CRM, billing, inventory, automation, and reporting when the business is ready.</p>
+                            <div class="option-actions">
+                                <a class="mock-btn" href="/merchant-signup">Start with Enquiry</a>
+                                <a class="mock-btn ghost" href="/dealer-demo">View Demo</a>
+                            </div>
+                        </div>
+                        <div class="ecosystem-stage">
+                            <img src="/assets/brand/nexaflow-final.png" alt="NexaFlow business ecosystem">
+                            <div class="ecosystem-overlay">
+                                <div class="module-row">
+                                    <span class="module-pill active">Enquiry</span>
+                                    <span class="module-pill">CRM</span>
+                                    <span class="module-pill">Billing</span>
+                                    <span class="module-pill">Inventory</span>
+                                    <span class="module-pill">Automation</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="c-bottom-queue">
+                        <div class="c-mini-card"><strong>Collect</strong><span>WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals.</span></div>
+                        <div class="c-mini-card"><strong>Understand</strong><span>AI identifies intent, missing details, urgency, and stuck point.</span></div>
+                        <div class="c-mini-card"><strong>Follow up</strong><span>Sales gets the next reply and reminder without managing spreadsheets.</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="option-decision">
+                <div class="decision-card">
+                    <strong>选 A，如果你要最稳的正式主页</strong>
+                    <p>清楚、高级、风险最低，适合先上线给不同类型商家看。</p>
+                </div>
+                <div class="decision-card">
+                    <strong>选 B，如果你要最快让中介明白价值</strong>
+                    <p>最像真实产品，demo 转化力强，但主页会更偏 sales tool。</p>
+                </div>
+                <div class="decision-card">
+                    <strong>选 C，如果你要做 NexaFlow 长期品牌</strong>
+                    <p>品牌野心最大，适合把 Enquiry 放进更大的 business OS 故事里。</p>
+                </div>
+            </section>
+        </div>
+        """,
+        show_sales_contact=True,
+        show_floating_contact=False,
+    )
+
+
 @app.get("/merchant-login", response_class=HTMLResponse)
 def merchant_login_page():
     return merchant_html(
