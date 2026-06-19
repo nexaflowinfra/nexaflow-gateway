@@ -9738,6 +9738,9 @@ def api_gateway_page():
         "NexaFlow",
         """
         <style>
+            .gateway-controls {
+                margin-bottom: 20px;
+            }
             .gateway-hero {
                 display: grid;
                 grid-template-columns: minmax(0, .88fr) minmax(430px, 1.12fr);
@@ -9884,14 +9887,29 @@ def api_gateway_page():
         </style>
         <section class="gateway-hero">
             <div>
+                <div class="product-controls gateway-controls">
+                    <div class="glass-control label-free">
+                        <div class="language-toggle" aria-label="Language" id="gatewayLangToggle">
+                            <button type="button" class="active" onclick="setGatewayLang('en')" id="gatewayLangEn">EN</button>
+                            <button type="button" onclick="setGatewayLang('zh')" id="gatewayLangZh">中文</button>
+                        </div>
+                    </div>
+                    <div class="glass-control label-free">
+                        <div class="language-toggle" aria-label="Market" id="gatewayMarketToggle">
+                            <button type="button" class="active" onclick="setGatewayMarket('sg')" id="gatewayMarketSg">Singapore</button>
+                            <button type="button" onclick="setGatewayMarket('my')" id="gatewayMarketMy">Malaysia</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="eyebrow">NexaFlow API Gateway</div>
-                <h1>AI API access with keys, credits, usage limits, and billing.</h1>
-                <p class="lead">The original NexaFlow product is still here: a paid API middle layer for builders who need controlled chat completions without exposing provider keys directly.</p>
+                <h1><span data-gateway-lang="en">AI API access with keys, credits, usage limits, and billing.</span><span data-gateway-lang="zh" class="lang-hidden">带 API key、credits、用量限制和 billing 的 AI API 中转站。</span></h1>
+                <p class="lead"><span data-gateway-lang="en">The original NexaFlow product is still here: a paid API middle layer for builders who need controlled chat completions without exposing provider keys directly.</span><span data-gateway-lang="zh" class="lang-hidden">NexaFlow 原本的 API 中转站还在：给开发者使用的付费 AI API 中间层，不需要把 provider key 直接暴露给客户或应用。</span></p>
+                <p class="lead"><span data-gateway-market="sg">Built for Singapore teams that need metered AI access for apps, automations, and internal tools.</span><span data-gateway-market="my" class="market-hidden">Built for Malaysia teams that need metered AI access for apps, automations, and internal tools.</span></p>
                 <div class="actions">
                     <a class="btn" href="/docs">API Docs</a>
-                    <a class="btn secondary" href="/portal">Customer Portal</a>
-                    <a class="btn secondary" href="/pricing">Pricing</a>
-                    <a class="text-link" href="/">Back to NexaFlow</a>
+                    <a class="btn secondary" href="/portal"><span data-gateway-lang="en">Customer Portal</span><span data-gateway-lang="zh" class="lang-hidden">客户 Portal</span></a>
+                    <a class="btn secondary" href="/pricing"><span data-gateway-lang="en">Pricing</span><span data-gateway-lang="zh" class="lang-hidden">价格</span></a>
+                    <a class="text-link" href="/"><span data-gateway-lang="en">Back to NexaFlow</span><span data-gateway-lang="zh" class="lang-hidden">返回 NexaFlow</span></a>
                 </div>
             </div>
             <div class="gateway-console" aria-label="NexaFlow API Gateway preview">
@@ -9907,27 +9925,50 @@ Authorization: Bearer nf_live_...
 }</pre>
                 </div>
                 <div class="gateway-stats">
-                    <div class="gateway-stat"><strong>Keys</strong><span>Hashed customer API keys</span></div>
-                    <div class="gateway-stat"><strong>Credits</strong><span>Plan and usage guardrails</span></div>
-                    <div class="gateway-stat"><strong>Logs</strong><span>Usage history and admin visibility</span></div>
+                    <div class="gateway-stat"><strong><span data-gateway-lang="en">Keys</span><span data-gateway-lang="zh" class="lang-hidden">密钥</span></strong><span data-gateway-lang="en">Hashed customer API keys</span><span data-gateway-lang="zh" class="lang-hidden">客户 API key 使用 hash 储存</span></div>
+                    <div class="gateway-stat"><strong>Credits</strong><span data-gateway-lang="en">Plan and usage guardrails</span><span data-gateway-lang="zh" class="lang-hidden">配套和用量保护</span></div>
+                    <div class="gateway-stat"><strong><span data-gateway-lang="en">Logs</span><span data-gateway-lang="zh" class="lang-hidden">记录</span></strong><span data-gateway-lang="en">Usage history and admin visibility</span><span data-gateway-lang="zh" class="lang-hidden">用量历史和后台可视化</span></div>
                 </div>
             </div>
         </section>
         <section class="gateway-grid">
-            <div class="gateway-feature"><h3>API Key Control</h3><p>Customer API keys are guarded, hashed where possible, and can be rotated from the portal.</p></div>
-            <div class="gateway-feature"><h3>Credits and Plans</h3><p>Starter, Pro, and Business plans control credits, rate limits, daily usage, and model tiers.</p></div>
-            <div class="gateway-feature"><h3>Model Routing</h3><p>Route requests by configured provider, task, and strategy while keeping provider keys server-side.</p></div>
-            <div class="gateway-feature"><h3>Admin Operations</h3><p>Manage clients, top-ups, resend keys, usage stats, backup checks, and account health from the admin dashboard.</p></div>
+            <div class="gateway-feature"><h3><span data-gateway-lang="en">API Key Control</span><span data-gateway-lang="zh" class="lang-hidden">API Key 控制</span></h3><p><span data-gateway-lang="en">Customer API keys are guarded, hashed where possible, and can be rotated from the portal.</span><span data-gateway-lang="zh" class="lang-hidden">客户 API key 会被保护，尽可能以 hash 储存，并且可以从 portal 轮换。</span></p></div>
+            <div class="gateway-feature"><h3><span data-gateway-lang="en">Credits and Plans</span><span data-gateway-lang="zh" class="lang-hidden">Credits 与配套</span></h3><p><span data-gateway-lang="en">Starter, Pro, and Business plans control credits, rate limits, daily usage, and model tiers.</span><span data-gateway-lang="zh" class="lang-hidden">Starter、Pro 和 Business 配套控制 credits、限流、每日用量和模型等级。</span></p></div>
+            <div class="gateway-feature"><h3><span data-gateway-lang="en">Model Routing</span><span data-gateway-lang="zh" class="lang-hidden">模型路由</span></h3><p><span data-gateway-lang="en">Route requests by configured provider, task, and strategy while keeping provider keys server-side.</span><span data-gateway-lang="zh" class="lang-hidden">按 provider、任务和策略路由请求，同时把 provider key 保留在 server-side。</span></p></div>
+            <div class="gateway-feature"><h3><span data-gateway-lang="en">Admin Operations</span><span data-gateway-lang="zh" class="lang-hidden">后台运营</span></h3><p><span data-gateway-lang="en">Manage clients, top-ups, resend keys, usage stats, backup checks, and account health from the admin dashboard.</span><span data-gateway-lang="zh" class="lang-hidden">在 admin dashboard 管理客户、top-up、重发 key、用量统计、backup 检查和账户健康。</span></p></div>
         </section>
         <section class="gateway-flow">
-            <div class="gateway-flow-step"><span class="pill">1</span><h3>Create client</h3><p>Admin creates a client, plan, credits, and API key.</p></div>
-            <div class="gateway-flow-step"><span class="pill">2</span><h3>Call /v1/chat</h3><p>Customer sends requests with an API key by header or bearer token.</p></div>
-            <div class="gateway-flow-step"><span class="pill">3</span><h3>Meter usage</h3><p>NexaFlow applies rate limits, usage guardrails, credits, and logs.</p></div>
+            <div class="gateway-flow-step"><span class="pill">1</span><h3><span data-gateway-lang="en">Create client</span><span data-gateway-lang="zh" class="lang-hidden">创建客户</span></h3><p><span data-gateway-lang="en">Admin creates a client, plan, credits, and API key.</span><span data-gateway-lang="zh" class="lang-hidden">Admin 创建客户、配套、credits 和 API key。</span></p></div>
+            <div class="gateway-flow-step"><span class="pill">2</span><h3><span data-gateway-lang="en">Call /v1/chat</span><span data-gateway-lang="zh" class="lang-hidden">调用 /v1/chat</span></h3><p><span data-gateway-lang="en">Customer sends requests with an API key by header or bearer token.</span><span data-gateway-lang="zh" class="lang-hidden">客户通过 header 或 bearer token 带 API key 发送请求。</span></p></div>
+            <div class="gateway-flow-step"><span class="pill">3</span><h3><span data-gateway-lang="en">Meter usage</span><span data-gateway-lang="zh" class="lang-hidden">计算用量</span></h3><p><span data-gateway-lang="en">NexaFlow applies rate limits, usage guardrails, credits, and logs.</span><span data-gateway-lang="zh" class="lang-hidden">NexaFlow 处理限流、用量保护、credits 扣除和记录。</span></p></div>
         </section>
         <section class="trust-strip">
-            <p><strong>Separate from NexaFlow Enquiry:</strong> use API Gateway for programmatic AI access. Use Enquiry for merchant customer-message follow-up.</p>
-            <p><a href="/enquiry">View Enquiry product</a> · <a href="/terms">Terms</a> · <a href="/acceptable-use">Acceptable Use</a></p>
+            <p><strong><span data-gateway-lang="en">Separate from NexaFlow Enquiry:</span><span data-gateway-lang="zh" class="lang-hidden">与 NexaFlow Enquiry 分开：</span></strong> <span data-gateway-lang="en">use API Gateway for programmatic AI access. Use Enquiry for merchant customer-message follow-up.</span><span data-gateway-lang="zh" class="lang-hidden">API Gateway 用于程序化 AI API 接入；Enquiry 用于商家客户私信和询盘跟进。</span></p>
+            <p><span data-gateway-market="sg">Singapore setup can use the same API flow, with onboarding details confirmed before production use.</span><span data-gateway-market="my" class="market-hidden">Malaysia setup can use the same API flow, with onboarding details confirmed before production use.</span></p>
+            <p><a href="/enquiry"><span data-gateway-lang="en">View Enquiry product</span><span data-gateway-lang="zh" class="lang-hidden">查看 Enquiry 产品</span></a> · <a href="/terms">Terms</a> · <a href="/acceptable-use">Acceptable Use</a></p>
         </section>
+        <script>
+            function setGatewayLang(lang) {
+                document.querySelectorAll("[data-gateway-lang]").forEach(item => {
+                    item.classList.toggle("lang-hidden", item.dataset.gatewayLang !== lang);
+                });
+                document.getElementById("gatewayLangEn").classList.toggle("active", lang === "en");
+                document.getElementById("gatewayLangZh").classList.toggle("active", lang === "zh");
+                document.getElementById("gatewayLangToggle").classList.toggle("is-second", lang === "zh");
+                localStorage.setItem("nexaflow_gateway_lang", lang);
+            }
+            function setGatewayMarket(market) {
+                document.querySelectorAll("[data-gateway-market]").forEach(item => {
+                    item.classList.toggle("market-hidden", item.dataset.gatewayMarket !== market);
+                });
+                document.getElementById("gatewayMarketSg").classList.toggle("active", market === "sg");
+                document.getElementById("gatewayMarketMy").classList.toggle("active", market === "my");
+                document.getElementById("gatewayMarketToggle").classList.toggle("is-second", market === "my");
+                localStorage.setItem("nexaflow_gateway_market", market);
+            }
+            setGatewayLang(localStorage.getItem("nexaflow_gateway_lang") || "en");
+            setGatewayMarket(localStorage.getItem("nexaflow_gateway_market") || "sg");
+        </script>
         """,
         show_sales_contact=True,
     )

@@ -144,11 +144,25 @@ def test_api_gateway_product_page_loads():
     assert response.status_code == 200
     assert "NexaFlow API Gateway" in response.text
     assert "AI API access with keys, credits, usage limits, and billing." in response.text
+    assert "带 API key、credits、用量限制和 billing 的 AI API 中转站。" in response.text
+    assert "setGatewayLang" in response.text
+    assert "setGatewayMarket" in response.text
+    assert "nexaflow_gateway_lang" in response.text
+    assert "nexaflow_gateway_market" in response.text
+    assert "gatewayLangToggle" in response.text
+    assert "gatewayMarketToggle" in response.text
+    assert "Singapore" in response.text
+    assert "Malaysia" in response.text
+    assert "Built for Singapore teams" in response.text
+    assert "Built for Malaysia teams" in response.text
     assert "/v1/chat" in response.text
     assert "gateway-console" in response.text
     assert "Back to NexaFlow" in response.text
+    assert "返回 NexaFlow" in response.text
     assert "Customer API keys" in response.text
+    assert "客户 API key 使用 hash 储存" in response.text
     assert "Credits and Plans" in response.text
+    assert "Credits 与配套" in response.text
     assert "Model Routing" in response.text
     assert "/docs" in response.text
     assert "/portal" in response.text
