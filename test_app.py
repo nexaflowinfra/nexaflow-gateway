@@ -46,8 +46,14 @@ def test_landing_page_loads():
     assert response.status_code == 200
     assert "NexaFlow" in response.text
     assert "Two products. One operating layer." in response.text
+    assert "两个产品，一个 NexaFlow 入口。" in response.text
     assert "NexaFlow Enquiry" in response.text
     assert "NexaFlow API Gateway" in response.text
+    assert "setSuiteLang" in response.text
+    assert "nexaflow_suite_lang" in response.text
+    assert "suiteLangToggle" in response.text
+    assert "给开发者的 API Gateway" in response.text
+    assert "打开 API Gateway" in response.text
     assert "/enquiry" in response.text
     assert "/api-gateway" in response.text
     assert "/dealer-demo" in response.text
@@ -139,6 +145,8 @@ def test_api_gateway_product_page_loads():
     assert "NexaFlow API Gateway" in response.text
     assert "AI API access with keys, credits, usage limits, and billing." in response.text
     assert "/v1/chat" in response.text
+    assert "gateway-console" in response.text
+    assert "Back to NexaFlow" in response.text
     assert "Customer API keys" in response.text
     assert "Credits and Plans" in response.text
     assert "Model Routing" in response.text

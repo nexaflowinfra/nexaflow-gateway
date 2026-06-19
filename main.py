@@ -9579,83 +9579,107 @@ def landing_page():
         </style>
         <section class="suite-hero">
             <div>
+                <div class="product-controls">
+                    <div class="glass-control label-free">
+                        <div class="language-toggle" aria-label="Language" id="suiteLangToggle">
+                            <button type="button" class="active" onclick="setSuiteLang('en')" id="suiteLangEn">EN</button>
+                            <button type="button" onclick="setSuiteLang('zh')" id="suiteLangZh">中文</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="eyebrow">NexaFlow</div>
-                <h1>Two products. One operating layer.</h1>
-                <p class="lead">NexaFlow is split into two clear products: an API gateway for developers and an enquiry inbox for merchants that need better customer follow-up.</p>
+                <h1><span data-suite-lang="en">Two products. One operating layer.</span><span data-suite-lang="zh" class="lang-hidden">两个产品，一个 NexaFlow 入口。</span></h1>
+                <p class="lead"><span data-suite-lang="en">NexaFlow is split into two clear products: an API gateway for developers and an enquiry inbox for merchants that need better customer follow-up.</span><span data-suite-lang="zh" class="lang-hidden">NexaFlow 分成两个清楚的产品：给开发者的 API Gateway，以及给商家的 Enquiry inbox，帮助团队更好跟进客户。</span></p>
                 <div class="actions">
-                    <a class="btn" href="/enquiry">Open Enquiry</a>
-                    <a class="btn secondary" href="/api-gateway">Open API Gateway</a>
+                    <a class="btn" href="/enquiry"><span data-suite-lang="en">Open Enquiry</span><span data-suite-lang="zh" class="lang-hidden">打开 Enquiry</span></a>
+                    <a class="btn secondary" href="/api-gateway"><span data-suite-lang="en">Open API Gateway</span><span data-suite-lang="zh" class="lang-hidden">打开 API Gateway</span></a>
                 </div>
             </div>
             <div class="suite-map" aria-label="NexaFlow product map">
                 <div class="suite-map-row">
-                    <div class="suite-label">Merchants</div>
-                    <div class="suite-mini-panel"><strong>NexaFlow Enquiry</strong><span>One inbox for WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals. AI shows who to reply first and what to ask next.</span></div>
+                    <div class="suite-label"><span data-suite-lang="en">Merchants</span><span data-suite-lang="zh" class="lang-hidden">商家</span></div>
+                    <div class="suite-mini-panel"><strong>NexaFlow Enquiry</strong><span data-suite-lang="en">One inbox for WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, calls, and referrals. AI shows who to reply first and what to ask next.</span><span data-suite-lang="zh" class="lang-hidden">一个 inbox 集中 WhatsApp、Instagram、Facebook、TikTok、小红书、电话和介绍来的询盘。AI 显示谁要先回、下一句问什么。</span></div>
                 </div>
                 <div class="suite-map-row">
-                    <div class="suite-label">Builders</div>
-                    <div class="suite-mini-panel"><strong>NexaFlow API Gateway</strong><span>Paid AI API access with API keys, plans, credits, model routing, usage logs, and customer portal.</span></div>
+                    <div class="suite-label"><span data-suite-lang="en">Builders</span><span data-suite-lang="zh" class="lang-hidden">开发者</span></div>
+                    <div class="suite-mini-panel"><strong>NexaFlow API Gateway</strong><span data-suite-lang="en">Paid AI API access with API keys, plans, credits, model routing, usage logs, and customer portal.</span><span data-suite-lang="zh" class="lang-hidden">付费 AI API 中转站，包含 API key、配套、credits、模型路由、用量记录和客户 portal。</span></div>
                 </div>
             </div>
         </section>
         <section class="product-split-grid">
             <article class="product-card enquiry">
                 <div>
-                    <div class="product-tagline">For sales teams and service merchants</div>
+                    <div class="product-tagline"><span data-suite-lang="en">For sales teams and service merchants</span><span data-suite-lang="zh" class="lang-hidden">给销售团队和服务型商家</span></div>
                     <h2>NexaFlow Enquiry</h2>
-                    <p>Collect scattered customer enquiries, understand the customer need, identify missing details, and prepare the next follow-up.</p>
+                    <p><span data-suite-lang="en">Collect scattered customer enquiries, understand the customer need, identify missing details, and prepare the next follow-up.</span><span data-suite-lang="zh" class="lang-hidden">集中分散的客户询盘，理解客户需求、找出缺少资料，并准备下一步跟进。</span></p>
                 </div>
                 <ul>
-                    <li>Sales queue for daily follow-up</li>
-                    <li>AI priority, customer stuck point, and reply direction</li>
-                    <li>Buyer link, manual capture, and Meta sync readiness</li>
+                    <li><span data-suite-lang="en">Sales queue for daily follow-up</span><span data-suite-lang="zh" class="lang-hidden">每天跟进用的销售队列</span></li>
+                    <li><span data-suite-lang="en">AI priority, customer stuck point, and reply direction</span><span data-suite-lang="zh" class="lang-hidden">AI 判断优先级、客户卡点和回复方向</span></li>
+                    <li><span data-suite-lang="en">Buyer link, manual capture, and Meta sync readiness</span><span data-suite-lang="zh" class="lang-hidden">买家 link、手动导入和 Meta 同步准备</span></li>
                 </ul>
                 <div class="actions">
-                    <a class="btn" href="/enquiry">View Enquiry Product</a>
-                    <a class="btn secondary" href="/dealer-demo">Sales Demo</a>
+                    <a class="btn" href="/enquiry"><span data-suite-lang="en">View Enquiry Product</span><span data-suite-lang="zh" class="lang-hidden">查看 Enquiry 产品</span></a>
+                    <a class="btn secondary" href="/dealer-demo"><span data-suite-lang="en">Sales Demo</span><span data-suite-lang="zh" class="lang-hidden">销售 Demo</span></a>
                 </div>
             </article>
             <article class="product-card api">
                 <div>
-                    <div class="product-tagline">For developers and automation teams</div>
+                    <div class="product-tagline"><span data-suite-lang="en">For developers and automation teams</span><span data-suite-lang="zh" class="lang-hidden">给开发者和自动化团队</span></div>
                     <h2>NexaFlow API Gateway</h2>
-                    <p>Use NexaFlow as a controlled AI API middle layer for chat completions, billing, credits, model routing, and account management.</p>
+                    <p><span data-suite-lang="en">Use NexaFlow as a controlled AI API middle layer for chat completions, billing, credits, model routing, and account management.</span><span data-suite-lang="zh" class="lang-hidden">把 NexaFlow 当成受控 AI API 中转层，用来处理 chat completions、billing、credits、模型路由和账户管理。</span></p>
                 </div>
                 <ul>
-                    <li>Customer API keys and hashed key storage</li>
-                    <li>Credits, usage limits, rate limits, and logs</li>
-                    <li>Admin dashboard, billing hooks, and customer portal</li>
+                    <li><span data-suite-lang="en">Customer API keys and hashed key storage</span><span data-suite-lang="zh" class="lang-hidden">客户 API key 和 hash 储存</span></li>
+                    <li><span data-suite-lang="en">Credits, usage limits, rate limits, and logs</span><span data-suite-lang="zh" class="lang-hidden">Credits、用量限制、限流和记录</span></li>
+                    <li><span data-suite-lang="en">Admin dashboard, billing hooks, and customer portal</span><span data-suite-lang="zh" class="lang-hidden">Admin dashboard、billing hooks 和客户 portal</span></li>
                 </ul>
                 <div class="actions">
-                    <a class="btn" href="/api-gateway">View API Gateway</a>
-                    <a class="btn secondary" href="/portal">Customer Portal</a>
+                    <a class="btn" href="/api-gateway"><span data-suite-lang="en">View API Gateway</span><span data-suite-lang="zh" class="lang-hidden">查看 API Gateway</span></a>
+                    <a class="btn secondary" href="/portal"><span data-suite-lang="en">Customer Portal</span><span data-suite-lang="zh" class="lang-hidden">客户 Portal</span></a>
                 </div>
             </article>
         </section>
         <section class="trust-strip">
-            <p>Use the Enquiry product when the customer is a merchant handling social DMs. Use the API Gateway when the customer needs programmatic AI access for apps, automations, or internal tools.</p>
-            <p><a href="/pricing">Pricing</a> · <a href="/docs">API Docs</a> · <a href="/privacy">Privacy Policy</a> · <a href="{request_link}" target="_blank" rel="noopener">Ask on WhatsApp</a></p>
+            <p><span data-suite-lang="en">Use the Enquiry product when the customer is a merchant handling social DMs. Use the API Gateway when the customer needs programmatic AI access for apps, automations, or internal tools.</span><span data-suite-lang="zh" class="lang-hidden">客户如果是要处理社交媒体私信的商家，就看 Enquiry。客户如果需要给 app、自动化或内部工具接 AI API，就看 API Gateway。</span></p>
+            <p><a href="/pricing"><span data-suite-lang="en">Pricing</span><span data-suite-lang="zh" class="lang-hidden">价格</span></a> · <a href="/docs">API Docs</a> · <a href="/privacy"><span data-suite-lang="en">Privacy Policy</span><span data-suite-lang="zh" class="lang-hidden">隐私政策</span></a> · <a href="{request_link}" target="_blank" rel="noopener"><span data-suite-lang="en">Ask on WhatsApp</span><span data-suite-lang="zh" class="lang-hidden">WhatsApp 咨询</span></a></p>
         </section>
         <div class="suite-ai" id="nexaflowSuiteAssistant">
             <section class="suite-ai-panel" id="suiteAiPanel" aria-label="NexaFlow product assistant">
                 <div class="suite-ai-head">
-                    <strong>Ask NexaFlow AI</strong>
-                    <span>Ask which product fits, how API Gateway works, or how Enquiry works.</span>
+                    <strong><span data-suite-lang="en">Ask NexaFlow AI</span><span data-suite-lang="zh" class="lang-hidden">问 NexaFlow AI</span></strong>
+                    <span><span data-suite-lang="en">Ask which product fits, how API Gateway works, or how Enquiry works.</span><span data-suite-lang="zh" class="lang-hidden">可以问哪个产品适合你、API Gateway 怎么用，或 Enquiry 怎么运作。</span></span>
                 </div>
                 <div class="suite-ai-messages" id="suiteAiMessages">
-                    <div class="suite-ai-bubble">Hi, I can explain the difference between NexaFlow Enquiry and NexaFlow API Gateway.</div>
+                    <div class="suite-ai-bubble"><span data-suite-lang="en">Hi, I can explain the difference between NexaFlow Enquiry and NexaFlow API Gateway.</span><span data-suite-lang="zh" class="lang-hidden">你好，我可以解释 NexaFlow Enquiry 和 NexaFlow API Gateway 的差别。</span></div>
                 </div>
                 <div class="suite-ai-form">
                     <textarea id="suiteAiInput" maxlength="800" placeholder="Ask about NexaFlow..."></textarea>
                     <div class="suite-ai-actions">
-                        <span class="suite-ai-note">Do not enter passwords, OTPs, tokens, or customer IDs.</span>
-                        <button class="btn" type="button" id="suiteAiSend" onclick="askSuiteAssistant()">Ask AI</button>
+                        <span class="suite-ai-note"><span data-suite-lang="en">Do not enter passwords, OTPs, tokens, or customer IDs.</span><span data-suite-lang="zh" class="lang-hidden">不要输入密码、OTP、token 或客户证件号码。</span></span>
+                        <button class="btn" type="button" id="suiteAiSend" onclick="askSuiteAssistant()"><span data-suite-lang="en">Ask AI</span><span data-suite-lang="zh" class="lang-hidden">发送</span></button>
                     </div>
                 </div>
             </section>
-            <button class="suite-ai-toggle" type="button" onclick="toggleSuiteAssistant()">Ask AI</button>
+            <button class="suite-ai-toggle" type="button" onclick="toggleSuiteAssistant()"><span data-suite-lang="en">Ask AI</span><span data-suite-lang="zh" class="lang-hidden">问 AI</span></button>
         </div>
         <script>
+            function setSuiteLang(lang) {{
+                document.querySelectorAll("[data-suite-lang]").forEach(item => {{
+                    item.classList.toggle("lang-hidden", item.dataset.suiteLang !== lang);
+                }});
+                document.getElementById("suiteLangEn").classList.toggle("active", lang === "en");
+                document.getElementById("suiteLangZh").classList.toggle("active", lang === "zh");
+                document.getElementById("suiteLangToggle").classList.toggle("is-second", lang === "zh");
+                localStorage.setItem("nexaflow_suite_lang", lang);
+                const input = document.getElementById("suiteAiInput");
+                if (input) {{
+                    input.placeholder = lang === "zh" ? "输入你想问 NexaFlow 的问题..." : "Ask about NexaFlow...";
+                }}
+            }}
+            function currentSuiteLang() {{
+                return localStorage.getItem("nexaflow_suite_lang") || "en";
+            }}
             function toggleSuiteAssistant(force) {{
                 const panel = document.getElementById("suiteAiPanel");
                 if (!panel) return;
@@ -9678,27 +9702,29 @@ def landing_page():
                 const input = document.getElementById("suiteAiInput");
                 const send = document.getElementById("suiteAiSend");
                 const message = (input?.value || "").trim();
+                const lang = currentSuiteLang();
                 if (!message) return;
                 toggleSuiteAssistant(true);
                 appendSuiteMessage("user", message);
                 input.value = "";
                 send.disabled = true;
-                const loading = appendSuiteMessage("system", "Thinking through the answer...");
+                const loading = appendSuiteMessage("system", lang === "zh" ? "正在整理答案..." : "Thinking through the answer...");
                 try {{
                     const response = await fetch("/api/product-assistant", {{
                         method: "POST",
                         headers: {{"Content-Type": "application/json"}},
-                        body: JSON.stringify({{message: message, language: "en", page: "home"}})
+                        body: JSON.stringify({{message: message, language: lang, page: "home"}})
                     }});
                     const payload = await response.json().catch(() => ({{}}));
                     if (!response.ok) throw new Error(payload.detail || "Request failed");
-                    loading.textContent = payload.answer || "I do not have an answer yet.";
+                    loading.textContent = payload.answer || (lang === "zh" ? "暂时没有答案。" : "I do not have an answer yet.");
                 }} catch (error) {{
-                    loading.textContent = "I cannot answer right now. You can also contact NexaFlow on WhatsApp.";
+                    loading.textContent = lang === "zh" ? "暂时回答不到。你也可以直接点 WhatsApp 联系 NexaFlow。" : "I cannot answer right now. You can also contact NexaFlow on WhatsApp.";
                 }} finally {{
                     send.disabled = false;
                 }}
             }}
+            setSuiteLang(localStorage.getItem("nexaflow_suite_lang") || "en");
         </script>
         """,
         show_sales_contact=True,
@@ -9707,10 +9733,156 @@ def landing_page():
 
 @app.get("/api-gateway", response_class=HTMLResponse)
 def api_gateway_page():
-    return base_html(
+    return merchant_html(
         "NexaFlow API Gateway",
+        "NexaFlow",
         """
-        <section class="hero">
+        <style>
+            .gateway-hero {
+                display: grid;
+                grid-template-columns: minmax(0, .88fr) minmax(430px, 1.12fr);
+                gap: 30px;
+                align-items: center;
+                padding: 48px 0 42px;
+            }
+            .gateway-hero h1 {
+                max-width: 700px;
+                font-size: clamp(42px, 5.8vw, 72px);
+                line-height: .97;
+            }
+            .gateway-hero .lead {
+                max-width: 660px;
+            }
+            .gateway-console {
+                position: relative;
+                display: grid;
+                gap: 12px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 14px;
+                padding: 14px;
+                overflow: hidden;
+                background:
+                    linear-gradient(135deg, rgba(69,213,199,.08), transparent 36%),
+                    linear-gradient(315deg, rgba(243,199,106,.09), transparent 42%),
+                    rgba(9,9,9,.9);
+                box-shadow: 0 28px 90px rgba(0,0,0,.34);
+                isolation: isolate;
+            }
+            .gateway-console::before {
+                content: "";
+                position: absolute;
+                inset: -30%;
+                z-index: 0;
+                pointer-events: none;
+                background:
+                    radial-gradient(circle at 20% 22%, rgba(69,213,199,.16), transparent 24%),
+                    radial-gradient(circle at 82% 78%, rgba(243,199,106,.15), transparent 27%);
+                animation: gatewayAmbient 10s ease-in-out infinite alternate;
+            }
+            .gateway-console > * {
+                position: relative;
+                z-index: 1;
+            }
+            .gateway-terminal {
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 12px;
+                overflow: hidden;
+                background: rgba(0,0,0,.5);
+            }
+            .gateway-terminal-top {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 10px 12px;
+                border-bottom: 1px solid rgba(255,255,255,.1);
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 800;
+            }
+            .gateway-dots {
+                display: flex;
+                gap: 6px;
+            }
+            .gateway-dots span {
+                width: 8px;
+                height: 8px;
+                border-radius: 999px;
+                background: rgba(255,255,255,.22);
+            }
+            .gateway-code {
+                margin: 0;
+                padding: 14px;
+                color: #d8f8f4;
+                font: 13px/1.7 Consolas, Monaco, monospace;
+                white-space: pre-wrap;
+            }
+            .gateway-code .muted {
+                color: rgba(247,243,234,.54);
+            }
+            .gateway-stats {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 10px;
+            }
+            .gateway-stat,
+            .gateway-feature {
+                border: 1px solid rgba(255,255,255,.1);
+                border-radius: 10px;
+                padding: 13px;
+                background: rgba(255,255,255,.035);
+            }
+            .gateway-stat strong {
+                display: block;
+                color: var(--ink);
+                font-size: 22px;
+            }
+            .gateway-stat span,
+            .gateway-feature p {
+                color: var(--muted);
+                font-size: 13px;
+                margin: 0;
+            }
+            .gateway-grid {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 14px;
+            }
+            .gateway-feature h3 {
+                margin: 0 0 8px;
+                font-size: 18px;
+            }
+            .gateway-flow {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
+                margin-top: 16px;
+            }
+            .gateway-flow-step {
+                border: 1px solid rgba(243,199,106,.18);
+                border-radius: 12px;
+                padding: 16px;
+                background: linear-gradient(135deg, rgba(243,199,106,.075), rgba(255,255,255,.025));
+            }
+            .gateway-flow-step .pill {
+                margin-bottom: 10px;
+            }
+            @keyframes gatewayAmbient {
+                from { transform: translate3d(-1%, -1%, 0) scale(1); }
+                to { transform: translate3d(1%, 1%, 0) scale(1.04); }
+            }
+            @media (max-width: 920px) {
+                .gateway-hero,
+                .gateway-grid,
+                .gateway-flow {
+                    grid-template-columns: 1fr;
+                }
+                .gateway-stats {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+        <section class="gateway-hero">
             <div>
                 <div class="eyebrow">NexaFlow API Gateway</div>
                 <h1>AI API access with keys, credits, usage limits, and billing.</h1>
@@ -9719,28 +9891,45 @@ def api_gateway_page():
                     <a class="btn" href="/docs">API Docs</a>
                     <a class="btn secondary" href="/portal">Customer Portal</a>
                     <a class="btn secondary" href="/pricing">Pricing</a>
+                    <a class="text-link" href="/">Back to NexaFlow</a>
                 </div>
             </div>
-            <div class="card">
-                <h3>Gateway flow</h3>
-                <div class="steps">
-                    <div class="step"><div><strong>1. Create client</strong><p>Admin creates a client, plan, credits, and API key.</p></div></div>
-                    <div class="step"><div><strong>2. Call /v1/chat</strong><p>Customer sends requests with an API key by header or bearer token.</p></div></div>
-                    <div class="step"><div><strong>3. Meter usage</strong><p>NexaFlow applies rate limits, usage guardrails, credits, and logs.</p></div></div>
+            <div class="gateway-console" aria-label="NexaFlow API Gateway preview">
+                <div class="gateway-terminal">
+                    <div class="gateway-terminal-top"><div class="gateway-dots"><span></span><span></span><span></span></div><span>/v1/chat</span></div>
+                    <pre class="gateway-code"><span class="muted">POST</span> https://api.nexaflowinfra.com/v1/chat
+Authorization: Bearer nf_live_...
+
+{
+  "message": "Summarize this customer request",
+  "task": "support",
+  "routing_strategy": "profit"
+}</pre>
+                </div>
+                <div class="gateway-stats">
+                    <div class="gateway-stat"><strong>Keys</strong><span>Hashed customer API keys</span></div>
+                    <div class="gateway-stat"><strong>Credits</strong><span>Plan and usage guardrails</span></div>
+                    <div class="gateway-stat"><strong>Logs</strong><span>Usage history and admin visibility</span></div>
                 </div>
             </div>
         </section>
-        <section class="grid">
-            <div class="card"><h3>API Key Control</h3><p>Customer API keys are guarded, hashed where possible, and can be rotated from the portal.</p></div>
-            <div class="card"><h3>Credits and Plans</h3><p>Starter, Pro, and Business plans control credits, rate limits, daily usage, and model tiers.</p></div>
-            <div class="card"><h3>Model Routing</h3><p>Route requests by configured provider, task, and strategy while keeping provider keys server-side.</p></div>
-            <div class="card"><h3>Admin Operations</h3><p>Manage clients, top-ups, resend keys, usage stats, backup checks, and account health from the admin dashboard.</p></div>
+        <section class="gateway-grid">
+            <div class="gateway-feature"><h3>API Key Control</h3><p>Customer API keys are guarded, hashed where possible, and can be rotated from the portal.</p></div>
+            <div class="gateway-feature"><h3>Credits and Plans</h3><p>Starter, Pro, and Business plans control credits, rate limits, daily usage, and model tiers.</p></div>
+            <div class="gateway-feature"><h3>Model Routing</h3><p>Route requests by configured provider, task, and strategy while keeping provider keys server-side.</p></div>
+            <div class="gateway-feature"><h3>Admin Operations</h3><p>Manage clients, top-ups, resend keys, usage stats, backup checks, and account health from the admin dashboard.</p></div>
+        </section>
+        <section class="gateway-flow">
+            <div class="gateway-flow-step"><span class="pill">1</span><h3>Create client</h3><p>Admin creates a client, plan, credits, and API key.</p></div>
+            <div class="gateway-flow-step"><span class="pill">2</span><h3>Call /v1/chat</h3><p>Customer sends requests with an API key by header or bearer token.</p></div>
+            <div class="gateway-flow-step"><span class="pill">3</span><h3>Meter usage</h3><p>NexaFlow applies rate limits, usage guardrails, credits, and logs.</p></div>
         </section>
         <section class="trust-strip">
             <p><strong>Separate from NexaFlow Enquiry:</strong> use API Gateway for programmatic AI access. Use Enquiry for merchant customer-message follow-up.</p>
             <p><a href="/enquiry">View Enquiry product</a> · <a href="/terms">Terms</a> · <a href="/acceptable-use">Acceptable Use</a></p>
         </section>
         """,
+        show_sales_contact=True,
     )
 
 
