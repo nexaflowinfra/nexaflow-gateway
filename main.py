@@ -14041,18 +14041,19 @@ def merchant_channel_connections_page(business_slug: str):
                                 <option value="lead_form" ${{selected(item.integration_mode, "lead_form")}}>Lead form / 询问表格</option>
                             </select>
                         </label>
+                        <label>${{channelLangSpan("Auto receive status", "自动收信状态")}}
+                            <select id="status-${{item.channel}}">
+                                <option value="requested" ${{selected(item.status, "requested")}}>Setup request / 设置请求</option>
+                                <option value="connected" ${{selected(item.status, "connected")}}>Connected - auto receive live / 已连接 - 自动收信</option>
+                                <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active / 辅助导入已开启</option>
+                                <option value="paused" ${{selected(item.status, "paused")}}>Paused / 暂停</option>
+                            </select>
+                        </label>
+                        <span class="mini-note">${{channelLangSpan("Choose Connected only after the Meta webhook subscription is saved and this ID is confirmed.", "只有在 Meta webhook 订阅已保存、并确认这个 ID 正确后，才选择已连接。")}}</span>
                         <label>${{channelLangSpan("Account or page label", "账号或专页名称")}}<input id="label-${{item.channel}}" value="${{escapeHtml(item.account_label || "")}}" placeholder="@dealer or page name"></label>
                         <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>${{channelLangSpan("I confirm this is for buyer follow-up and I will not enter passwords or verification codes here.", "我确认这是用于买家跟进，并且不会在这里输入密码或验证码。")}}</span></label>
                         <details>
                             <summary>${{channelLangSpan("Advanced channel details", "高级渠道细节")}}</summary>
-                            <label>${{channelLangSpan("Status", "状态")}}
-                                <select id="status-${{item.channel}}">
-                                    <option value="requested" ${{selected(item.status, "requested")}}>Setup request / 设置请求</option>
-                                    <option value="connected" ${{selected(item.status, "connected")}}>Connected - auto receive live / 已连接 - 自动收信</option>
-                                    <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active / 辅助导入已开启</option>
-                                    <option value="paused" ${{selected(item.status, "paused")}}>Paused / 暂停</option>
-                                </select>
-                            </label>
                             <label>${{idFieldLabel}}<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="${{escapeHtml(idField.meta_name || "external_account_id")}}"></label>
                             <span class="mini-note">${{channelLangSpan("Use Connected only after the Meta webhook subscription is saved and this ID is confirmed. Connected channels can create real buyers from signed Meta webhooks.", "只有在 Meta webhook 订阅已保存、并确认这个 ID 正确后，才选择已连接。已连接渠道会从签名 Meta webhook 创建真实买家。")}}</span>
                             <span class="mini-note">${{idFieldHelp}}${{idFieldHelp && idFieldMatch ? "<br>" : ""}}${{idFieldMatch}}</span>
