@@ -2721,6 +2721,43 @@ def get_saved_channel_connection(business_slug, channel):
     return row_to_channel_connection(row) if row else None
 
 
+def list_recent_channel_webhook_events(business_slug, limit=12):
+    event_types = (
+        "channel.message_received",
+        "channel.webhook_duplicate",
+        "channel.webhook_ignored",
+    )
+    placeholders = ",".join("?" for _ in event_types)
+    with db_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT * FROM data_audit_events
+            WHERE business_slug = ? AND event_type IN ({placeholders})
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (normalize_slug(business_slug), *event_types, limit),
+        ).fetchall()
+    events = []
+    for row in rows:
+        metadata = json.loads(row["metadata_json"] or "{}")
+        raw_account_id = metadata.get("account_id") or metadata.get("external_account_id") or ""
+        events.append(
+            {
+                "event_type": row["event_type"],
+                "channel": metadata.get("channel") or "",
+                "result": metadata.get("result") or row["event_type"].replace("channel.", ""),
+                "reason": metadata.get("reason") or "",
+                "connection_status": metadata.get("connection_status") or "",
+                "account_id_preview": metadata.get("account_id_preview") or mask_external_account_id(raw_account_id),
+                "external_message_id_preview": mask_external_account_id(metadata.get("external_message_id") or ""),
+                "enquiry_id": metadata.get("enquiry_id"),
+                "created_at": row["created_at"],
+            }
+        )
+    return events
+
+
 def channel_connection_response(profile):
     saved = list_channel_connections(profile["slug"])
     connections = []
@@ -2752,6 +2789,13 @@ def channel_connection_response(profile):
                 "status": status,
                 "account_label": account_label,
                 "external_account_id": external_account_id,
+                "auto_receive_ready": (
+                    integration_mode == "official_api_requested"
+                    and status == "connected"
+                    and bool(external_account_id)
+                    and acknowledged
+                    and item["official_status"] != "limited"
+                ),
                 "id_field": channel_external_id_field(channel),
                 "capabilities": item["capabilities"],
                 "security_requirements": item["security_requirements"],
@@ -2785,6 +2829,7 @@ def channel_connection_response(profile):
             "audit_events": True,
             "retention_days": profile.get("data_retention_days", 365),
         },
+        "recent_webhook_events": list_recent_channel_webhook_events(profile["slug"]),
         "connections": connections,
     }
 
@@ -3139,6 +3184,28 @@ def channel_connection_for_external_account(channel, external_account_id):
     return channel_connection, profile
 
 
+def channel_connection_candidate_for_external_account(channel, external_account_id):
+    if not external_account_id:
+        return None, None
+    with db_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT * FROM channel_connections
+            WHERE channel = ? AND external_account_id = ?
+                AND data_processing_acknowledged = 1
+                AND integration_mode = 'official_api_requested'
+            """,
+            (channel, external_account_id),
+        ).fetchall()
+    if len(rows) != 1:
+        return None, None
+    channel_connection = row_to_channel_connection(rows[0])
+    profile = get_business_profile(channel_connection["business_slug"])
+    if profile["status"] != "active":
+        return None, None
+    return channel_connection, profile
+
+
 def channel_message_exists(channel, external_message_id):
     if not external_message_id:
         return False
@@ -3300,7 +3367,46 @@ def process_meta_webhook_payload(payload):
     for event in events:
         connection_info, profile = channel_connection_for_external_account(event["channel"], event["account_id"])
         if not connection_info:
+            candidate_connection, candidate_profile = channel_connection_candidate_for_external_account(event["channel"], event["account_id"])
+            if candidate_connection and candidate_profile:
+                result["ignored"] += 1
+                write_data_audit_event(
+                    "channel.webhook_ignored",
+                    "meta_webhook",
+                    "channel_connection",
+                    candidate_connection["id"],
+                    business_slug=candidate_profile["slug"],
+                    metadata={
+                        "channel": event["channel"],
+                        "result": "ignored",
+                        "reason": "channel_not_connected",
+                        "connection_status": candidate_connection["status"],
+                        "external_message_id": event["external_message_id"],
+                        "account_id_preview": mask_external_account_id(event["account_id"]),
+                    },
+                )
+                result["items"].append(
+                    {
+                        "status": "ignored",
+                        "reason": "channel_not_connected",
+                        "channel": event["channel"],
+                        "account_id_preview": mask_external_account_id(event["account_id"]),
+                        "external_message_id": event["external_message_id"],
+                    }
+                )
+                continue
             result["unmapped"] += 1
+            write_data_audit_event(
+                "channel.webhook_unmapped",
+                "meta_webhook",
+                "meta_webhook_event",
+                event["external_message_id"],
+                metadata={
+                    "channel": event["channel"],
+                    "result": "unmapped",
+                    "account_id_preview": mask_external_account_id(event["account_id"]),
+                },
+            )
             result["items"].append(
                 {
                     "status": "unmapped",
@@ -3316,6 +3422,19 @@ def process_meta_webhook_payload(payload):
             result["created"] += 1
         elif item["status"] == "duplicate":
             result["duplicates"] += 1
+            write_data_audit_event(
+                "channel.webhook_duplicate",
+                "meta_webhook",
+                "channel_message",
+                event["external_message_id"],
+                business_slug=profile["slug"],
+                metadata={
+                    "channel": event["channel"],
+                    "result": "duplicate",
+                    "connection_id": connection_info["id"],
+                    "external_message_id": event["external_message_id"],
+                },
+            )
         else:
             result["ignored"] += 1
     return result
@@ -13892,6 +14011,15 @@ def merchant_channel_connections_page(business_slug: str):
             </div>
             <div id="metaSetupContent" class="status"><span data-lang="en">Open settings to load Meta setup details.</span><span data-lang="zh" class="lang-hidden">打开设置后会加载 Meta 设置资料。</span></div>
         </section>
+        <section class="form-card" id="channelWebhookDiagnostics">
+            <div class="section-head">
+                <div>
+                    <h2><span data-lang="en">Recent Meta webhook activity</span><span data-lang="zh" class="lang-hidden">最近 Meta webhook 活动</span></h2>
+                    <p><span data-lang="en">Use this to see whether Meta is reaching NexaFlow and whether the saved channel ID is ready.</span><span data-lang="zh" class="lang-hidden">这里用来判断 Meta 有没有打到 NexaFlow，以及保存的渠道 ID 是否已经 ready。</span></p>
+                </div>
+            </div>
+            <div class="status"><span data-lang="en">Open settings to load webhook activity.</span><span data-lang="zh" class="lang-hidden">打开设置后会加载 webhook 活动。</span></div>
+        </section>
         <details class="form-card">
             <summary><span data-lang="en">Security details</span><span data-lang="zh" class="lang-hidden">安全细节</span></summary>
             <div class="section-head">
@@ -13939,6 +14067,42 @@ def merchant_channel_connections_page(business_slug: str):
             }}
             function selected(value, expected) {{
                 return value === expected ? "selected" : "";
+            }}
+            function renderWebhookDiagnostics(events = []) {{
+                const target = document.getElementById("channelWebhookDiagnostics");
+                if (!events.length) {{
+                    target.innerHTML = `
+                        <div class="section-head">
+                            <div>
+                                <h2>${{channelLangSpan("Recent Meta webhook activity", "最近 Meta webhook 活动")}}</h2>
+                                <p>${{channelLangSpan("No Meta webhook events received for this inbox yet.", "这个 inbox 还没有收到 Meta webhook 事件。")}}</p>
+                            </div>
+                        </div>
+                        <div class="status">${{channelLangSpan("If your test message does not appear, check that the Meta app webhook subscription is saved for this Page and that the sender is allowed in app testing.", "如果测试消息没有出现，请检查 Meta app webhook 是否已为这个 Page 保存订阅，以及发消息的账号是否允许参与 app 测试。")}}</div>
+                    `;
+                    setChannelsLang(channelsLang());
+                    return;
+                }}
+                target.innerHTML = `
+                    <div class="section-head">
+                        <div>
+                            <h2>${{channelLangSpan("Recent Meta webhook activity", "最近 Meta webhook 活动")}}</h2>
+                            <p>${{channelLangSpan("Created means the buyer reached the inbox. Ignored usually means the ID exists but the channel is not Connected.", "Created 代表买家已进入 inbox。Ignored 通常代表 ID 存在，但渠道还不是已连接。")}}</p>
+                        </div>
+                    </div>
+                    <div class="setup-panel">
+                        ${{events.map(item => `
+                            <div class="setup-step">
+                                <strong>${{escapeHtml(item.channel || "meta")}} · ${{escapeHtml(item.result || item.event_type)}}</strong>
+                                <span>${{escapeHtml(item.created_at || "")}}</span>
+                                <span>${{item.reason ? `${{channelLangSpan("Reason", "原因")}}: ${{escapeHtml(item.reason)}}` : channelLangSpan("Buyer record created or duplicate detected.", "买家已创建或检测到重复。")}}</span>
+                                <span>${{item.connection_status ? `${{channelLangSpan("Saved status", "已保存状态")}}: ${{escapeHtml(item.connection_status)}}` : ""}}</span>
+                                <span>${{item.account_id_preview ? `${{channelLangSpan("Account", "账号")}}: ${{escapeHtml(item.account_id_preview)}}` : ""}}</span>
+                            </div>
+                        `).join("")}}
+                    </div>
+                `;
+                setChannelsLang(channelsLang());
             }}
             async function copyChannelText(value) {{
                 const status = document.getElementById("channelStatus");
@@ -14030,6 +14194,7 @@ def merchant_channel_connections_page(business_slug: str):
                         <div class="lead-badges">
                             <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{item.official_status === "limited" ? channelLangSpan("Assisted only", "只支持辅助导入") : channelLangSpan("Meta sync request", "Meta 同步申请")}}</span>
                             <span class="lead-badge ${{item.status === "connected" ? "live" : ""}}">${{channelLangSpan("Status", "状态")}} · ${{escapeHtml(item.status || "requested")}}</span>
+                            <span class="lead-badge ${{item.auto_receive_ready ? "live" : ""}}">${{channelLangSpan("Auto receive", "自动收信")}} · ${{item.auto_receive_ready ? channelLangSpan("Ready", "Ready") : channelLangSpan("Not ready", "未 ready")}}</span>
                             <span class="lead-badge">${{item.data_processing_acknowledged ? channelLangSpan("Confirmed", "已确认") : channelLangSpan("Needs confirm", "需要确认")}}</span>
                             ${{item.external_account_id ? `<span class="lead-badge live">${{channelLangSpan("ID saved", "ID 已保存")}}</span>` : ""}}
                         </div>
@@ -14075,6 +14240,7 @@ def merchant_channel_connections_page(business_slug: str):
                         <div class="grid">${{otherChannels.map(renderChannelCard).join("")}}</div>
                     </details>
                 `;
+                renderWebhookDiagnostics(payload.recent_webhook_events || []);
                 setChannelsLang(channelsLang());
             }}
             async function loadChannelConnections() {{

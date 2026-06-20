@@ -747,6 +747,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "loadMetaSetup" in channels.text
     assert "Connected - auto receive live" in channels.text
     assert "已连接 - 自动收信" in channels.text
+    assert "Auto receive status" in channels.text
+    assert "Recent Meta webhook activity" in channels.text
     assert "Create local test buyer" in channels.text
     assert "sendMetaPilotTest" in channels.text
     assert "/admin/dashboard" not in channels.text
@@ -4060,8 +4062,21 @@ def test_meta_webhook_ignores_requested_channel_until_connected():
     assert response.status_code == 200
     body = response.json()
     assert body["created"] == 0
-    assert body["unmapped"] == 1
-    assert body["items"][0]["status"] == "unmapped"
+    assert body["unmapped"] == 0
+    assert body["ignored"] == 1
+    assert body["items"][0]["status"] == "ignored"
+    assert body["items"][0]["reason"] == "channel_not_connected"
+
+    diagnostics = client.get(
+        f"/apps/enquiry/api/merchant/channel-connections?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert diagnostics.status_code == 200
+    recent = diagnostics.json()["recent_webhook_events"]
+    assert recent[0]["event_type"] == "channel.webhook_ignored"
+    assert recent[0]["channel"] == "facebook"
+    assert recent[0]["reason"] == "channel_not_connected"
+    assert recent[0]["connection_status"] == "requested"
 
 
 def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
