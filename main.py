@@ -8394,6 +8394,8 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     background: rgba(255,255,255,.03);
                 }}
                 .lead-badge.hot {{ color: #ffffff; border-color: rgba(243,199,106,.5); background: rgba(243,199,106,.12); }}
+                .lead-badge.live {{ color: #d9fffb; border-color: rgba(45,212,191,.55); background: rgba(45,212,191,.12); }}
+                .lead-badge.demo {{ color: #a8a8a8; border-color: rgba(255,255,255,.12); background: rgba(255,255,255,.035); }}
                 .demo-controls {{
                     margin-bottom: 18px;
                 }}
@@ -8445,6 +8447,16 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.2fr) minmax(180px, .8fr);
                     gap: 12px;
                     align-items: start;
+                }}
+                .simple-lead-card.live-card {{
+                    border-color: rgba(45,212,191,.34);
+                    background:
+                        linear-gradient(135deg, rgba(45,212,191,.08), rgba(243,199,106,.045)),
+                        var(--surface);
+                }}
+                .simple-lead-card.demo-card {{
+                    opacity: .78;
+                    background: rgba(255,255,255,.025);
                 }}
                 .simple-lead-card strong {{
                     color: var(--ink);
@@ -8670,10 +8682,66 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     gap: 8px;
                     align-items: center;
                 }}
+                .empty-live-card,
+                .demo-sample-panel {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    background: var(--surface);
+                    padding: 16px;
+                    min-width: 0;
+                }}
+                .empty-live-card h3 {{
+                    color: var(--ink);
+                    margin-bottom: 8px;
+                }}
+                .empty-live-card p,
+                .demo-sample-panel p {{
+                    color: var(--muted);
+                    line-height: 1.55;
+                    margin: 0;
+                }}
+                .demo-sample-panel summary {{
+                    cursor: pointer;
+                    color: var(--ink);
+                    font-weight: 900;
+                }}
+                .mini-card-list {{
+                    display: grid;
+                    gap: 8px;
+                    margin-top: 12px;
+                }}
+                .mini-lead-row {{
+                    border: 1px solid var(--line);
+                    border-radius: 8px;
+                    padding: 10px;
+                    background: rgba(0,0,0,.18);
+                    min-width: 0;
+                }}
+                .mini-lead-row strong,
+                .mini-lead-row span {{
+                    display: block;
+                    overflow-wrap: anywhere;
+                }}
+                .mini-lead-row span {{
+                    color: var(--muted);
+                    font-size: 12px;
+                    line-height: 1.45;
+                }}
                 details.form-card summary {{
                     cursor: pointer;
                     color: var(--ink);
                     font-weight: 800;
+                }}
+                details.compact-details summary {{
+                    display: grid;
+                    gap: 4px;
+                }}
+                details.compact-details summary small {{
+                    display: block;
+                    color: var(--muted);
+                    font-size: 13px;
+                    font-weight: 600;
+                    line-height: 1.45;
                 }}
                 details.form-card summary + * {{ margin-top: 16px; }}
                 details.form-card .action-center {{
@@ -12755,13 +12823,17 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div class="toolbar">
                 <label><span data-lang="en">Inbox password</span><span data-lang="zh" class="lang-hidden">Inbox 密码</span><input id="businessKey" type="password" placeholder="biz_..."></label>
                 <button class="btn" onclick="loadMerchantInbox()"><span data-lang="en">Open Buyer List</span><span data-lang="zh" class="lang-hidden">打开买家列表</span></button>
-                <button class="btn secondary" onclick="loadDemoBuyers()"><span data-lang="en">Load Demo Buyers</span><span data-lang="zh" class="lang-hidden">加载示例买家</span></button>
+                <button class="btn secondary" onclick="loadDemoBuyers()"><span data-lang="en">Load Demo Buyers (optional)</span><span data-lang="zh" class="lang-hidden">加载示例买家（可选）</span></button>
                 <a class="btn secondary" href="/channels/{slug}"><span data-lang="en">Set Social Sources</span><span data-lang="zh" class="lang-hidden">设置询问来源</span></a>
             </div>
             <div class="status" id="merchantStatus"><span data-lang="en">Enter your owner inbox password to load this private dealer inbox. Do not share this password publicly.</span><span data-lang="zh" class="lang-hidden">输入老板 inbox 密码来打开这个车商私密 inbox。请不要公开分享这个密码。</span></div>
             <p class="mini-note"><span data-lang="en">Buyer data in this inbox should only be used for replies, quotations, viewing appointments, loan follow-up, support, security, and required records.</span><span data-lang="zh" class="lang-hidden">这个 inbox 里的买家资料只应用于回复、报价、预约看车、贷款跟进、客服、安全和必要记录。</span></p>
         </section>
-        <section class="form-card" id="merchantManualCapture">
+        <details class="form-card compact-details" id="merchantManualCapture">
+            <summary>
+                <span data-lang="en">Manual add buyer from DM / call</span><span data-lang="zh" class="lang-hidden">手动新增私信 / 电话买家</span>
+                <small><span data-lang="en">Use this only when the buyer came from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, phone, or referral before auto-sync is live.</span><span data-lang="zh" class="lang-hidden">只有在自动同步未完成、买家来自 WhatsApp、Instagram、Facebook、TikTok、小红书、电话或介绍时才打开这里。</span></small>
+            </summary>
             <div class="section-head onboarding-head">
                 <div>
                     <h2><span data-lang="en">Current pilot: add buyer from DM / call</span><span data-lang="zh" class="lang-hidden">当前试用：从私信 / 电话新增买家</span></h2>
@@ -12799,7 +12871,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 <button class="btn" onclick="createManualLead()"><span data-lang="en">Add Buyer</span><span data-lang="zh" class="lang-hidden">新增买家</span></button>
             </div>
             <div class="status" id="manualLeadStatus"><span data-lang="en">Use this when buyers DM directly and do not click a link.</span><span data-lang="zh" class="lang-hidden">买家直接私信、不点击 link 的时候，用这里新增。</span></div>
-        </section>
+        </details>
         <section class="action-center" id="merchantActionCenter"></section>
         <section class="form-card" id="merchantDailyWork">
             <div class="section-head onboarding-head">
@@ -13103,9 +13175,11 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     const result = await merchantApi(`/apps/enquiry/api/merchant/demo-enquiries?business_slug=${{businessSlug}}`, {{
                         method: "POST"
                     }});
-                    markChecklistStep("first_lead");
                     await loadMerchantInbox();
-                    status.textContent = result.message || inboxText("Demo buyers loaded.", "示例买家已加载。");
+                    status.textContent = inboxText(
+                        "Demo buyers loaded as hidden samples. Real buyer messages stay at the top.",
+                        "示例买家已作为隐藏示例加载。真实买家会保持显示在上方。"
+                    );
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
@@ -13365,6 +13439,44 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 }};
                 return inboxLang() === "zh" ? (zhLabels[value] || value || "未知") : (labels[value] || value || "Unknown");
             }}
+            function leadReferrer(item) {{
+                return String(item?.referrer || "").toLowerCase();
+            }}
+            function isDemoLead(item) {{
+                const source = String(item?.source || "").toLowerCase();
+                const campaign = String(item?.campaign || "").toLowerCase();
+                const phone = String(item?.phone || "").toLowerCase();
+                const name = String(item?.name || "").toLowerCase();
+                const referrer = leadReferrer(item);
+                return source === "demo"
+                    || referrer.includes("nexaflow-demo-pack")
+                    || campaign.includes("demo")
+                    || phone.startsWith("demo-")
+                    || name.startsWith("demo:");
+            }}
+            function isMetaLead(item) {{
+                return leadReferrer(item).startsWith("meta:");
+            }}
+            function isManualLead(item) {{
+                return leadReferrer(item) === "merchant-manual-capture";
+            }}
+            function splitLeadGroups(leads) {{
+                const groups = {{ live: [], demo: [] }};
+                (leads || []).forEach(item => {{
+                    if (isDemoLead(item)) groups.demo.push(item);
+                    else groups.live.push(item);
+                }});
+                return groups;
+            }}
+            function activeLeadsOnly(leads) {{
+                return (leads || []).filter(item => !["won", "lost", "spam"].includes(item.status));
+            }}
+            function leadOriginBadge(item) {{
+                if (isMetaLead(item)) return `<span class="lead-badge live">${{langSpan("LIVE Meta", "真实 Meta")}}</span>`;
+                if (isManualLead(item)) return `<span class="lead-badge live">${{langSpan("Manual real buyer", "手动真实买家")}}</span>`;
+                if (isDemoLead(item)) return `<span class="lead-badge demo">${{langSpan("Demo sample", "示例资料")}}</span>`;
+                return `<span class="lead-badge live">${{langSpan("Real buyer", "真实买家")}}</span>`;
+            }}
             function priorityLabel(value) {{
                 const labels = {{ hot: "Answer now", warm: "Needs details", normal: "Ask next question" }};
                 const zhLabels = {{ hot: "现在回复", warm: "需要资料", normal: "问下一题" }};
@@ -13417,25 +13529,58 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 if (item.status === "contacted") return 4;
                 return 9;
             }}
+            function renderDemoLeadSummary(demoLeads) {{
+                const demos = demoLeads || [];
+                if (!demos.length) return "";
+                const examples = demos.slice(0, 3).map(item => `
+                    <div class="mini-lead-row">
+                        <strong>${{escapeHtml(item.name)}}</strong>
+                        <span>${{escapeHtml(sourceLabel(item.source || "unknown"))}} · ${{escapeHtml(chooseNextAction(item))}}</span>
+                    </div>
+                `).join("");
+                return `
+                    <details class="demo-sample-panel">
+                        <summary>${{langSpan("Demo samples hidden", "示例资料已收起")}} · ${{demos.length}}</summary>
+                        <p>${{langSpan("These are only sample buyers for demos. They are not mixed into the real daily follow-up queue.", "这些只是演示用的示例买家，不会混进真实每日跟进队列。")}}</p>
+                        <div class="mini-card-list">${{examples}}</div>
+                    </details>
+                `;
+            }}
             function renderDailyLeads(leads) {{
-                const actionable = (leads || [])
-                    .filter(item => !["won", "lost", "spam"].includes(item.status))
+                const groups = splitLeadGroups(leads || []);
+                const demoLeads = groups.demo;
+                const actionable = activeLeadsOnly(groups.live)
                     .sort((a, b) => simpleLeadRank(a) - simpleLeadRank(b))
                     .slice(0, 8);
                 const target = document.getElementById("merchantDailyLeads");
                 if (!actionable.length) {{
                     target.innerHTML = `
-                        <div class="status">${{langSpan("No buyers need action right now. New enquiries and due follow-ups will appear here first.", "现在没有需要处理的买家。新的询问和到期跟进会优先出现在这里。")}}</div>
+                        <div class="empty-live-card">
+                            <h3>${{langSpan("No real buyer messages yet", "还没有真实买家消息")}}</h3>
+                            <p>${{langSpan("When a real Facebook, Instagram, WhatsApp, enquiry link, or manually added buyer enters this inbox, they will appear here first. Demo samples are kept separate below.", "当真实 Facebook、Instagram、WhatsApp、询问 link 或手动新增买家进入 inbox，会优先显示在这里。示例资料会分开放在下面。")}}</p>
+                            <div class="lead-badges">
+                                <span class="lead-badge live">${{langSpan("Real buyers", "真实买家")}} · ${{groups.live.length}}</span>
+                                <span class="lead-badge demo">${{langSpan("Demo hidden", "示例已隐藏")}} · ${{demoLeads.length}}</span>
+                            </div>
+                            <div class="simple-actions">
+                                <a class="btn secondary" href="/channels/${{businessSlug}}">${{langSpan("Check social source setup", "检查社媒来源设置")}}</a>
+                                <button class="btn secondary" onclick="loadDemoBuyers()">${{langSpan("Load demo only if needed", "需要演示才加载示例")}}</button>
+                            </div>
+                        </div>
+                        ${{renderDemoLeadSummary(demoLeads)}}
                     `;
                     setInboxLang(inboxLang());
                     return;
                 }}
-                target.innerHTML = actionable.map(item => `
-                    <div class="simple-lead-card">
+                target.innerHTML = `
+                    <div class="status">${{langSpan("Showing real buyers first. Demo samples are hidden below.", "优先显示真实买家，示例资料已收起在下方。")}}</div>
+                ` + actionable.map(item => `
+                    <div class="simple-lead-card live-card">
                         <div>
                             <strong>${{escapeHtml(item.name)}}</strong>
                             <small>${{escapeHtml(item.phone)}}${{item.email ? ` · ${{escapeHtml(item.email)}}` : ""}}</small>
                             <div class="lead-badges">
+                                ${{leadOriginBadge(item)}}
                                 <span class="lead-badge ${{item.priority === "hot" || isDueFollowUp(item) ? "hot" : ""}}">${{isDueFollowUp(item) ? inboxText("Due now", "现在到期") : escapeHtml(priorityLabel(item.priority))}}</span>
                                 <span class="lead-badge">${{escapeHtml(sourceLabel(item.source || "unknown"))}}</span>
                                 <span class="lead-badge">${{escapeHtml(statusLabel(item.status))}}</span>
@@ -13455,27 +13600,39 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">${{langSpan("Booked", "已预约")}}</button>
                         </div>
                     </div>
-                `).join("");
+                `).join("") + renderDemoLeadSummary(demoLeads);
                 setInboxLang(inboxLang());
             }}
             function renderActionCenter(data) {{
                 const stats = data.stats || {{}};
-                const leads = data.enquiries || [];
+                const groups = splitLeadGroups(data.enquiries || []);
+                const activeLiveLeads = activeLeadsOnly(groups.live);
                 const onboarding = data.onboarding || {{}};
-                const due = stats.due_followups || 0;
-                const hot = (stats.by_priority || {{}}).hot || 0;
-                const newCount = (stats.by_status || {{}}).new || 0;
-                const quoted = (stats.by_status || {{}}).quoted || 0;
-                const topLead = leads.find(isDueFollowUp) || leads.find(item => item.priority === "hot" && item.status !== "won" && item.status !== "lost") || leads.find(item => item.status === "new");
-                const firstAction = due > 0
+                const due = activeLiveLeads.filter(isDueFollowUp).length;
+                const hot = activeLiveLeads.filter(item => item.priority === "hot").length;
+                const newCount = activeLiveLeads.filter(item => item.status === "new").length;
+                const quoted = groups.live.filter(item => item.status === "quoted").length;
+                const topLead = activeLiveLeads.find(isDueFollowUp) || activeLiveLeads.find(item => item.priority === "hot") || activeLiveLeads.find(item => item.status === "new");
+                const hasOnlyDemo = !groups.live.length && groups.demo.length;
+                const firstAction = hasOnlyDemo
+                    ? ["Waiting for real messages", "Demo samples are loaded, but no real buyer message is in this inbox yet.", "等待真实消息", "示例资料已加载，但这个 inbox 还没有真实买家消息。"]
+                    : due > 0
                     ? ["Follow up due buyers", `${{due}} buyer(s) need attention today.`, "跟进到期买家", `今天有 ${{due}} 位买家要处理。`]
                     : hot > 0
                         ? ["Answer buyers with stuck points", `${{hot}} buyer(s) need a reply or next question now.`, "先处理卡住的买家", `${{hot}} 位买家现在需要回复或下一题。`]
                         : newCount > 0
                             ? ["Reply to new buyers", `${{newCount}} new buyer(s) are waiting for first reply.`, "回复新买家", `${{newCount}} 位新买家正在等第一句回复。`]
                             : ["Review active buyers", "No urgent enquiries. Check quoted buyers and mark the next step.", "查看进行中的买家", "目前没有紧急询问。检查已报价买家，并标记下一步。"];
-                const topLeadLineEn = topLead ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.` : "Share your buyer link and wait for new enquiries.";
-                const topLeadLineZh = topLead ? `先从 ${{escapeHtml(topLead.name)}} 开始：${{escapeHtml(chooseNextAction(topLead))}}。` : "分享买家 link，等待新的询问进来。";
+                const topLeadLineEn = topLead
+                    ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.`
+                    : hasOnlyDemo
+                        ? "Demo samples are hidden below. Send a new Facebook test message or add a real buyer manually."
+                        : "Share your buyer link and wait for new enquiries.";
+                const topLeadLineZh = topLead
+                    ? `先从 ${{escapeHtml(topLead.name)}} 开始：${{escapeHtml(chooseNextAction(topLead))}}。`
+                    : hasOnlyDemo
+                        ? "示例资料已收在下方。请发送新的 Facebook 测试消息，或手动新增真实买家。"
+                        : "分享买家 link，等待新的询问进来。";
                 document.getElementById("merchantActionCenter").innerHTML = `
                     <div class="action-card">
                         <h3><span data-lang="en">Today&apos;s buyer follow-up</span><span data-lang="zh" class="lang-hidden">今日买家跟进</span></h3>
@@ -13490,6 +13647,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <h3><span data-lang="en">Today&apos;s numbers</span><span data-lang="zh" class="lang-hidden">今日数字</span></h3>
                         <p>${{escapeHtml(onboarding.percent ?? 0)}}% ${{inboxText("ready", "已准备")}} · ${{escapeHtml(onboarding.next_action || inboxText("Complete setup before promotion.", "推广前先完成设置。"))}}</p>
                         <div class="lead-badges">
+                            <span class="lead-badge live">${{langSpan("Real buyers", "真实买家")}} · ${{groups.live.length}}</span>
+                            <span class="lead-badge demo">${{langSpan("Demo hidden", "示例已隐藏")}} · ${{groups.demo.length}}</span>
                             <span class="lead-badge ${{due ? "hot" : ""}}">${{langSpan("Due today", "今天到期")}} · ${{due}}</span>
                             <span class="lead-badge ${{hot ? "hot" : ""}}">${{langSpan("Needs answer", "需要回复")}} · ${{hot}}</span>
                             <span class="lead-badge">${{langSpan("New", "新买家")}} · ${{newCount}}</span>
@@ -13623,12 +13782,13 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     renderPipelineBoard(stats);
                     localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
                     markChecklistStep("loaded");
-                    if ((data.enquiries || []).length > 0) markChecklistStep("first_lead");
+                    const leadGroups = splitLeadGroups(data.enquiries || []);
+                    if (leadGroups.live.length > 0) markChecklistStep("first_lead");
                     document.getElementById("merchantRows").innerHTML = data.enquiries.map(item => `
                         <tr>
                             <td>${{escapeHtml(item.created_at)}}</td>
                             <td>${{escapeHtml(item.name)}}<br>${{escapeHtml(item.phone)}}<br>${{escapeHtml(item.email || "")}}</td>
-                            <td>${{escapeHtml(sourceLabel(item.source || "unknown"))}}${{item.campaign ? `<br>${{escapeHtml(item.campaign)}}` : ""}}${{item.referrer ? `<br><small>${{escapeHtml(item.referrer.slice(0, 80))}}</small>` : ""}}</td>
+                            <td>${{leadOriginBadge(item)}}<br>${{escapeHtml(sourceLabel(item.source || "unknown"))}}${{item.campaign ? `<br>${{escapeHtml(item.campaign)}}` : ""}}${{item.referrer ? `<br><small>${{escapeHtml(item.referrer.slice(0, 80))}}</small>` : ""}}</td>
                             <td>${{escapeHtml(item.intent)}}</td>
                             <td>${{escapeHtml(priorityLabel(item.priority))}}</td>
                             <td>${{escapeHtml(item.message)}}${{item.auto_summary ? `<br><small>${{escapeHtml(item.auto_summary)}}</small>` : ""}}</td>
@@ -13661,7 +13821,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         </tr>
                     `).join("");
                     setInboxLang(inboxLang());
-                    status.textContent = inboxText("Buyer list loaded.", "买家列表已加载。");
+                    status.textContent = inboxText(
+                        `${{leadGroups.live.length}} real buyer(s) loaded. Demo samples hidden: ${{leadGroups.demo.length}}.`,
+                        `已加载 ${{leadGroups.live.length}} 位真实买家。示例资料已隐藏：${{leadGroups.demo.length}}。`
+                    );
                 }} catch (error) {{
                     status.textContent = error.message;
                 }}
