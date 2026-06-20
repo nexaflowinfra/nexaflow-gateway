@@ -328,7 +328,7 @@ class ChannelConnectionUpdate(BaseModel):
         default="official_api_requested",
         pattern="^(official_api_requested|assisted_capture|smart_link|lead_form)$",
     )
-    status: str = Field(default="requested", pattern="^(requested|assisted|paused)$")
+    status: str = Field(default="requested", pattern="^(requested|connected|assisted|paused)$")
     account_label: str = Field(default="", max_length=160)
     external_account_id: str = Field(default="", max_length=160)
     data_processing_acknowledged: bool = False
@@ -2909,8 +2909,13 @@ def upsert_channel_connection(profile, channel, req):
     external_account_id = req.external_account_id.strip()
     if req.integration_mode == "official_api_requested" and catalog["official_status"] == "limited":
         raise HTTPException(status_code=400, detail="This channel does not support official DM sync in the current setup")
-    if req.status == "requested" and not req.data_processing_acknowledged:
-        raise HTTPException(status_code=400, detail="Data processing acknowledgement is required before requesting a channel connection")
+    if req.status in {"requested", "connected"} and not req.data_processing_acknowledged:
+        raise HTTPException(status_code=400, detail="Data processing acknowledgement is required before requesting or connecting a channel")
+    if req.status == "connected":
+        if req.integration_mode != "official_api_requested":
+            raise HTTPException(status_code=400, detail="Connected status requires official Meta API mode")
+        if not external_account_id:
+            raise HTTPException(status_code=400, detail="External Meta account ID is required before enabling auto receive")
     if contains_forbidden_channel_secret(req.account_label, req.external_account_id, req.notes):
         raise HTTPException(status_code=400, detail="Do not paste passwords, OTPs, cookies, app secrets, or access tokens into channel setup")
 
@@ -3028,6 +3033,9 @@ def meta_message_text(message):
         return message["interactive"]["button_reply"]["title"]
     if message.get("interactive", {}).get("list_reply", {}).get("title"):
         return message["interactive"]["list_reply"]["title"]
+    quick_reply = message.get("quick_reply") or {}
+    if quick_reply.get("title") or quick_reply.get("payload"):
+        return quick_reply.get("title") or quick_reply.get("payload")
     if message.get("attachments"):
         return "[Attachment received]"
     message_type = message.get("type") or ""
@@ -3079,9 +3087,12 @@ def extract_meta_inbound_messages(payload):
             channel = "instagram" if payload_object == "instagram" else "facebook"
             for item in entry.get("messaging", []):
                 message = item.get("message") or {}
+                postback = item.get("postback") or {}
                 if message.get("is_echo"):
                     continue
                 text = meta_message_text(message)
+                if not text and postback:
+                    text = postback.get("title") or postback.get("payload") or "[Postback received]"
                 if not text:
                     continue
                 recipient = item.get("recipient") or {}
@@ -3094,7 +3105,7 @@ def extract_meta_inbound_messages(payload):
                     {
                         "channel": channel,
                         "account_id": account_id,
-                        "external_message_id": str(message.get("mid") or f"{channel}:{account_id}:{customer_handle}:{timestamp or now_iso()}"),
+                        "external_message_id": str(message.get("mid") or postback.get("mid") or f"{channel}:{account_id}:{customer_handle}:{timestamp or postback.get('payload') or now_iso()}"),
                         "customer_display_name": customer_handle or f"{channel.title()} buyer",
                         "customer_handle": customer_handle,
                         "message": text,
@@ -3114,7 +3125,7 @@ def channel_connection_for_external_account(channel, external_account_id):
             SELECT * FROM channel_connections
             WHERE channel = ? AND external_account_id = ?
                 AND data_processing_acknowledged = 1
-                AND status != 'paused'
+                AND status = 'connected'
                 AND integration_mode = 'official_api_requested'
             """,
             (channel, external_account_id),
@@ -14018,7 +14029,9 @@ def merchant_channel_connections_page(business_slug: str):
                         <p>${{escapeHtml(item.data_note || "")}}</p>
                         <div class="lead-badges">
                             <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{item.official_status === "limited" ? channelLangSpan("Assisted only", "只支持辅助导入") : channelLangSpan("Meta sync request", "Meta 同步申请")}}</span>
+                            <span class="lead-badge ${{item.status === "connected" ? "live" : ""}}">${{channelLangSpan("Status", "状态")}} · ${{escapeHtml(item.status || "requested")}}</span>
                             <span class="lead-badge">${{item.data_processing_acknowledged ? channelLangSpan("Confirmed", "已确认") : channelLangSpan("Needs confirm", "需要确认")}}</span>
+                            ${{item.external_account_id ? `<span class="lead-badge live">${{channelLangSpan("ID saved", "ID 已保存")}}</span>` : ""}}
                         </div>
                         <label>${{channelLangSpan("Current way", "目前方式")}}
                             <select id="mode-${{item.channel}}">
@@ -14035,11 +14048,13 @@ def merchant_channel_connections_page(business_slug: str):
                             <label>${{channelLangSpan("Status", "状态")}}
                                 <select id="status-${{item.channel}}">
                                     <option value="requested" ${{selected(item.status, "requested")}}>Setup request / 设置请求</option>
+                                    <option value="connected" ${{selected(item.status, "connected")}}>Connected - auto receive live / 已连接 - 自动收信</option>
                                     <option value="assisted" ${{selected(item.status, "assisted")}}>Assisted capture active / 辅助导入已开启</option>
                                     <option value="paused" ${{selected(item.status, "paused")}}>Paused / 暂停</option>
                                 </select>
                             </label>
                             <label>${{idFieldLabel}}<input id="external-${{item.channel}}" value="${{escapeHtml(item.external_account_id || "")}}" placeholder="${{escapeHtml(idField.meta_name || "external_account_id")}}"></label>
+                            <span class="mini-note">${{channelLangSpan("Use Connected only after the Meta webhook subscription is saved and this ID is confirmed. Connected channels can create real buyers from signed Meta webhooks.", "只有在 Meta webhook 订阅已保存、并确认这个 ID 正确后，才选择已连接。已连接渠道会从签名 Meta webhook 创建真实买家。")}}</span>
                             <span class="mini-note">${{idFieldHelp}}${{idFieldHelp && idFieldMatch ? "<br>" : ""}}${{idFieldMatch}}</span>
                             <label>${{channelLangSpan("Notes", "备注")}}<textarea id="notes-${{item.channel}}" placeholder="Setup notes, never secrets">${{escapeHtml(item.notes || "")}}</textarea></label>
                             <div class="lead-badges">

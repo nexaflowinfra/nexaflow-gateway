@@ -745,6 +745,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "Meta auto-sync setup request" in channels.text
     assert "metaSetupContent" in channels.text
     assert "loadMetaSetup" in channels.text
+    assert "Connected - auto receive live" in channels.text
+    assert "已连接 - 自动收信" in channels.text
     assert "Create local test buyer" in channels.text
     assert "sendMetaPilotTest" in channels.text
     assert "/admin/dashboard" not in channels.text
@@ -3924,7 +3926,7 @@ def test_meta_webhook_verify_and_whatsapp_message_creates_enquiry_once():
         f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug}",
         json={
             "integration_mode": "official_api_requested",
-            "status": "requested",
+            "status": "connected",
             "account_label": "Dealer WABA",
             "external_account_id": phone_number_id,
             "data_processing_acknowledged": True,
@@ -3999,6 +4001,69 @@ def test_meta_webhook_verify_and_whatsapp_message_creates_enquiry_once():
     assert "official Meta channel" in saved["consent_notice"]
 
 
+def test_meta_webhook_ignores_requested_channel_until_connected():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"meta-requested-{suffix}"
+    page_id = f"requested-page-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Requested Meta Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    connection = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/facebook?business_slug={slug}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "Requested Facebook Page",
+            "external_account_id": page_id,
+            "data_processing_acknowledged": True,
+            "notes": "Waiting for final Meta subscription.",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert connection.status_code == 200
+
+    payload = {
+        "object": "page",
+        "entry": [
+            {
+                "id": page_id,
+                "messaging": [
+                    {
+                        "sender": {"id": "psid-requested"},
+                        "recipient": {"id": page_id},
+                        "timestamp": 1718000000000,
+                        "message": {
+                            "mid": f"m-requested-{suffix}",
+                            "text": "Do you still have this car?",
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    raw = json.dumps(payload, separators=(",", ":"))
+    response = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["created"] == 0
+    assert body["unmapped"] == 1
+    assert body["items"][0]["status"] == "unmapped"
+
+
 def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
     suffix = uuid.uuid4().hex[:8]
     slug = f"meta-fb-{suffix}"
@@ -4020,7 +4085,7 @@ def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
         f"/apps/enquiry/api/merchant/channel-connections/facebook?business_slug={slug}",
         json={
             "integration_mode": "official_api_requested",
-            "status": "requested",
+            "status": "connected",
             "account_label": "Dealer Facebook Page",
             "external_account_id": page_id,
             "data_processing_acknowledged": True,
@@ -4071,6 +4136,84 @@ def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
     assert saved["stuck_point"] == "Viewing appointment not confirmed"
 
 
+def test_meta_webhook_facebook_quick_reply_and_postback_create_enquiries():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"meta-fb-actions-{suffix}"
+    page_id = f"page-actions-{suffix}"
+    profile = client.post(
+        "/apps/enquiry/api/business-profiles",
+        json={
+            "slug": slug,
+            "business_name": "Meta Action Dealer",
+            "business_type": "used_car_dealer",
+            "whatsapp_phone": "6011112222",
+        },
+        headers={"X-Admin-Key": "test-admin"},
+    )
+    assert profile.status_code == 200
+    business_key = profile.json()["business_access_key"]
+
+    connection = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/facebook?business_slug={slug}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "connected",
+            "account_label": "Action Facebook Page",
+            "external_account_id": page_id,
+            "data_processing_acknowledged": True,
+            "notes": "Official Messenger webhook",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert connection.status_code == 200
+
+    payload = {
+        "object": "page",
+        "entry": [
+            {
+                "id": page_id,
+                "messaging": [
+                    {
+                        "sender": {"id": "psid-action-1"},
+                        "recipient": {"id": page_id},
+                        "timestamp": 1718000000000,
+                        "message": {
+                            "mid": f"m-quick-{suffix}",
+                            "quick_reply": {"payload": "ASK_PRICE"},
+                        },
+                    },
+                    {
+                        "sender": {"id": "psid-action-2"},
+                        "recipient": {"id": page_id},
+                        "timestamp": 1718000010000,
+                        "postback": {
+                            "title": "Book viewing",
+                            "payload": "BOOK_VIEWING",
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+    raw = json.dumps(payload, separators=(",", ":"))
+    response = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert response.status_code == 200
+    assert response.json()["created"] == 2
+
+    listing = client.get(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=facebook",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing.status_code == 200
+    messages = [item["message"] for item in listing.json()["enquiries"]]
+    assert "ASK_PRICE" in messages
+    assert "Book viewing" in messages
+
+
 def test_meta_webhook_instagram_message_creates_enquiry_without_whatsapp_link():
     suffix = uuid.uuid4().hex[:8]
     slug = f"meta-ig-{suffix}"
@@ -4092,7 +4235,7 @@ def test_meta_webhook_instagram_message_creates_enquiry_without_whatsapp_link():
         f"/apps/enquiry/api/merchant/channel-connections/instagram?business_slug={slug}",
         json={
             "integration_mode": "official_api_requested",
-            "status": "requested",
+            "status": "connected",
             "account_label": "Dealer Instagram",
             "external_account_id": instagram_account_id,
             "data_processing_acknowledged": True,

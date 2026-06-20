@@ -31,6 +31,8 @@ STRIPE_WEBHOOK_SECRET=...
 NEXAFLOW_SITE_URL=https://api.nexaflowinfra.com
 NEXAFLOW_APP_NAME=NexaFlow AI Gateway
 NEXAFLOW_DB_PATH=/data/nexaflow.db
+META_WEBHOOK_VERIFY_TOKEN=...
+META_APP_SECRET=...
 PAYMENT_LINK_STARTER=...
 PAYMENT_LINK_PRO=...
 PAYMENT_LINK_BUSINESS=...
@@ -45,6 +47,23 @@ S3_BACKUP_PREFIX=production
 ```
 
 At least one model provider key is required. For multi-model routing, keep both OpenAI and OpenRouter configured.
+
+## Meta Message Webhook
+
+For Facebook Messenger, Instagram DM, and WhatsApp Cloud API auto-receive:
+
+1. Set `NEXAFLOW_SITE_URL` to the public HTTPS domain, for example `https://api.nexaflowinfra.com`.
+2. Set `META_WEBHOOK_VERIFY_TOKEN` in Railway. Use the same value in the Meta webhook callback verification form.
+3. Set `META_APP_SECRET` in Railway. NexaFlow uses it to verify `X-Hub-Signature-256` on every Meta webhook request.
+4. In Meta Developer, use this callback URL:
+
+```text
+https://api.nexaflowinfra.com/webhooks/meta
+```
+
+5. In the merchant channel setup page, save the correct Meta account ID and change the channel status to `Connected - auto receive live`.
+
+Only channels with status `connected`, `official_api_requested` mode, a saved external Meta account ID, and data-processing acknowledgement can create real buyer records from Meta webhooks. Keep channels in `requested` while setting up or testing permissions.
 
 ## Persistent Storage
 
