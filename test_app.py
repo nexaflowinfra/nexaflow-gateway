@@ -712,6 +712,7 @@ def test_business_profile_create_and_public_form_loads():
     assert "Advanced tools: social sources, buyer link, setup, and settings" in inbox.text
     assert "Social source inbox" in inbox.text
     assert "Assisted capture" in inbox.text
+    assert "Xiaohongshu is held until official automatic DM sync is available." in inbox.text
     assert "Next move" in inbox.text
     assert "TikTok" in inbox.text
     assert "Xiaohongshu" in inbox.text
@@ -738,6 +739,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "nexaflow_channels_lang" in channels.text
     assert "询问来源设置" in channels.text
     assert "不要在这里粘贴平台密码" in channels.text
+    assert "Manual entry disabled" in channels.text
+    assert "Pending official API" in channels.text
     assert "之后申请 Meta 同步" in channels.text
     assert "Never paste platform passwords" in channels.text
     assert "Request Meta sync later" in channels.text
@@ -1550,6 +1553,20 @@ def test_merchant_can_manually_capture_social_dm_with_followup_guidance():
         "Comparing price, spec, or monthly payment with another dealer",
     }
 
+    xiaohongshu_manual = client.post(
+        f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}",
+        json={
+            "name": "XHS Buyer",
+            "phone": "",
+            "source": "xiaohongshu",
+            "message": "Saw your note on Xiaohongshu, can loan?",
+            "processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert xiaohongshu_manual.status_code == 400
+    assert "official automatic DM sync" in xiaohongshu_manual.text
+
     audit = client.get(
         f"/admin/data-audit-events?business_slug={slug}&event_type=enquiry.created",
         headers={"X-Admin-Key": "test-admin"},
@@ -1899,6 +1916,19 @@ def test_merchant_channel_connections_are_private_and_audited():
         headers={"X-Business-Key": business_key},
     )
     assert limited_official.status_code == 400
+
+    xiaohongshu_blocked = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/xiaohongshu?business_slug={slug_one}",
+        json={
+            "integration_mode": "smart_link",
+            "status": "assisted",
+            "account_label": "NexaFlow XHS",
+            "data_processing_acknowledged": True,
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert xiaohongshu_blocked.status_code == 400
+    assert "automatic DM sync" in xiaohongshu_blocked.text
 
     missing_ack = client.patch(
         f"/apps/enquiry/api/merchant/channel-connections/facebook?business_slug={slug_one}",

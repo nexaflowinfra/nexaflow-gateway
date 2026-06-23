@@ -2615,12 +2615,14 @@ CHANNEL_CATALOG = {
     "xiaohongshu": {
         "label": "Xiaohongshu",
         "official_status": "limited",
-        "default_mode": "assisted_capture",
-        "capabilities": ["source_tracking", "assisted_capture", "keyword_handoff"],
+        "default_mode": "smart_link",
+        "capabilities": ["pending_official_api", "no_public_dm_webhook", "source_tracking_after_approval"],
         "security_requirements": ["no_scraping", "no_password_collection", "official_platform_review"],
-        "data_note": "Use assisted capture or official merchant platform access only. Do not store passwords or cookies.",
+        "data_note": "Automatic Xiaohongshu DM sync is not enabled until official merchant API or partner access is approved. Do not use scraping, passwords, cookies, or manual DM copying as the product flow.",
     },
 }
+
+AUTO_SYNC_ONLY_BLOCKED_SOURCES = {"xiaohongshu"}
 
 
 def channel_catalog_item(channel):
@@ -2951,6 +2953,14 @@ def manual_capture_contact_identifier(source, name, phone):
 
 def upsert_channel_connection(profile, channel, req):
     catalog = channel_catalog_item(channel)
+    if channel in AUTO_SYNC_ONLY_BLOCKED_SOURCES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Xiaohongshu automatic DM sync is not available in this NexaFlow setup yet. "
+                "It will be enabled only after official Xiaohongshu messaging API or approved partner access is available."
+            ),
+        )
     external_account_id = req.external_account_id.strip()
     if req.integration_mode == "official_api_requested" and catalog["official_status"] == "limited":
         raise HTTPException(status_code=400, detail="This channel does not support official DM sync in the current setup")
@@ -12962,12 +12972,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <details class="form-card compact-details" id="merchantManualCapture">
             <summary>
                 <span data-lang="en">Manual add buyer from DM / call</span><span data-lang="zh" class="lang-hidden">手动新增私信 / 电话买家</span>
-                <small><span data-lang="en">Use this only when the buyer came from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, phone, or referral before auto-sync is live.</span><span data-lang="zh" class="lang-hidden">只有在自动同步未完成、买家来自 WhatsApp、Instagram、Facebook、TikTok、小红书、电话或介绍时才打开这里。</span></small>
+                <small><span data-lang="en">Use this only when the buyer came from WhatsApp, Instagram, Facebook, TikTok, phone, or referral before auto-sync is live.</span><span data-lang="zh" class="lang-hidden">只有在自动同步未完成、买家来自 WhatsApp、Instagram、Facebook、TikTok、电话或介绍时才打开这里。</span></small>
             </summary>
             <div class="section-head onboarding-head">
                 <div>
                     <h2><span data-lang="en">Current pilot: add buyer from DM / call</span><span data-lang="zh" class="lang-hidden">当前试用：从私信 / 电话新增买家</span></h2>
-                    <p><span data-lang="en">Until Meta auto-sync is connected, this is the main trial flow: paste the buyer&apos;s message from WhatsApp, Instagram, Facebook, TikTok, Xiaohongshu, call, or referral. NexaFlow will turn it into a follow-up card.</span><span data-lang="zh" class="lang-hidden">Meta 自动同步接好之前，这就是主要试用流程：把 WhatsApp、Instagram、Facebook、TikTok、小红书、电话或介绍来的买家内容放进来，NexaFlow 会变成跟进卡。</span></p>
+                    <p><span data-lang="en">Until Meta auto-sync is connected, this is the main trial flow: paste the buyer&apos;s message from WhatsApp, Instagram, Facebook, TikTok, call, or referral. Xiaohongshu is held until official automatic DM sync is available.</span><span data-lang="zh" class="lang-hidden">Meta 自动同步接好之前，这就是主要试用流程：把 WhatsApp、Instagram、Facebook、TikTok、电话或介绍来的买家内容放进来。小红书等官方自动收信可用后才接入。</span></p>
                 </div>
             </div>
             <div class="toolbar">
@@ -12979,7 +12989,6 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <option value="instagram">Instagram</option>
                         <option value="facebook">Facebook</option>
                         <option value="tiktok">TikTok</option>
-                        <option value="xiaohongshu">Xiaohongshu</option>
                         <option value="manual">Call / manual</option>
                         <option value="referral">Referral</option>
                     </select>
@@ -13805,7 +13814,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     ["instagram", "Instagram", "Use bio link, DM link, or manual assisted capture.", "使用简介 link、私信 link，或手动辅助导入。"],
                     ["facebook", "Facebook", "Track Marketplace, page, group, or Messenger enquiries.", "追踪 Marketplace、专页、群组或 Messenger 询问。"],
                     ["tiktok", "TikTok", "Use profile link or assisted capture for video comments and DMs.", "用主页 link 或辅助导入评论和私信。"],
-                    ["xiaohongshu", "Xiaohongshu", "Use link-in-bio or assisted capture for notes and DMs.", "用主页 link 或辅助导入笔记和私信。"],
+                    ["xiaohongshu", "Xiaohongshu", "Automatic DM sync is pending official API or partner access.", "小红书自动收私信需要官方 API 或合作权限，暂不做手动替代。"],
                     ["direct", "Direct link", "Track buyers who came through the shared enquiry link.", "追踪从共享询问 link 进来的买家。"],
                     ["google-business", "Google Business Profile", "Track enquiries from your Google Business Profile link.", "追踪 Google 商家资料 link 的询问。"],
                     ["website-widget", "Website widget", "Track enquiries that came from the embedded website widget.", "追踪网站 widget 进来的询问。"],
@@ -14175,7 +14184,7 @@ def merchant_channel_connections_page(business_slug: str):
                 document.getElementById("channelSummary").innerHTML = `
                     <section class="card"><h3>${{channelLangSpan("Main sources", "主要来源")}}</h3><div class="price">${{mainChannels.length}}</div><p>WhatsApp, Facebook, Instagram</p></section>
                     <section class="card"><h3>${{channelLangSpan("Setup requested", "已请求设置")}}</h3><div class="price">${{summary.configured || 0}}</div><p>${{channelLangSpan("Saved source settings", "已保存来源设置")}}</p></section>
-                    <section class="card"><h3>${{channelLangSpan("Limited sources", "受限来源")}}</h3><div class="price">${{summary.limited || 0}}</div><p>${{channelLangSpan("TikTok / Xiaohongshu assisted mode", "TikTok / 小红书辅助导入模式")}}</p></section>
+                    <section class="card"><h3>${{channelLangSpan("Limited sources", "受限来源")}}</h3><div class="price">${{summary.limited || 0}}</div><p>${{channelLangSpan("TikTok assisted, Xiaohongshu pending official sync", "TikTok 辅助，小红书等待官方同步")}}</p></section>
                 `;
                 function renderChannelCard(item) {{
                     const idField = item.id_field || {{}};
@@ -14187,12 +14196,33 @@ def merchant_channel_connections_page(business_slug: str):
                     const idFieldMatch = idField.matched_from
                         ? `${{channelLangSpan("Webhook match", "Webhook 匹配")}}: ${{escapeHtml(idField.matched_from)}}`
                         : "";
+                    if (item.channel === "xiaohongshu") {{
+                        return `
+                    <section class="card">
+                        <h3>${{escapeHtml(item.label)}}</h3>
+                        <p>${{escapeHtml(item.data_note || "")}}</p>
+                        <div class="lead-badges">
+                            <span class="lead-badge">${{channelLangSpan("Pending official API", "等待官方 API")}}</span>
+                            <span class="lead-badge">${{channelLangSpan("Auto receive", "自动收信")}} · ${{channelLangSpan("Not ready", "未 ready")}}</span>
+                            <span class="lead-badge">${{channelLangSpan("Manual entry disabled", "已关闭手动录入")}}</span>
+                        </div>
+                        <span class="next-action">${{channelLangSpan("We will connect Xiaohongshu only through official automatic DM sync or approved partner access. No scraping, cookies, passwords, or copied private messages are used.", "小红书只会在拿到官方自动收私信或授权合作接入后启用。不会使用抓取、cookies、密码或复制私信的方式。")}}</span>
+                        <details>
+                            <summary>${{channelLangSpan("Why this is blocked", "为什么先不开放")}}</summary>
+                            <span class="mini-note">${{channelLangSpan("Manual Xiaohongshu capture does not create the core value of NexaFlow. It also risks data quality and compliance confusion, so this channel stays pending until official access is available.", "小红书手动录入无法体现 NexaFlow 的核心价值，也容易造成资料质量和合规误解，所以这个渠道会保持等待状态，直到官方接入可用。")}}</span>
+                            <div class="lead-badges">
+                                ${{(item.capabilities || []).map(value => `<span class="lead-badge">${{escapeHtml(value)}}</span>`).join("")}}
+                            </div>
+                        </details>
+                    </section>
+                        `;
+                    }}
                     return `
                     <section class="card">
                         <h3>${{escapeHtml(item.label)}}</h3>
                         <p>${{escapeHtml(item.data_note || "")}}</p>
                         <div class="lead-badges">
-                            <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{item.official_status === "limited" ? channelLangSpan("Assisted only", "只支持辅助导入") : channelLangSpan("Meta sync request", "Meta 同步申请")}}</span>
+                            <span class="lead-badge ${{item.official_status === "limited" ? "" : "hot"}}">${{item.channel === "xiaohongshu" ? channelLangSpan("Pending official API", "等待官方 API") : (item.official_status === "limited" ? channelLangSpan("Assisted only", "只支持辅助导入") : channelLangSpan("Meta sync request", "Meta 同步申请"))}}</span>
                             <span class="lead-badge ${{item.status === "connected" ? "live" : ""}}">${{channelLangSpan("Status", "状态")}} · ${{escapeHtml(item.status || "requested")}}</span>
                             <span class="lead-badge ${{item.auto_receive_ready ? "live" : ""}}">${{channelLangSpan("Auto receive", "自动收信")}} · ${{item.auto_receive_ready ? channelLangSpan("Ready", "Ready") : channelLangSpan("Not ready", "未 ready")}}</span>
                             <span class="lead-badge">${{item.data_processing_acknowledged ? channelLangSpan("Confirmed", "已确认") : channelLangSpan("Needs confirm", "需要确认")}}</span>
@@ -14214,7 +14244,7 @@ def merchant_channel_connections_page(business_slug: str):
                                 <option value="paused" ${{selected(item.status, "paused")}}>Paused / 暂停</option>
                             </select>
                         </label>
-                        <span class="mini-note">${{channelLangSpan("Choose Connected only after the Meta webhook subscription is saved and this ID is confirmed.", "只有在 Meta webhook 订阅已保存、并确认这个 ID 正确后，才选择已连接。")}}</span>
+                        <span class="mini-note">${{item.channel === "xiaohongshu" ? channelLangSpan("Do not mark Xiaohongshu as connected until an official Xiaohongshu messaging API or approved partner integration is available.", "在拿到小红书官方消息 API 或授权合作接入前，不要把小红书标记为已连接。") : channelLangSpan("Choose Connected only after the Meta webhook subscription is saved and this ID is confirmed.", "只有在 Meta webhook 订阅已保存、并确认这个 ID 正确后，才选择已连接。")}}</span>
                         <label>${{channelLangSpan("Account or page label", "账号或专页名称")}}<input id="label-${{item.channel}}" value="${{escapeHtml(item.account_label || "")}}" placeholder="@dealer or page name"></label>
                         <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>${{channelLangSpan("I confirm this is for buyer follow-up and I will not enter passwords or verification codes here.", "我确认这是用于买家跟进，并且不会在这里输入密码或验证码。")}}</span></label>
                         <details>
@@ -16313,6 +16343,11 @@ def create_merchant_manual_enquiry(
             detail="Do not paste identity documents, bank statements, payslips, or other sensitive files into manual buyer capture.",
         )
     source = re.sub(r"[^a-z0-9_-]+", "-", (req.source or "manual").strip().lower()).strip("-") or "manual"
+    if source in AUTO_SYNC_ONLY_BLOCKED_SOURCES:
+        raise HTTPException(
+            status_code=400,
+            detail="Xiaohongshu will be enabled only when official automatic DM sync or approved partner access is available. Manual Xiaohongshu entry is intentionally disabled.",
+        )
     buyer_name = manual_capture_buyer_name(source, req.name)
     buyer_contact = manual_capture_contact_identifier(source, buyer_name, req.phone)
     enquiry_req = EnquiryCreateRequest(
