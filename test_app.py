@@ -688,17 +688,17 @@ def test_business_profile_create_and_public_form_loads():
     assert inbox.status_code == 200
     assert "loadMerchantInbox" in inbox.text
     assert "loadDemoBuyers" in inbox.text
-    assert "Load Demo Buyers" in inbox.text
+    assert "Load demo only if needed" in inbox.text
     assert "Today&apos;s Buyer Follow-up" in inbox.text
     assert "setInboxLang" in inbox.text
     assert "nexaflow_inbox_lang" in inbox.text
     assert "今日买家跟进" in inbox.text
-    assert "现在要跟进的买家" in inbox.text
+    assert "现在要跟进的真实买家" in inbox.text
     assert "下载买家列表" in inbox.text
     assert "资料保留天数" in inbox.text
     assert "贷款 / 供车" in inbox.text
     assert "月供" in inbox.text
-    assert "Buyers to contact now" in inbox.text
+    assert "Real buyers to contact now" in inbox.text
     assert "merchantDailyLeads" in inbox.text
     assert "saveMerchantSettings" in inbox.text
     assert "exportMerchantCsv" in inbox.text
@@ -707,8 +707,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "Buyer enquiry link" in inbox.text
     assert "copyMerchantElement" in inbox.text
     assert "Website widget code" in inbox.text
-    assert "Today&apos;s buyer follow-up" in inbox.text
-    assert "Shortcuts" in inbox.text
+    assert "Next move" in inbox.text
+    assert "Live inbox status" in inbox.text
     assert "Advanced tools: social sources, buyer link, setup, and settings" in inbox.text
     assert "Social source inbox" in inbox.text
     assert "Assisted capture" in inbox.text
@@ -725,8 +725,8 @@ def test_business_profile_create_and_public_form_loads():
     assert "filterFollowUp" in inbox.text
     assert "Due today" in inbox.text
     assert "clearMerchantFilters" in inbox.text
-    assert inbox.text.index("Buyers to contact now") < inbox.text.index("Full buyer list and filters")
-    assert inbox.text.index("Buyers to contact now") < inbox.text.index("Data Retention Days")
+    assert inbox.text.index("Real buyers to contact now") < inbox.text.index("Full buyer list and filters")
+    assert inbox.text.index("Real buyers to contact now") < inbox.text.index("Data Retention Days")
     assert "/admin/dashboard" not in inbox.text
 
     legacy_inbox = client.get(f"/apps/enquiry/inbox/{slug}")
@@ -748,6 +748,11 @@ def test_business_profile_create_and_public_form_loads():
     assert "Meta auto-sync setup request" in channels.text
     assert "metaSetupContent" in channels.text
     assert "loadMetaSetup" in channels.text
+    assert "WhatsApp Cloud API checklist" in channels.text
+    assert "Use Phone Number ID, not WABA ID or personal WhatsApp number." in channels.text
+    assert "Instagram App Review required" in channels.text
+    assert "Live Instagram DMs will not arrive until Meta approves instagram_business_manage_messages." in channels.text
+    assert "Facebook Page only" in channels.text
     assert "Connected - auto receive live" in channels.text
     assert "已连接 - 自动收信" in channels.text
     assert "Auto receive status" in channels.text
@@ -1822,8 +1827,10 @@ def test_merchant_channel_connections_are_private_and_audited():
     connections_by_channel = {item["channel"]: item for item in body["connections"]}
     assert connections_by_channel["whatsapp"]["id_field"]["meta_name"] == "phone_number_id"
     assert connections_by_channel["whatsapp"]["id_field"]["matched_from"] == "value.metadata.phone_number_id"
+    assert connections_by_channel["whatsapp"]["id_field"]["help"] == "Use the phone number ID that receives buyer messages, not the WABA ID."
     assert connections_by_channel["facebook"]["id_field"]["meta_name"] == "page_id"
     assert connections_by_channel["instagram"]["id_field"]["meta_name"] == "instagram_account_id"
+    assert connections_by_channel["instagram"]["id_field"]["help"] == "Use the professional Instagram account ID connected to the Meta app."
 
     meta_setup_missing = client.get(
         f"/apps/enquiry/api/merchant/meta-setup?business_slug={slug_one}"
@@ -1849,6 +1856,7 @@ def test_merchant_channel_connections_are_private_and_audited():
     meta_channels = {item["channel"]: item for item in meta_body["meta_channels"]}
     assert meta_channels["whatsapp"]["id_field"]["label"] == "WhatsApp phone_number_id"
     assert meta_channels["whatsapp"]["id_field"]["matched_from"] == "value.metadata.phone_number_id"
+    assert meta_channels["whatsapp"]["id_field"]["help"] == "Use the phone number ID that receives buyer messages, not the WABA ID."
     assert meta_channels["facebook"]["id_field"]["meta_name"] == "page_id"
     assert meta_channels["instagram"]["id_field"]["meta_name"] == "instagram_account_id"
 
@@ -2067,16 +2075,15 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert response.status_code == 200
     assert "merchantActionCenter" in response.text
     assert "merchantDailyLeads" in response.text
-    assert "Buyers to contact now" in response.text
+    assert "Real buyers to contact now" in response.text
     assert "Phone / handle optional" in response.text
     assert "买家还没给电话号码" in response.text
     assert "AI Copilot Preview" in response.text
     assert "manualCopilotPreview" in response.text
     assert "/apps/enquiry/api/merchant/copilot/analyze" in response.text
     assert "merchantPipelineBoard" in response.text
-    assert "Today&apos;s buyer follow-up" in response.text
-    assert "Today&apos;s numbers" in response.text
-    assert "Shortcuts" in response.text
+    assert "Next move" in response.text
+    assert "Live inbox status" in response.text
     assert "Main buyer link" in response.text
     assert "Suggested caption" in response.text
     assert "merchantShareDirectPrimary" in response.text

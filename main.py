@@ -8473,6 +8473,10 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     padding: 14px;
                     background: var(--surface);
                 }}
+                .compact-source-checklist {{
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    margin: 12px 0;
+                }}
                 .setup-step strong {{ display: block; color: var(--ink); margin-bottom: 6px; }}
                 .setup-step span {{ color: var(--muted); font-size: 13px; }}
                 .onboarding-head {{
@@ -13091,10 +13095,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
             <div class="toolbar">
                 <label><span data-lang="en">Inbox password</span><span data-lang="zh" class="lang-hidden">Inbox 密码</span><input id="businessKey" type="password" placeholder="biz_..."></label>
                 <button class="btn" onclick="loadMerchantInbox()"><span data-lang="en">Open Buyer List</span><span data-lang="zh" class="lang-hidden">打开买家列表</span></button>
-                <button class="btn secondary" onclick="loadDemoBuyers()"><span data-lang="en">Load Demo Buyers (optional)</span><span data-lang="zh" class="lang-hidden">加载示例买家（可选）</span></button>
                 <a class="btn secondary" href="/channels/{slug}"><span data-lang="en">Set Social Sources</span><span data-lang="zh" class="lang-hidden">设置询问来源</span></a>
             </div>
-            <div class="status" id="merchantStatus"><span data-lang="en">Enter your owner inbox password to load this private dealer inbox. Do not share this password publicly.</span><span data-lang="zh" class="lang-hidden">输入老板 inbox 密码来打开这个车商私密 inbox。请不要公开分享这个密码。</span></div>
+            <div class="status" id="merchantStatus"><span data-lang="en">Enter your owner inbox password to load this private dealer inbox. Real buyer messages appear first; test and demo records stay hidden.</span><span data-lang="zh" class="lang-hidden">输入老板 inbox 密码来打开这个车商私密 inbox。真实买家会优先显示，测试和示例资料会收起。</span></div>
             <p class="mini-note"><span data-lang="en">Buyer data in this inbox should only be used for replies, quotations, viewing appointments, loan follow-up, support, security, and required records.</span><span data-lang="zh" class="lang-hidden">这个 inbox 里的买家资料只应用于回复、报价、预约看车、贷款跟进、客服、安全和必要记录。</span></p>
         </section>
         <details class="form-card compact-details" id="merchantManualCapture">
@@ -13143,8 +13146,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
         <section class="form-card" id="merchantDailyWork">
             <div class="section-head onboarding-head">
                 <div>
-                    <h2><span data-lang="en">Buyers to contact now</span><span data-lang="zh" class="lang-hidden">现在要跟进的买家</span></h2>
-                    <p><span data-lang="en">Start from the top. Each card shows the buyer, what they are likely stuck on, and the next move.</span><span data-lang="zh" class="lang-hidden">从最上面开始。每张卡会显示买家卡在哪里，以及下一步要做什么。</span></p>
+                    <h2><span data-lang="en">Real buyers to contact now</span><span data-lang="zh" class="lang-hidden">现在要跟进的真实买家</span></h2>
+                    <p><span data-lang="en">Start from the top. Real Facebook, Instagram, WhatsApp, link, and manually added buyers appear here first. Test and demo records stay collapsed below.</span><span data-lang="zh" class="lang-hidden">从最上面开始。真实 Facebook、Instagram、WhatsApp、询问 link 和手动新增买家会优先显示在这里。测试和示例资料会收起在下面。</span></p>
                 </div>
             </div>
             <div class="simple-lead-list" id="merchantDailyLeads"></div>
@@ -13925,7 +13928,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         : "分享买家 link，等待新的询问进来。";
                 document.getElementById("merchantActionCenter").innerHTML = `
                     <div class="action-card">
-                        <h3><span data-lang="en">Today&apos;s buyer follow-up</span><span data-lang="zh" class="lang-hidden">今日买家跟进</span></h3>
+                        <h3><span data-lang="en">Next move</span><span data-lang="zh" class="lang-hidden">下一步</span></h3>
                         <p>${{langSpan(firstAction[1], firstAction[3])}}</p>
                         <div class="action-list">
                             <div class="action-item"><span class="action-dot">1</span><div><strong>${{langSpan(firstAction[0], firstAction[2])}}</strong><span>${{langSpan(topLeadLineEn, topLeadLineZh)}}</span></div></div>
@@ -13934,8 +13937,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         </div>
                     </div>
                     <div class="action-card">
-                        <h3><span data-lang="en">Today&apos;s numbers</span><span data-lang="zh" class="lang-hidden">今日数字</span></h3>
-                        <p>${{escapeHtml(onboarding.percent ?? 0)}}% ${{inboxText("ready", "已准备")}} · ${{escapeHtml(onboarding.next_action || inboxText("Complete setup before promotion.", "推广前先完成设置。"))}}</p>
+                        <h3><span data-lang="en">Live inbox status</span><span data-lang="zh" class="lang-hidden">真实 inbox 状态</span></h3>
+                        <p>${{escapeHtml(onboarding.percent ?? 0)}}% ${{inboxText("setup ready", "设置已准备")}} · ${{escapeHtml(onboarding.next_action || inboxText("Complete setup before promotion.", "推广前先完成设置。"))}}</p>
                         <div class="lead-badges">
                             <span class="lead-badge live">${{langSpan("Real buyers", "真实买家")}} · ${{groups.live.length}}</span>
                             <span class="lead-badge demo">${{langSpan("Tests hidden", "测试已隐藏")}} · ${{groups.test.length}}</span>
@@ -13945,15 +13948,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <span class="lead-badge">${{langSpan("New", "新买家")}} · ${{newCount}}</span>
                             <span class="lead-badge">${{langSpan("Quoted", "已报价")}} · ${{quoted}}</span>
                         </div>
-                        <span class="next-action">${{langSpan("Use this page as the daily follow-up list.", "把这个页面当成每天的跟进清单。")}}</span>
-                    </div>
-                    <div class="action-card">
-                        <h3>${{langSpan("Shortcuts", "快捷动作")}}</h3>
-                        <p>${{langSpan("Most dealers only need these actions during the day.", "多数车商每天只需要这几个动作。")}}</p>
-                        <div class="lead-badges">
+                        <div class="simple-actions">
                             <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">${{langSpan("New buyers", "新买家")}}</button>
                             <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">${{langSpan("Due today", "今天到期")}}</button>
-                            <button class="btn secondary" onclick="copyMerchantElement('merchantShareDirect', 'Buyer enquiry link')">${{langSpan("Copy buyer link", "复制买家 link")}}</button>
+                            <button class="btn secondary" onclick="document.getElementById('merchantManualCapture').open = true; document.getElementById('merchantManualCapture').scrollIntoView({{ behavior: 'smooth', block: 'start' }});">${{langSpan("Add real buyer", "新增真实买家")}}</button>
                         </div>
                     </div>
                 `;
@@ -14113,8 +14111,8 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     `).join("");
                     setInboxLang(inboxLang());
                     status.textContent = inboxText(
-                        `${{leadGroups.live.length}} real buyer(s) loaded. Demo samples hidden: ${{leadGroups.demo.length}}.`,
-                        `已加载 ${{leadGroups.live.length}} 位真实买家。示例资料已隐藏：${{leadGroups.demo.length}}。`
+                        `${{leadGroups.live.length}} real buyer(s) loaded. Test records hidden: ${{leadGroups.test.length}}. Demo samples hidden: ${{leadGroups.demo.length}}.`,
+                        `已加载 ${{leadGroups.live.length}} 位真实买家。测试资料已隐藏：${{leadGroups.test.length}}。示例资料已隐藏：${{leadGroups.demo.length}}。`
                     );
                 }} catch (error) {{
                     status.textContent = error.message;
@@ -14338,6 +14336,51 @@ def merchant_channel_connections_page(business_slug: str):
                     <section class="card"><h3>${{channelLangSpan("Setup requested", "已请求设置")}}</h3><div class="price">${{summary.configured || 0}}</div><p>${{channelLangSpan("Saved source settings", "已保存来源设置")}}</p></section>
                     <section class="card"><h3>${{channelLangSpan("Limited sources", "受限来源")}}</h3><div class="price">${{summary.limited || 0}}</div><p>${{channelLangSpan("TikTok assisted, Xiaohongshu pending official sync", "TikTok 辅助，小红书等待官方同步")}}</p></section>
                 `;
+                function renderReadinessChecklist(item) {{
+                    if (item.channel === "whatsapp") {{
+                        return `
+                            <div class="setup-panel compact-source-checklist">
+                                <div class="setup-step">
+                                    <strong>${{channelLangSpan("WhatsApp Cloud API checklist", "WhatsApp Cloud API 检查")}}</strong>
+                                    <span>${{channelLangSpan("Use Phone Number ID, not WABA ID or personal WhatsApp number.", "填写 Phone Number ID，不是 WABA ID，也不是个人 WhatsApp 号码。")}}</span>
+                                </div>
+                                <div class="setup-step">
+                                    <strong>${{channelLangSpan("Before marking Connected", "选择已连接之前")}}</strong>
+                                    <span>${{channelLangSpan("Webhook messages must be subscribed and a signed webhook should create a real buyer.", "必须已订阅 webhook messages，并确认签名 webhook 可以创建真实买家。")}}</span>
+                                </div>
+                            </div>
+                        `;
+                    }}
+                    if (item.channel === "instagram") {{
+                        return `
+                            <div class="setup-panel compact-source-checklist">
+                                <div class="setup-step">
+                                    <strong>${{channelLangSpan("Instagram App Review required", "Instagram 需要 App Review")}}</strong>
+                                    <span>${{channelLangSpan("Live Instagram DMs will not arrive until Meta approves instagram_business_manage_messages.", "Meta 批准 instagram_business_manage_messages 之前，真实 IG 私信不会进来。")}}</span>
+                                </div>
+                                <div class="setup-step">
+                                    <strong>${{channelLangSpan("Professional account only", "只支持专业账号")}}</strong>
+                                    <span>${{channelLangSpan("Use the connected professional Instagram account ID and keep tokens out of NexaFlow forms.", "填写已连接的 Instagram 专业账号 ID，token 不要放进 NexaFlow 表格。")}}</span>
+                                </div>
+                            </div>
+                        `;
+                    }}
+                    if (item.channel === "facebook") {{
+                        return `
+                            <div class="setup-panel compact-source-checklist">
+                                <div class="setup-step">
+                                    <strong>${{channelLangSpan("Facebook Page only", "只支持 Facebook Page")}}</strong>
+                                    <span>${{channelLangSpan("Use the Page ID that receives Messenger enquiries, not a personal profile ID.", "填写接收 Messenger 询问的 Page ID，不是个人账号 ID。")}}</span>
+                                </div>
+                                <div class="setup-step">
+                                    <strong>${{channelLangSpan("Test before launch", "上线前测试")}}</strong>
+                                    <span>${{channelLangSpan("Send one test message and confirm it appears as a real buyer before giving it to a merchant.", "发一条测试消息，确认会成为真实买家后才交给商家。")}}</span>
+                                </div>
+                            </div>
+                        `;
+                    }}
+                    return "";
+                }}
                 function renderChannelCard(item) {{
                     const idField = item.id_field || {{}};
                     const idFieldLabel = channelLangSpan(
@@ -14397,6 +14440,7 @@ def merchant_channel_connections_page(business_slug: str):
                             </select>
                         </label>
                         <span class="mini-note">${{item.channel === "xiaohongshu" ? channelLangSpan("Do not mark Xiaohongshu as connected until an official Xiaohongshu messaging API or approved partner integration is available.", "在拿到小红书官方消息 API 或授权合作接入前，不要把小红书标记为已连接。") : channelLangSpan("Choose Connected only after the Meta webhook subscription is saved and this ID is confirmed.", "只有在 Meta webhook 订阅已保存、并确认这个 ID 正确后，才选择已连接。")}}</span>
+                        ${{renderReadinessChecklist(item)}}
                         <label>${{channelLangSpan("Account or page label", "账号或专页名称")}}<input id="label-${{item.channel}}" value="${{escapeHtml(item.account_label || "")}}" placeholder="@dealer or page name"></label>
                         <label class="checkbox-label"><input id="ack-${{item.channel}}" type="checkbox" ${{item.data_processing_acknowledged ? "checked" : ""}}> <span>${{channelLangSpan("I confirm this is for buyer follow-up and I will not enter passwords or verification codes here.", "我确认这是用于买家跟进，并且不会在这里输入密码或验证码。")}}</span></label>
                         <details>
