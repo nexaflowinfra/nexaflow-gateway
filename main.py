@@ -805,6 +805,7 @@ def init_db():
                 campaign TEXT,
                 referrer TEXT,
                 page_url TEXT,
+                record_kind TEXT NOT NULL DEFAULT 'real',
                 intent TEXT,
                 priority TEXT,
                 estimated_value TEXT,
@@ -836,6 +837,7 @@ def init_db():
         ensure_column(connection, "enquiries", "campaign", "TEXT")
         ensure_column(connection, "enquiries", "referrer", "TEXT")
         ensure_column(connection, "enquiries", "page_url", "TEXT")
+        ensure_column(connection, "enquiries", "record_kind", "TEXT NOT NULL DEFAULT 'real'")
         ensure_column(connection, "enquiries", "auto_summary", "TEXT")
         ensure_column(connection, "enquiries", "next_action", "TEXT")
         ensure_column(connection, "enquiries", "follow_up_recommendation", "TEXT")
@@ -972,6 +974,31 @@ def init_db():
         ensure_column(connection, "channel_messages", "enquiry_id", "INTEGER")
         connection.execute(
             """
+            UPDATE enquiries
+            SET record_kind = 'demo'
+            WHERE COALESCE(record_kind, 'real') = 'real'
+              AND (
+                referrer = 'nexaflow-demo-pack'
+                OR lower(COALESCE(source, '')) = 'demo'
+                OR lower(COALESCE(campaign, '')) LIKE '%demo%'
+                OR lower(COALESCE(phone, '')) LIKE 'demo-%'
+                OR lower(COALESCE(name, '')) LIKE 'demo:%'
+              )
+            """
+        )
+        connection.execute(
+            """
+            UPDATE enquiries
+            SET record_kind = 'local_test'
+            WHERE COALESCE(record_kind, 'real') = 'real'
+              AND (
+                message LIKE 'Meta pilot test:%'
+                OR lower(COALESCE(referrer, '')) LIKE 'meta:local-pilot:%'
+              )
+            """
+        )
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS data_audit_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
@@ -988,6 +1015,7 @@ def init_db():
         connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_status ON enquiries (business_slug, status)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_followup ON enquiries (business_slug, follow_up_at)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_priority ON enquiries (business_slug, priority)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_enquiries_business_record_kind ON enquiries (business_slug, record_kind)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_business_profiles_client ON business_profiles (client_id)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_trial_requests_status_created ON trial_requests (status, created_at)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_channel_connections_business ON channel_connections (business_slug, channel)")
@@ -3311,9 +3339,15 @@ def create_enquiry_from_meta_event(connection_info, profile, event, notify_merch
         notify_merchant=notify_merchant,
         consent_notice_override=consent_notice,
         create_whatsapp_reply=event["create_whatsapp_reply"],
+        record_kind="local_test" if event.get("local_pilot") else "real",
     )
     record_channel_message(connection_info, profile, event, enquiry)
-    return {"status": "created", "enquiry_id": enquiry["id"], "external_message_id": event["external_message_id"]}
+    return {
+        "status": "created",
+        "enquiry_id": enquiry["id"],
+        "record_kind": enquiry.get("record_kind", "real"),
+        "external_message_id": event["external_message_id"],
+    }
 
 
 def create_meta_pilot_test_event(profile, channel):
@@ -4926,6 +4960,53 @@ def list_data_audit_events(business_slug=None, event_type=None, limit=100):
     ]
 
 
+ENQUIRY_RECORD_KINDS = {"real", "demo", "local_test", "form_test"}
+NON_LIVE_ENQUIRY_RECORD_KINDS = {"demo", "local_test", "form_test"}
+
+
+def normalize_enquiry_record_kind(value):
+    text = str(value or "").strip().lower().replace("-", "_")
+    return text if text in ENQUIRY_RECORD_KINDS else "real"
+
+
+def mapping_value(row_or_dict, key, default=""):
+    if row_or_dict is None:
+        return default
+    try:
+        if hasattr(row_or_dict, "keys") and key not in row_or_dict.keys():
+            return default
+        value = row_or_dict[key]
+    except (KeyError, IndexError, TypeError):
+        value = row_or_dict.get(key, default) if isinstance(row_or_dict, dict) else default
+    return default if value is None else value
+
+
+def infer_enquiry_record_kind(row_or_dict):
+    stored = str(mapping_value(row_or_dict, "record_kind", "") or "").strip().lower().replace("-", "_")
+    if stored in ENQUIRY_RECORD_KINDS:
+        return stored
+
+    source = str(mapping_value(row_or_dict, "source", "")).strip().lower()
+    referrer = str(mapping_value(row_or_dict, "referrer", "")).strip().lower()
+    campaign = str(mapping_value(row_or_dict, "campaign", "")).strip().lower()
+    phone = str(mapping_value(row_or_dict, "phone", "")).strip().lower()
+    name = str(mapping_value(row_or_dict, "name", "")).strip().lower()
+    message = str(mapping_value(row_or_dict, "message", "")).strip().lower()
+    if (
+        source == "demo"
+        or referrer == "nexaflow-demo-pack"
+        or "demo" in campaign
+        or phone.startswith("demo-")
+        or name.startswith("demo:")
+    ):
+        return "demo"
+    if message.startswith("meta pilot test:") or referrer.startswith("meta:local-pilot:"):
+        return "local_test"
+    if "test" in campaign and referrer in {"merchant-signup", "nexaflow-signup"}:
+        return "form_test"
+    return "real"
+
+
 def row_to_enquiry(row):
     stored_signals = []
     if "follow_up_signals_json" in row.keys() and row["follow_up_signals_json"]:
@@ -4955,6 +5036,7 @@ def row_to_enquiry(row):
         "campaign": row["campaign"] if "campaign" in row.keys() else "",
         "referrer": row["referrer"] if "referrer" in row.keys() else "",
         "page_url": row["page_url"] if "page_url" in row.keys() else "",
+        "record_kind": infer_enquiry_record_kind(row),
         "intent": row["intent"],
         "priority": row["priority"],
         "estimated_value": row["estimated_value"],
@@ -5333,6 +5415,7 @@ def public_enquiry_response(enquiry):
         "business_slug": enquiry["business_slug"],
         "intent": enquiry["intent"],
         "priority": enquiry["priority"],
+        "record_kind": enquiry.get("record_kind", "real"),
         "status": enquiry["status"],
         "created_at": enquiry["created_at"],
     }
@@ -5344,6 +5427,7 @@ def create_enquiry_record(
     notify_merchant=True,
     consent_notice_override=None,
     create_whatsapp_reply=True,
+    record_kind=None,
 ):
     profile = get_business_profile(req.business_slug) if req.business_slug else default_enquiry_profile()
     if profile["status"] != "active":
@@ -5353,6 +5437,17 @@ def create_enquiry_record(
             status_code=400,
             detail="Consent is required to collect and use your contact details for enquiry follow-up.",
         )
+    if actor_type != "meta_webhook":
+        if contains_forbidden_channel_secret(req.name, req.phone, req.email, req.message, req.campaign):
+            raise HTTPException(
+                status_code=400,
+                detail="Do not paste passwords, OTPs, cookies, app secrets, or access tokens into enquiries.",
+            )
+        if contains_sensitive_manual_enquiry_content(req.name, req.phone, req.email, req.message, req.campaign):
+            raise HTTPException(
+                status_code=400,
+                detail="Do not paste identity documents, bank statements, payslips, or other sensitive files into enquiries.",
+            )
     enforce_enquiry_rate_limit(profile["slug"], req.phone)
 
     business_type = profile.get("business_type") or req.business_type
@@ -5372,19 +5467,31 @@ def create_enquiry_record(
         "and disclosed to the business and NexaFlow service providers for enquiry follow-up, "
         "customer support, security, and record keeping."
     )
+    stored_record_kind = normalize_enquiry_record_kind(
+        record_kind or infer_enquiry_record_kind(
+            {
+                "name": req.name,
+                "phone": req.phone,
+                "message": req.message,
+                "source": req.source,
+                "campaign": req.campaign,
+                "referrer": req.referrer,
+            }
+        )
+    )
 
     with db_connection() as connection:
         cursor = connection.execute(
             """
             INSERT INTO enquiries (
                 business_slug, name, phone, email, business_type, message, source, campaign,
-                referrer, page_url, intent,
+                referrer, page_url, record_kind, intent,
                 priority, estimated_value, auto_summary, next_action, follow_up_recommendation,
                 follow_up_signals_json, stuck_point, next_question, follow_up_timing,
                 reply_draft, analysis_source, whatsapp_url, merchant_notification_status,
                 merchant_notification_error, follow_up_at, pdpa_consent, consent_at, consent_notice,
                 status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile["slug"],
@@ -5397,6 +5504,7 @@ def create_enquiry_record(
                 req.campaign.strip(),
                 req.referrer.strip(),
                 req.page_url.strip(),
+                stored_record_kind,
                 classification["intent"],
                 classification["priority"],
                 classification["estimated_value"],
@@ -5438,6 +5546,7 @@ def create_enquiry_record(
             "priority": enquiry["priority"],
             "source": enquiry.get("source") or "web",
             "campaign": enquiry.get("campaign") or "",
+            "record_kind": enquiry.get("record_kind") or "real",
             "pdpa_consent": enquiry["pdpa_consent"],
             "auto_followup_set": bool(enquiry.get("follow_up_at")),
         },
@@ -5672,7 +5781,7 @@ def seed_merchant_demo_enquiries(profile):
             "created": 0,
             "existing": existing_count,
             "message": "Demo buyers are already loaded for this inbox.",
-            "enquiries": list_enquiry_records(business_slug=profile["slug"], search="Demo:", limit=20),
+            "enquiries": list_enquiry_records(business_slug=profile["slug"], record_kind="demo", limit=20),
         }
 
     today = datetime.now(timezone.utc).date()
@@ -5701,6 +5810,7 @@ def seed_merchant_demo_enquiries(profile):
             notify_merchant=False,
             consent_notice_override=consent_notice,
             create_whatsapp_reply=False,
+            record_kind="demo",
         )
         follow_up_at = (today + timedelta(days=sample["follow_up_days"])).isoformat()
         with db_connection() as connection:
@@ -6123,6 +6233,7 @@ def list_enquiry_records(
     priority=None,
     intent=None,
     source=None,
+    record_kind=None,
     search=None,
     follow_up=None,
 ):
@@ -6141,6 +6252,9 @@ def list_enquiry_records(
     if source:
         filters.append("lower(source) = lower(?)")
         params.append(source.strip())
+    if record_kind:
+        filters.append("record_kind = ?")
+        params.append(normalize_enquiry_record_kind(record_kind))
     if business_slug:
         filters.append("business_slug = ?")
         params.append(normalize_slug(business_slug))
@@ -6201,12 +6315,17 @@ def csv_safe_cell(value):
     return text
 
 
-def enquiry_stats(business_slug=None):
-    query = "SELECT status, priority, intent, source, deal_value, follow_up_at FROM enquiries"
+def enquiry_stats(business_slug=None, include_non_live=False):
+    query = "SELECT status, priority, intent, source, deal_value, follow_up_at, record_kind FROM enquiries"
     params = []
+    filters = []
     if business_slug:
-        query += " WHERE business_slug = ?"
+        filters.append("business_slug = ?")
         params.append(normalize_slug(business_slug))
+    if not include_non_live:
+        filters.append("COALESCE(record_kind, 'real') = 'real'")
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
     with db_connection() as connection:
         rows = connection.execute(query, params).fetchall()
 
@@ -6216,12 +6335,21 @@ def enquiry_stats(business_slug=None):
         "by_priority": {},
         "by_intent": {},
         "by_source": {},
+        "by_record_kind": {},
+        "live_total": 0,
+        "non_live_total": 0,
         "pipeline_value": 0,
         "won_value": 0,
         "scheduled_followups": 0,
         "due_followups": 0,
     }
     for row in rows:
+        record_kind = normalize_enquiry_record_kind(row["record_kind"] if "record_kind" in row.keys() else "real")
+        stats["by_record_kind"][record_kind] = stats["by_record_kind"].get(record_kind, 0) + 1
+        if record_kind in NON_LIVE_ENQUIRY_RECORD_KINDS:
+            stats["non_live_total"] += 1
+        else:
+            stats["live_total"] += 1
         stats["by_status"][row["status"]] = stats["by_status"].get(row["status"], 0) + 1
         stats["by_priority"][row["priority"]] = stats["by_priority"].get(row["priority"], 0) + 1
         stats["by_intent"][row["intent"]] = stats["by_intent"].get(row["intent"], 0) + 1
@@ -13581,7 +13709,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             function leadReferrer(item) {{
                 return String(item?.referrer || "").toLowerCase();
             }}
-            function isDemoLead(item) {{
+            function isLegacyDemoLead(item) {{
                 const source = String(item?.source || "").toLowerCase();
                 const campaign = String(item?.campaign || "").toLowerCase();
                 const phone = String(item?.phone || "").toLowerCase();
@@ -13593,6 +13721,23 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     || phone.startsWith("demo-")
                     || name.startsWith("demo:");
             }}
+            function leadRecordKind(item) {{
+                const explicit = String(item?.record_kind || "").toLowerCase().replace("-", "_");
+                if (["real", "demo", "local_test", "form_test"].includes(explicit)) return explicit;
+                const message = String(item?.message || "").toLowerCase();
+                if (isLegacyDemoLead(item)) return "demo";
+                if (message.startsWith("meta pilot test:") || leadReferrer(item).startsWith("meta:local-pilot:")) return "local_test";
+                return "real";
+            }}
+            function isDemoLead(item) {{
+                return leadRecordKind(item) === "demo";
+            }}
+            function isLocalTestLead(item) {{
+                return leadRecordKind(item) === "local_test" || leadRecordKind(item) === "form_test";
+            }}
+            function isNonLiveLead(item) {{
+                return isDemoLead(item) || isLocalTestLead(item);
+            }}
             function isMetaLead(item) {{
                 return leadReferrer(item).startsWith("meta:");
             }}
@@ -13600,9 +13745,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 return leadReferrer(item) === "merchant-manual-capture";
             }}
             function splitLeadGroups(leads) {{
-                const groups = {{ live: [], demo: [] }};
+                const groups = {{ live: [], demo: [], test: [] }};
                 (leads || []).forEach(item => {{
                     if (isDemoLead(item)) groups.demo.push(item);
+                    else if (isLocalTestLead(item)) groups.test.push(item);
                     else groups.live.push(item);
                 }});
                 return groups;
@@ -13611,9 +13757,10 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 return (leads || []).filter(item => !["won", "lost", "spam"].includes(item.status));
             }}
             function leadOriginBadge(item) {{
+                if (isDemoLead(item)) return `<span class="lead-badge demo">${{langSpan("Demo sample", "示例资料")}}</span>`;
+                if (isLocalTestLead(item)) return `<span class="lead-badge demo">${{langSpan("Local test", "本地测试")}}</span>`;
                 if (isMetaLead(item)) return `<span class="lead-badge live">${{langSpan("LIVE Meta", "真实 Meta")}}</span>`;
                 if (isManualLead(item)) return `<span class="lead-badge live">${{langSpan("Manual real buyer", "手动真实买家")}}</span>`;
-                if (isDemoLead(item)) return `<span class="lead-badge demo">${{langSpan("Demo sample", "示例资料")}}</span>`;
                 return `<span class="lead-badge live">${{langSpan("Real buyer", "真实买家")}}</span>`;
             }}
             function priorityLabel(value) {{
@@ -13668,19 +13815,21 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 if (item.status === "contacted") return 4;
                 return 9;
             }}
-            function renderDemoLeadSummary(demoLeads) {{
+            function renderDemoLeadSummary(demoLeads, testLeads = []) {{
                 const demos = demoLeads || [];
-                if (!demos.length) return "";
-                const examples = demos.slice(0, 3).map(item => `
+                const tests = testLeads || [];
+                const hidden = tests.concat(demos);
+                if (!hidden.length) return "";
+                const examples = hidden.slice(0, 4).map(item => `
                     <div class="mini-lead-row">
                         <strong>${{escapeHtml(item.name)}}</strong>
-                        <span>${{escapeHtml(sourceLabel(item.source || "unknown"))}} · ${{escapeHtml(chooseNextAction(item))}}</span>
+                        <span>${{escapeHtml(sourceLabel(item.source || "unknown"))}} · ${{escapeHtml(leadRecordKind(item) === "demo" ? inboxText("Demo sample", "示例资料") : inboxText("Local test", "本地测试"))}} · ${{escapeHtml(chooseNextAction(item))}}</span>
                     </div>
                 `).join("");
                 return `
                     <details class="demo-sample-panel">
-                        <summary>${{langSpan("Demo samples hidden", "示例资料已收起")}} · ${{demos.length}}</summary>
-                        <p>${{langSpan("These are only sample buyers for demos. They are not mixed into the real daily follow-up queue.", "这些只是演示用的示例买家，不会混进真实每日跟进队列。")}}</p>
+                        <summary>${{langSpan("Test/demo records hidden", "测试/示例资料已收起")}} · ${{hidden.length}}</summary>
+                        <p>${{langSpan("Local tests and demo samples are not mixed into the real daily follow-up queue.", "本地测试和示例资料不会混进真实每日跟进队列。")}}</p>
                         <div class="mini-card-list">${{examples}}</div>
                     </details>
                 `;
@@ -13688,6 +13837,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
             function renderDailyLeads(leads) {{
                 const groups = splitLeadGroups(leads || []);
                 const demoLeads = groups.demo;
+                const testLeads = groups.test;
                 const actionable = activeLeadsOnly(groups.live)
                     .sort((a, b) => simpleLeadRank(a) - simpleLeadRank(b))
                     .slice(0, 8);
@@ -13699,6 +13849,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <p>${{langSpan("When a real Facebook, Instagram, WhatsApp, enquiry link, or manually added buyer enters this inbox, they will appear here first. Demo samples are kept separate below.", "当真实 Facebook、Instagram、WhatsApp、询问 link 或手动新增买家进入 inbox，会优先显示在这里。示例资料会分开放在下面。")}}</p>
                             <div class="lead-badges">
                                 <span class="lead-badge live">${{langSpan("Real buyers", "真实买家")}} · ${{groups.live.length}}</span>
+                                <span class="lead-badge demo">${{langSpan("Tests hidden", "测试已隐藏")}} · ${{testLeads.length}}</span>
                                 <span class="lead-badge demo">${{langSpan("Demo hidden", "示例已隐藏")}} · ${{demoLeads.length}}</span>
                             </div>
                             <div class="simple-actions">
@@ -13706,13 +13857,13 @@ def merchant_enquiry_inbox_page(business_slug: str):
                                 <button class="btn secondary" onclick="loadDemoBuyers()">${{langSpan("Load demo only if needed", "需要演示才加载示例")}}</button>
                             </div>
                         </div>
-                        ${{renderDemoLeadSummary(demoLeads)}}
+                        ${{renderDemoLeadSummary(demoLeads, testLeads)}}
                     `;
                     setInboxLang(inboxLang());
                     return;
                 }}
                 target.innerHTML = `
-                    <div class="status">${{langSpan("Showing real buyers first. Demo samples are hidden below.", "优先显示真实买家，示例资料已收起在下方。")}}</div>
+                    <div class="status">${{langSpan("Showing real buyers first. Test and demo records are hidden below.", "优先显示真实买家，测试和示例资料已收起在下方。")}}</div>
                 ` + actionable.map(item => `
                     <div class="simple-lead-card live-card">
                         <div>
@@ -13739,7 +13890,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             <button class="btn secondary" onclick="setMerchantStatus(${{item.id}}, 'won')">${{langSpan("Booked", "已预约")}}</button>
                         </div>
                     </div>
-                `).join("") + renderDemoLeadSummary(demoLeads);
+                `).join("") + renderDemoLeadSummary(demoLeads, testLeads);
                 setInboxLang(inboxLang());
             }}
             function renderActionCenter(data) {{
@@ -13752,9 +13903,9 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const newCount = activeLiveLeads.filter(item => item.status === "new").length;
                 const quoted = groups.live.filter(item => item.status === "quoted").length;
                 const topLead = activeLiveLeads.find(isDueFollowUp) || activeLiveLeads.find(item => item.priority === "hot") || activeLiveLeads.find(item => item.status === "new");
-                const hasOnlyDemo = !groups.live.length && groups.demo.length;
-                const firstAction = hasOnlyDemo
-                    ? ["Waiting for real messages", "Demo samples are loaded, but no real buyer message is in this inbox yet.", "等待真实消息", "示例资料已加载，但这个 inbox 还没有真实买家消息。"]
+                const hasOnlyNonLive = !groups.live.length && (groups.demo.length || groups.test.length);
+                const firstAction = hasOnlyNonLive
+                    ? ["Waiting for real messages", "Only test/demo records are loaded. No real buyer message is in this inbox yet.", "等待真实消息", "目前只有测试/示例资料，这个 inbox 还没有真实买家消息。"]
                     : due > 0
                     ? ["Follow up due buyers", `${{due}} buyer(s) need attention today.`, "跟进到期买家", `今天有 ${{due}} 位买家要处理。`]
                     : hot > 0
@@ -13764,13 +13915,13 @@ def merchant_enquiry_inbox_page(business_slug: str):
                             : ["Review active buyers", "No urgent enquiries. Check quoted buyers and mark the next step.", "查看进行中的买家", "目前没有紧急询问。检查已报价买家，并标记下一步。"];
                 const topLeadLineEn = topLead
                     ? `Start with ${{escapeHtml(topLead.name)}}: ${{escapeHtml(chooseNextAction(topLead))}}.`
-                    : hasOnlyDemo
-                        ? "Demo samples are hidden below. Send a new Facebook test message or add a real buyer manually."
+                    : hasOnlyNonLive
+                        ? "Test/demo records are hidden below. Send a real platform message or add a real buyer manually."
                         : "Share your buyer link and wait for new enquiries.";
                 const topLeadLineZh = topLead
                     ? `先从 ${{escapeHtml(topLead.name)}} 开始：${{escapeHtml(chooseNextAction(topLead))}}。`
-                    : hasOnlyDemo
-                        ? "示例资料已收在下方。请发送新的 Facebook 测试消息，或手动新增真实买家。"
+                    : hasOnlyNonLive
+                        ? "测试/示例资料已收在下方。请发送真实平台消息，或手动新增真实买家。"
                         : "分享买家 link，等待新的询问进来。";
                 document.getElementById("merchantActionCenter").innerHTML = `
                     <div class="action-card">
@@ -13787,6 +13938,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         <p>${{escapeHtml(onboarding.percent ?? 0)}}% ${{inboxText("ready", "已准备")}} · ${{escapeHtml(onboarding.next_action || inboxText("Complete setup before promotion.", "推广前先完成设置。"))}}</p>
                         <div class="lead-badges">
                             <span class="lead-badge live">${{langSpan("Real buyers", "真实买家")}} · ${{groups.live.length}}</span>
+                            <span class="lead-badge demo">${{langSpan("Tests hidden", "测试已隐藏")}} · ${{groups.test.length}}</span>
                             <span class="lead-badge demo">${{langSpan("Demo hidden", "示例已隐藏")}} · ${{groups.demo.length}}</span>
                             <span class="lead-badge ${{due ? "hot" : ""}}">${{langSpan("Due today", "今天到期")}} · ${{due}}</span>
                             <span class="lead-badge ${{hot ? "hot" : ""}}">${{langSpan("Needs answer", "需要回复")}} · ${{hot}}</span>
@@ -16215,6 +16367,7 @@ def list_enquiries(
     admin_guard(admin_key, x_admin_key)
     return {
         "stats": enquiry_stats(business_slug=business_slug),
+        "stats_all": enquiry_stats(business_slug=business_slug, include_non_live=True),
         "enquiries": list_enquiry_records(
             status=status,
             business_slug=business_slug,
@@ -16253,6 +16406,7 @@ def list_merchant_enquiries(
         "business": profile,
         "onboarding": business_profile_onboarding_status(profile),
         "stats": stats,
+        "stats_all": enquiry_stats(business_slug=profile["slug"], include_non_live=True),
         "enquiries": list_enquiry_records(
             status=status,
             business_slug=profile["slug"],
@@ -16373,6 +16527,7 @@ def create_merchant_manual_enquiry(
         actor_type="merchant_manual",
         notify_merchant=False,
         consent_notice_override=consent_notice,
+        record_kind="real",
     )
 
 
@@ -16593,14 +16748,25 @@ def delete_merchant_enquiry(
         ).fetchone()
         if not row or row["business_slug"] != profile["slug"]:
             raise HTTPException(status_code=404, detail="Enquiry not found")
+        related_messages = connection.execute(
+            "SELECT COUNT(*) AS count FROM channel_messages WHERE business_slug = ? AND enquiry_id = ?",
+            (profile["slug"], enquiry_id),
+        ).fetchone()["count"]
         write_data_audit_event(
             "enquiry.deleted",
             "merchant",
             "enquiry",
             enquiry_id,
             business_slug=profile["slug"],
-            metadata={"previous_status": row["status"] if "status" in row.keys() else ""},
+            metadata={
+                "previous_status": row["status"] if "status" in row.keys() else "",
+                "channel_messages_deleted": related_messages,
+            },
             connection=connection,
+        )
+        connection.execute(
+            "DELETE FROM channel_messages WHERE business_slug = ? AND enquiry_id = ?",
+            (profile["slug"], enquiry_id),
         )
         connection.execute("DELETE FROM enquiries WHERE id = ?", (enquiry_id,))
 
@@ -16608,6 +16774,7 @@ def delete_merchant_enquiry(
         "deleted": True,
         "id": enquiry_id,
         "business_slug": profile["slug"],
+        "channel_messages_deleted": related_messages,
     }
 
 

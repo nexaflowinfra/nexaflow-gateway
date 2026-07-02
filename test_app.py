@@ -1441,6 +1441,7 @@ def test_merchant_key_can_only_access_own_enquiries_and_update_status():
     )
     assert own_delete.status_code == 200
     assert own_delete.json()["deleted"] is True
+    assert own_delete.json()["channel_messages_deleted"] == 0
 
     after_delete = client.get(
         f"/apps/enquiry/api/merchant/enquiries?business_slug={slug_one}",
@@ -1706,9 +1707,13 @@ def test_merchant_can_load_demo_buyers_with_owner_key_only():
         headers={"X-Business-Key": business_key},
     )
     assert listing.status_code == 200
-    enquiries = listing.json()["enquiries"]
+    listing_body = listing.json()
+    assert listing_body["stats"]["total"] == 0
+    assert listing_body["stats_all"]["by_record_kind"]["demo"] == 7
+    enquiries = listing_body["enquiries"]
     demo_records = [item for item in enquiries if item["referrer"] == "nexaflow-demo-pack"]
     assert len(demo_records) == 7
+    assert all(item["record_kind"] == "demo" for item in demo_records)
     assert any(item["source"] == "tiktok" and item["priority"] == "hot" for item in demo_records)
     assert any(item["source"] == "referral" for item in demo_records)
     assert any(item["status"] == "won" for item in demo_records)
@@ -1981,6 +1986,7 @@ def test_merchant_can_run_meta_pilot_test_after_channel_mapping():
     local_body = local_test.json()
     assert local_body["status"] == "created"
     assert local_body["channel"] == "instagram"
+    assert local_body["record_kind"] == "local_test"
     assert "No real Meta DM was sent or received" in local_body["message"]
 
     connection = client.patch(
@@ -2005,6 +2011,7 @@ def test_merchant_can_run_meta_pilot_test_after_channel_mapping():
     body = result.json()
     assert body["status"] == "created"
     assert body["channel"] == "instagram"
+    assert body["record_kind"] == "local_test"
     assert body["inbox_url"] == f"/inbox/{slug}"
 
     listing = client.get(
@@ -2012,8 +2019,12 @@ def test_merchant_can_run_meta_pilot_test_after_channel_mapping():
         headers={"X-Business-Key": business_key},
     )
     assert listing.status_code == 200
-    saved = next(item for item in listing.json()["enquiries"] if "Meta pilot test" in item["message"])
+    listing_body = listing.json()
+    assert listing_body["stats"]["total"] == 0
+    assert listing_body["stats_all"]["by_record_kind"]["local_test"] >= 1
+    saved = next(item for item in listing_body["enquiries"] if "Meta pilot test" in item["message"])
     assert saved["source"] == "instagram"
+    assert saved["record_kind"] == "local_test"
     assert saved["phone"].startswith("instagram:")
     assert saved["merchant_notification_status"] == "not_required"
     assert saved["analysis_source"] in {"rules_v1", "ai:gpt-4o-mini"}
@@ -4028,6 +4039,7 @@ def test_meta_webhook_verify_and_whatsapp_message_creates_enquiry_once():
     assert saved["name"] == "Alex Buyer"
     assert saved["phone"] == "60123456789"
     assert saved["source"] == "whatsapp"
+    assert saved["record_kind"] == "real"
     assert saved["whatsapp_url"].startswith("https://wa.me/60123456789")
     assert saved["stuck_point"] == "Monthly payment or loan readiness"
     assert "official Meta channel" in saved["consent_notice"]
@@ -4176,9 +4188,18 @@ def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
     assert listing.status_code == 200
     saved = next(item for item in listing.json()["enquiries"] if "Civic" in item["message"])
     assert saved["source"] == "facebook"
+    assert saved["record_kind"] == "real"
     assert saved["phone"].startswith("facebook:")
     assert not saved["whatsapp_url"]
     assert saved["stuck_point"] == "Viewing appointment not confirmed"
+
+    deleted = client.delete(
+        f"/apps/enquiry/api/merchant/enquiries/{saved['id']}?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+    assert deleted.json()["channel_messages_deleted"] == 1
 
 
 def test_meta_webhook_facebook_quick_reply_and_postback_create_enquiries():
@@ -4257,6 +4278,7 @@ def test_meta_webhook_facebook_quick_reply_and_postback_create_enquiries():
     messages = [item["message"] for item in listing.json()["enquiries"]]
     assert "ASK_PRICE" in messages
     assert "Book viewing" in messages
+    assert all(item["record_kind"] == "real" for item in listing.json()["enquiries"])
 
 
 def test_meta_webhook_instagram_message_creates_enquiry_without_whatsapp_link():
@@ -4335,6 +4357,7 @@ def test_meta_webhook_instagram_message_creates_enquiry_without_whatsapp_link():
     assert listing.status_code == 200
     saved = next(item for item in listing.json()["enquiries"] if "Vios" in item["message"])
     assert saved["source"] == "instagram"
+    assert saved["record_kind"] == "real"
     assert saved["phone"].startswith("instagram:")
     assert not saved["whatsapp_url"]
     assert saved["stuck_point"] == "Monthly payment or loan readiness"
