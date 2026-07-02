@@ -312,6 +312,11 @@ class MerchantSignupRequest(BaseModel):
     pdpa_consent: bool = False
 
 
+class MerchantLoginRequest(BaseModel):
+    business_slug: str = Field(..., min_length=3, max_length=80)
+    business_access_key: str = Field(..., min_length=8, max_length=160)
+
+
 class EnquiryStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(new|contacted|quoted|won|lost|spam)$")
 
@@ -887,6 +892,24 @@ def init_db():
         ensure_column(connection, "business_profiles", "data_retention_days", "INTEGER NOT NULL DEFAULT 365")
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS merchant_sessions (
+                token_hash TEXT PRIMARY KEY,
+                business_slug TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked_at TEXT,
+                last_seen_at TEXT
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_merchant_sessions_business ON merchant_sessions (business_slug)"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_merchant_sessions_expires ON merchant_sessions (expires_at)"
+        )
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS trial_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 business_name TEXT NOT NULL,
@@ -1224,6 +1247,10 @@ def insert_usage_log(connection, log):
 
 def query_auth_enabled():
     return os.getenv("NEXAFLOW_ALLOW_QUERY_AUTH", "").lower() in {"1", "true", "yes"}
+
+
+MERCHANT_SESSION_COOKIE = "nexaflow_merchant_session"
+MERCHANT_SESSION_DAYS = 14
 
 
 def admin_guard(admin_key: str | None = Query(default=None), x_admin_key: str | None = Header(default=None)):
@@ -2871,11 +2898,51 @@ def merchant_meta_setup_response(profile):
     app_secret_configured = bool(os.getenv("META_APP_SECRET"))
     https_callback_url = webhook_url.startswith("https://")
     ready_for_meta_setup = verify_token_configured and app_secret_configured and https_callback_url
+    connections = list_channel_connections(profile["slug"])
     permission_notes = {
-        "whatsapp": ["WhatsApp Business Platform access", "webhook messages subscription"],
-        "facebook": ["Page admin access", "Messenger webhook events", "Meta app review if required"],
-        "instagram": ["Professional Instagram account", "Instagram messaging access", "Meta app review if required"],
+        "whatsapp": ["WhatsApp Cloud API access", "Phone Number ID", "messages webhook subscription"],
+        "facebook": ["Facebook Page ID", "Page admin access", "Messenger webhook events", "pages_messaging review if required"],
+        "instagram": ["Professional Instagram account ID", "instagram_business_basic", "instagram_business_manage_messages", "Meta App Review approval"],
     }
+
+    def channel_readiness(channel):
+        connection = connections.get(channel) or {}
+        external_account_id = (connection.get("external_account_id") or "").strip()
+        connection_status = connection.get("status") or "not_saved"
+        blockers = []
+        next_steps = []
+        if not verify_token_configured:
+            blockers.append("META_WEBHOOK_VERIFY_TOKEN missing")
+            next_steps.append("Add META_WEBHOOK_VERIFY_TOKEN in Railway Variables.")
+        if not app_secret_configured:
+            blockers.append("META_APP_SECRET missing")
+            next_steps.append("Add META_APP_SECRET in Railway Variables.")
+        if not https_callback_url:
+            blockers.append("Webhook callback URL must use HTTPS")
+            next_steps.append("Set NEXAFLOW_SITE_URL to the public HTTPS site.")
+        if not external_account_id:
+            blockers.append(f"{channel_external_id_field(channel)['label']} not saved")
+            next_steps.append(f"Save the connected {channel_external_id_field(channel)['label']} in this channel setup.")
+        if connection_status != "connected":
+            blockers.append("Channel status is not Connected")
+            next_steps.append("Set the channel status to Connected only after webhook subscription is confirmed.")
+        if channel == "instagram":
+            blockers.append("Meta App Review approval is required for instagram_business_manage_messages before live Instagram DMs.")
+            next_steps.append("Submit Instagram App Review with a screen recording that shows NexaFlow receiving and organizing Instagram DMs.")
+        if channel == "whatsapp":
+            next_steps.append("Connect WhatsApp Cloud API, save the Phone Number ID, and subscribe messages webhooks.")
+        if channel == "facebook":
+            next_steps.append("Send one Messenger test message and confirm it appears as a real buyer in NexaFlow.")
+        return {
+            "ready": not blockers,
+            "blockers": blockers,
+            "next_steps": list(dict.fromkeys(next_steps)),
+            "connection_status": connection_status,
+            "external_account_id_saved": bool(external_account_id),
+            "app_review_required": channel in {"facebook", "instagram"},
+            "live_dm_requires_meta_approval": channel in {"facebook", "instagram"},
+        }
+
     return {
         "business": {
             "slug": profile["slug"],
@@ -2898,6 +2965,11 @@ def merchant_meta_setup_response(profile):
                 "external_account_id_label": channel_external_id_field(channel)["label"],
                 "where_to_find": channel_external_id_field(channel)["where_to_find"],
                 "required_permissions": permission_notes[channel],
+                "connection_status": (connections.get(channel) or {}).get("status") or "not_saved",
+                "external_account_id_saved": bool(((connections.get(channel) or {}).get("external_account_id") or "").strip()),
+                "app_review_required": channel in {"facebook", "instagram"},
+                "live_dm_requires_meta_approval": channel in {"facebook", "instagram"},
+                "readiness": channel_readiness(channel),
             }
             for channel in ("whatsapp", "facebook", "instagram")
         ],
@@ -4318,14 +4390,93 @@ def get_business_profile_for_access_key(access_key):
     return profile
 
 
+def generate_merchant_session_token():
+    return "mse_" + secrets.token_urlsafe(32)
+
+
+def merchant_session_digest(token):
+    return api_key_digest(token)
+
+
+def merchant_cookie_secure():
+    return os.getenv("NEXAFLOW_SITE_URL", "").startswith("https://")
+
+
+def create_merchant_session(profile, days=MERCHANT_SESSION_DAYS):
+    token = generate_merchant_session_token()
+    created_at = now_iso()
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    with db_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO merchant_sessions (
+                token_hash, business_slug, created_at, expires_at, last_seen_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (merchant_session_digest(token), profile["slug"], created_at, expires_at, created_at),
+        )
+    return {"token": token, "expires_at": expires_at}
+
+
+def revoke_merchant_session(token):
+    if not token:
+        return
+    with db_connection() as connection:
+        connection.execute(
+            """
+            UPDATE merchant_sessions
+            SET revoked_at = ?
+            WHERE token_hash = ? AND revoked_at IS NULL
+            """,
+            (now_iso(), merchant_session_digest(token)),
+        )
+
+
+def get_business_profile_for_session_token(token):
+    if not token:
+        return None
+    with db_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT * FROM merchant_sessions
+            WHERE token_hash = ? AND revoked_at IS NULL
+            """,
+            (merchant_session_digest(token),),
+        ).fetchone()
+        if not row:
+            return None
+        try:
+            expires_at = datetime.fromisoformat(row["expires_at"])
+        except (TypeError, ValueError):
+            return None
+        if expires_at <= datetime.now(timezone.utc):
+            return None
+        connection.execute(
+            "UPDATE merchant_sessions SET last_seen_at = ? WHERE token_hash = ?",
+            (now_iso(), row["token_hash"]),
+        )
+
+    profile = get_business_profile(row["business_slug"])
+    if profile["status"] != "active":
+        raise HTTPException(status_code=403, detail="Business profile is paused")
+    return profile
+
+
 def business_guard(
     business_slug,
     business_key=None,
     x_business_key=None,
     authorization=None,
+    request=None,
 ):
     supplied = x_business_key or extract_bearer_token(authorization) or (business_key if query_auth_enabled() else None)
-    profile = get_business_profile_for_access_key(supplied)
+    if supplied:
+        profile = get_business_profile_for_access_key(supplied)
+    else:
+        session_token = request.cookies.get(MERCHANT_SESSION_COOKIE) if request is not None else None
+        profile = get_business_profile_for_session_token(session_token)
+        if not profile:
+            raise HTTPException(status_code=401, detail="Merchant session or business access key required")
     if normalize_slug(business_slug) != profile["slug"]:
         raise HTTPException(status_code=403, detail="Business key cannot access this inbox")
     return profile
@@ -12286,7 +12437,7 @@ def merchant_login_page():
                 </div>
                 <div class="eyebrow">Dealer Login</div>
                 <h1><span data-lang="en">Open your private dealer inbox.</span><span data-lang="zh" class="lang-hidden">打开你的车商私密 inbox。</span></h1>
-                <p class="lead"><span data-lang="en">Enter your dealer link name and inbox password. The password is saved only in your browser, not placed in the URL.</span><span data-lang="zh" class="lang-hidden">输入你的车商链接名称和 inbox 密码。密码只会保存在你的浏览器，不会放进 URL。</span></p>
+                <p class="lead"><span data-lang="en">Enter your dealer link name and inbox password once. NexaFlow opens a secure browser session, so the password is not stored in localStorage or placed in the URL.</span><span data-lang="zh" class="lang-hidden">输入一次车商链接名称和 inbox 密码。NexaFlow 会打开安全浏览器 session，不会把密码存在 localStorage，也不会放进 URL。</span></p>
             </div>
         </section>
         <section class="form-card">
@@ -12319,7 +12470,7 @@ def merchant_login_page():
                 document.getElementById("langZh").classList.toggle("active", lang === "zh");
                 localStorage.setItem("nexaflow_login_lang", lang);
             }
-            function openMerchantInbox() {
+            async function openMerchantInbox() {
                 const status = document.getElementById("loginStatus");
                 const slug = normalizeSlug(document.getElementById("loginSlug").value);
                 const key = document.getElementById("loginKey").value.trim();
@@ -12327,8 +12478,26 @@ def merchant_login_page():
                     status.textContent = "Please enter both dealer link name and inbox password.";
                     return;
                 }
-                localStorage.setItem(`nexaflow_business_key_${slug}`, key);
-                window.location.href = `/inbox/${slug}`;
+                status.textContent = "Opening secure session...";
+                try {
+                    const response = await fetch("/apps/enquiry/api/merchant/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "same-origin",
+                        body: JSON.stringify({
+                            business_slug: slug,
+                            business_access_key: key
+                        })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.detail || "Login failed.");
+                    }
+                    document.getElementById("loginKey").value = "";
+                    window.location.href = result.inbox_url || `/inbox/${slug}`;
+                } catch (error) {
+                    status.textContent = error.message;
+                }
             }
             setLoginLang(localStorage.getItem("nexaflow_login_lang") || "en");
         </script>
@@ -12508,7 +12677,21 @@ def merchant_signup_page():
                         throw new Error(signupErrorMessage(result));
                     }
                     const slug = result.profile.slug;
-                    localStorage.setItem(`nexaflow_business_key_${slug}`, result.business_access_key);
+                    let sessionReady = false;
+                    try {
+                        const loginResponse = await fetch("/apps/enquiry/api/merchant/login", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "same-origin",
+                            body: JSON.stringify({
+                                business_slug: slug,
+                                business_access_key: result.business_access_key
+                            })
+                        });
+                        sessionReady = loginResponse.ok;
+                    } catch (sessionError) {
+                        sessionReady = false;
+                    }
                     document.getElementById("createdWorkspace").textContent = `${result.profile.business_name} / ${slug}`;
                     document.getElementById("createdPassword").textContent = result.business_access_key;
                     document.getElementById("createdSecurity").textContent = result.security_notice;
@@ -12516,7 +12699,9 @@ def merchant_signup_page():
                     document.getElementById("createdChannels").href = result.channels_url;
                     document.getElementById("createdForm").href = result.form_url;
                     document.getElementById("workspaceResult").style.display = "block";
-                    status.textContent = signupText("Dealer inbox created. Your inbox password was saved in this browser.", "买家 inbox 已创建。Inbox 密码已保存在这个浏览器。");
+                    status.textContent = sessionReady
+                        ? signupText("Dealer inbox created. A secure browser session is active. Save the inbox password now.", "买家 inbox 已创建。安全浏览器 session 已开启。请现在保存 inbox 密码。")
+                        : signupText("Dealer inbox created. Save this inbox password, then use Merchant Login.", "买家 inbox 已创建。请保存这个 inbox 密码，然后使用 Merchant Login 登录。");
                 } catch (error) {
                     status.textContent = error.message;
                 }
@@ -13324,9 +13509,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 return `<span data-lang="en">${{escapeHtml(en)}}</span><span data-lang="zh" class="lang-hidden">${{escapeHtml(zh)}}</span>`;
             }}
             async function merchantApi(path, options = {{}}) {{
-                const businessKey = document.getElementById("businessKey").value;
-                const headers = {{ "X-Business-Key": businessKey, ...(options.headers || {{}}) }};
-                const response = await fetch(path, {{ ...options, headers }});
+                const businessKey = document.getElementById("businessKey").value.trim();
+                const headers = {{ ...(options.headers || {{}}) }};
+                if (businessKey) {{
+                    headers["X-Business-Key"] = businessKey;
+                }}
+                const response = await fetch(path, {{ ...options, headers, credentials: "same-origin" }});
                 if (!response.ok) {{
                     throw new Error(await response.text());
                 }}
@@ -13486,8 +13674,12 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 setInboxLang(inboxLang());
             }}
             async function merchantDownload(path) {{
-                const businessKey = document.getElementById("businessKey").value;
-                const response = await fetch(path, {{ headers: {{ "X-Business-Key": businessKey }} }});
+                const businessKey = document.getElementById("businessKey").value.trim();
+                const headers = {{}};
+                if (businessKey) {{
+                    headers["X-Business-Key"] = businessKey;
+                }}
+                const response = await fetch(path, {{ headers, credentials: "same-origin" }});
                 if (!response.ok) {{
                     throw new Error(await response.text());
                 }}
@@ -13905,6 +14097,17 @@ def merchant_enquiry_inbox_page(business_slug: str):
                 const hot = activeLiveLeads.filter(item => item.priority === "hot").length;
                 const newCount = activeLiveLeads.filter(item => item.status === "new").length;
                 const quoted = groups.live.filter(item => item.status === "quoted").length;
+                const leadSearchText = item => [
+                    item.message || "",
+                    item.stuck_point || "",
+                    item.next_question || "",
+                    item.intent || "",
+                    item.campaign || ""
+                ].join(" ").toLowerCase();
+                const hasSignal = (item, keys) => (item.follow_up_signals || []).some(signal => keys.includes(String(signal.key || "").toLowerCase()));
+                const financeKeys = ["finance", "monthly_payment", "budget", "income_check"];
+                const finance = activeLiveLeads.filter(item => hasSignal(item, financeKeys) || /loan|monthly|finance|deposit|down payment|budget|月供|贷款|首付|头期|预算|收入/.test(leadSearchText(item))).length;
+                const viewing = activeLiveLeads.filter(item => hasSignal(item, ["appointment"]) || /view|viewing|appointment|test drive|showroom|看车|预约|试驾|展厅/.test(leadSearchText(item))).length;
                 const topLead = activeLiveLeads.find(isDueFollowUp) || activeLiveLeads.find(item => item.priority === "hot") || activeLiveLeads.find(item => item.status === "new");
                 const hasOnlyNonLive = !groups.live.length && (groups.demo.length || groups.test.length);
                 const firstAction = hasOnlyNonLive
@@ -13937,20 +14140,22 @@ def merchant_enquiry_inbox_page(business_slug: str):
                         </div>
                     </div>
                     <div class="action-card">
-                        <h3><span data-lang="en">Live inbox status</span><span data-lang="zh" class="lang-hidden">真实 inbox 状态</span></h3>
-                        <p>${{escapeHtml(onboarding.percent ?? 0)}}% ${{inboxText("setup ready", "设置已准备")}} · ${{escapeHtml(onboarding.next_action || inboxText("Complete setup before promotion.", "推广前先完成设置。"))}}</p>
+                        <h3><span data-lang="en">Today's work</span><span data-lang="zh" class="lang-hidden">今日工作</span></h3>
+                        <p>${{langSpan("Start here. These numbers tell the salesperson what to handle now.", "从这里开始。销售只需要看这些数字，就知道现在该处理什么。")}}</p>
                         <div class="lead-badges">
+                            <span class="lead-badge ${{due ? "hot" : ""}}">${{langSpan("Due today", "今天到期")}} · ${{due}}</span>
+                            <span class="lead-badge">${{langSpan("New buyers", "新买家")}} · ${{newCount}}</span>
+                            <span class="lead-badge ${{finance ? "hot" : ""}}">${{langSpan("Loan / monthly", "贷款 / 月供")}} · ${{finance}}</span>
+                            <span class="lead-badge ${{viewing ? "hot" : ""}}">${{langSpan("Viewing", "预约看车")}} · ${{viewing}}</span>
                             <span class="lead-badge live">${{langSpan("Real buyers", "真实买家")}} · ${{groups.live.length}}</span>
                             <span class="lead-badge demo">${{langSpan("Tests hidden", "测试已隐藏")}} · ${{groups.test.length}}</span>
                             <span class="lead-badge demo">${{langSpan("Demo hidden", "示例已隐藏")}} · ${{groups.demo.length}}</span>
-                            <span class="lead-badge ${{due ? "hot" : ""}}">${{langSpan("Due today", "今天到期")}} · ${{due}}</span>
                             <span class="lead-badge ${{hot ? "hot" : ""}}">${{langSpan("Needs answer", "需要回复")}} · ${{hot}}</span>
-                            <span class="lead-badge">${{langSpan("New", "新买家")}} · ${{newCount}}</span>
                             <span class="lead-badge">${{langSpan("Quoted", "已报价")}} · ${{quoted}}</span>
                         </div>
                         <div class="simple-actions">
-                            <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">${{langSpan("New buyers", "新买家")}}</button>
                             <button class="btn secondary" onclick="document.getElementById('filterFollowUp').value='due'; loadMerchantInbox()">${{langSpan("Due today", "今天到期")}}</button>
+                            <button class="btn secondary" onclick="document.getElementById('filterStatus').value='new'; loadMerchantInbox()">${{langSpan("New buyers", "新买家")}}</button>
                             <button class="btn secondary" onclick="document.getElementById('merchantManualCapture').open = true; document.getElementById('merchantManualCapture').scrollIntoView({{ behavior: 'smooth', block: 'start' }});">${{langSpan("Add real buyer", "新增真实买家")}}</button>
                         </div>
                     </div>
@@ -14069,7 +14274,6 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     renderDailyLeads(data.enquiries || []);
                     renderChannelCenter(stats);
                     renderPipelineBoard(stats);
-                    localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
                     markChecklistStep("loaded");
                     const leadGroups = splitLeadGroups(data.enquiries || []);
                     if (leadGroups.live.length > 0) markChecklistStep("first_lead");
@@ -14118,11 +14322,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
                     status.textContent = error.message;
                 }}
             }}
-            const savedBusinessKey = localStorage.getItem(`nexaflow_business_key_${{businessSlug}}`);
-            if (savedBusinessKey) {{
-                document.getElementById("businessKey").value = savedBusinessKey;
-                loadMerchantInbox();
-            }}
+            loadMerchantInbox();
             renderMerchantChecklist();
             setInboxLang(localStorage.getItem(inboxLangStorageKey) || "en");
         </script>
@@ -14273,9 +14473,12 @@ def merchant_channel_connections_page(business_slug: str):
                 }}
             }}
             async function channelApi(path, options = {{}}) {{
-                const businessKey = document.getElementById("businessKey").value;
-                const headers = {{ "X-Business-Key": businessKey, ...(options.headers || {{}}) }};
-                const response = await fetch(path, {{ ...options, headers }});
+                const businessKey = document.getElementById("businessKey").value.trim();
+                const headers = {{ ...(options.headers || {{}}) }};
+                if (businessKey) {{
+                    headers["X-Business-Key"] = businessKey;
+                }}
+                const response = await fetch(path, {{ ...options, headers, credentials: "same-origin" }});
                 if (!response.ok) {{
                     throw new Error(await response.text());
                 }}
@@ -14313,8 +14516,17 @@ def merchant_channel_connections_page(business_slug: str):
                             ${{channels.map(item => `
                                 <div class="setup-step">
                                     <strong>${{escapeHtml(item.label)}}</strong>
+                                    <div class="lead-badges">
+                                        <span class="lead-badge ${{(item.readiness || {{}}).ready ? "live" : ""}}">${{channelLangSpan("Auto receive", "自动收信")}} · ${{(item.readiness || {{}}).ready ? channelLangSpan("Ready", "Ready") : channelLangSpan("Not ready", "未 ready")}}</span>
+                                        <span class="lead-badge ${{item.external_account_id_saved ? "live" : ""}}">${{channelLangSpan("Account ID", "账号 ID")}} · ${{item.external_account_id_saved ? channelLangSpan("Saved", "已保存") : channelLangSpan("Missing", "缺少")}}</span>
+                                        <span class="lead-badge ${{item.connection_status === "connected" ? "live" : ""}}">${{channelLangSpan("Status", "状态")}} · ${{escapeHtml(item.connection_status || "not_saved")}}</span>
+                                        ${{item.live_dm_requires_meta_approval ? `<span class="lead-badge">${{channelLangSpan("Meta App Review", "Meta App Review")}}</span>` : ""}}
+                                    </div>
                                     <span>${{escapeHtml((item.id_field || {{}}).label || item.external_account_id_label)}} · ${{escapeHtml((item.id_field || {{}}).where_to_find || item.where_to_find)}}</span>
                                     <span>${{channelLangSpan("Webhook match", "Webhook 匹配")}}: ${{escapeHtml((item.id_field || {{}}).matched_from || "")}}</span>
+                                    <span>${{channelLangSpan("Required", "需要")}}: ${{(item.required_permissions || []).map(value => escapeHtml(value)).join(" · ")}}</span>
+                                    ${{(((item.readiness || {{}}).blockers || [])).map(value => `<span class="mini-note">${{channelLangSpan("Missing", "缺少")}}: ${{escapeHtml(value)}}</span>`).join("")}}
+                                    ${{(((item.readiness || {{}}).next_steps || [])).slice(0, 3).map(value => `<span class="next-action">${{escapeHtml(value)}}</span>`).join("")}}
                                 </div>
                             `).join("")}}
                         </div>
@@ -14476,7 +14688,6 @@ def merchant_channel_connections_page(business_slug: str):
                     const payload = await channelApi(`/apps/enquiry/api/merchant/channel-connections?business_slug=${{businessSlug}}`);
                     renderChannelConnections(payload);
                     await loadMetaSetup();
-                    localStorage.setItem(`nexaflow_business_key_${{businessSlug}}`, document.getElementById("businessKey").value);
                     status.textContent = payload.security_notice || channelsText("Loaded.", "已加载。");
                 }} catch (error) {{
                     status.textContent = error.message;
@@ -14519,11 +14730,7 @@ def merchant_channel_connections_page(business_slug: str):
                     status.textContent = error.message;
                 }}
             }}
-            const savedBusinessKey = localStorage.getItem(`nexaflow_business_key_${{businessSlug}}`);
-            if (savedBusinessKey) {{
-                document.getElementById("businessKey").value = savedBusinessKey;
-                loadChannelConnections();
-            }}
+            loadChannelConnections();
             setChannelsLang(localStorage.getItem(channelsLangStorageKey) || "en");
         </script>
         """
@@ -16425,8 +16632,57 @@ def list_enquiries(
     }
 
 
+@app.post("/apps/enquiry/api/merchant/login")
+def login_merchant_workspace(req: MerchantLoginRequest, response: Response):
+    slug = normalize_slug(req.business_slug)
+    profile = get_business_profile_for_access_key(req.business_access_key)
+    if slug != profile["slug"]:
+        raise HTTPException(status_code=403, detail="Business key cannot access this inbox")
+
+    session = create_merchant_session(profile)
+    response.set_cookie(
+        MERCHANT_SESSION_COOKIE,
+        session["token"],
+        max_age=MERCHANT_SESSION_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=merchant_cookie_secure(),
+        samesite="lax",
+    )
+    write_data_audit_event(
+        "merchant.session_created",
+        "merchant_login",
+        "business_profile",
+        business_slug=profile["slug"],
+        metadata={"session_days": MERCHANT_SESSION_DAYS},
+    )
+    return {
+        "authenticated": True,
+        "business": public_business_profile_response(profile),
+        "inbox_url": profile["inbox_url"],
+        "channels_url": f"/channels/{profile['slug']}",
+        "expires_at": session["expires_at"],
+    }
+
+
+@app.post("/apps/enquiry/api/merchant/logout")
+def logout_merchant_workspace(request: Request, response: Response):
+    revoke_merchant_session(request.cookies.get(MERCHANT_SESSION_COOKIE))
+    response.delete_cookie(MERCHANT_SESSION_COOKIE)
+    return {"logged_out": True}
+
+
+@app.get("/apps/enquiry/api/merchant/session")
+def get_merchant_session_status(request: Request, business_slug: str):
+    profile = business_guard(business_slug, request=request)
+    return {
+        "authenticated": True,
+        "business": public_business_profile_response(profile),
+    }
+
+
 @app.get("/apps/enquiry/api/merchant/enquiries")
 def list_merchant_enquiries(
+    request: Request,
     business_slug: str,
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
@@ -16444,6 +16700,7 @@ def list_merchant_enquiries(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     stats = enquiry_stats(business_slug=profile["slug"])
     return {
@@ -16467,6 +16724,7 @@ def list_merchant_enquiries(
 @app.post("/apps/enquiry/api/merchant/copilot/analyze")
 def analyze_merchant_copilot_preview(
     req: MerchantCopilotAnalyzeRequest,
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16477,6 +16735,7 @@ def analyze_merchant_copilot_preview(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     if not req.processing_acknowledged:
         raise HTTPException(
@@ -16514,6 +16773,7 @@ def analyze_merchant_copilot_preview(
 @app.post("/apps/enquiry/api/merchant/enquiries")
 def create_merchant_manual_enquiry(
     req: MerchantManualEnquiryCreate,
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16524,6 +16784,7 @@ def create_merchant_manual_enquiry(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     if not req.processing_acknowledged:
         raise HTTPException(
@@ -16577,6 +16838,7 @@ def create_merchant_manual_enquiry(
 
 @app.post("/apps/enquiry/api/merchant/demo-enquiries")
 def create_merchant_demo_enquiries(
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16587,12 +16849,14 @@ def create_merchant_demo_enquiries(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     return seed_merchant_demo_enquiries(profile)
 
 
 @app.get("/apps/enquiry/api/merchant/enquiries/export.csv")
 def export_merchant_enquiries_csv(
+    request: Request,
     business_slug: str,
     status: str | None = Query(default=None, pattern="^(new|contacted|quoted|won|lost|spam)$"),
     priority: str | None = Query(default=None, pattern="^(hot|warm|normal)$"),
@@ -16610,6 +16874,7 @@ def export_merchant_enquiries_csv(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     enquiries = list_enquiry_records(
         status=status,
@@ -16657,6 +16922,7 @@ def send_enquiry_followup_digest(
 
 @app.get("/apps/enquiry/api/merchant/profile")
 def get_merchant_business_profile(
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16667,11 +16933,13 @@ def get_merchant_business_profile(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
 
 
 @app.get("/apps/enquiry/api/merchant/share-links")
 def get_merchant_share_links(
+    request: Request,
     business_slug: str,
     campaign: str = Query(default="merchant-share", max_length=120),
     business_key: str | None = None,
@@ -16683,12 +16951,14 @@ def get_merchant_share_links(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     return merchant_share_links(profile, campaign=campaign)
 
 
 @app.get("/apps/enquiry/api/merchant/channel-connections")
 def get_merchant_channel_connections(
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16699,12 +16969,14 @@ def get_merchant_channel_connections(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     return channel_connection_response(profile)
 
 
 @app.get("/apps/enquiry/api/merchant/meta-setup")
 def get_merchant_meta_setup(
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16715,6 +16987,7 @@ def get_merchant_meta_setup(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     return merchant_meta_setup_response(profile)
 
@@ -16723,6 +16996,7 @@ def get_merchant_meta_setup(
 def update_merchant_channel_connection(
     channel: str,
     req: ChannelConnectionUpdate,
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16733,6 +17007,7 @@ def update_merchant_channel_connection(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     return upsert_channel_connection(profile, channel, req)
 
@@ -16740,6 +17015,7 @@ def update_merchant_channel_connection(
 @app.post("/apps/enquiry/api/merchant/channel-connections/{channel}/pilot-test")
 def create_merchant_meta_pilot_test(
     channel: str,
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16750,6 +17026,7 @@ def create_merchant_meta_pilot_test(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     return create_meta_pilot_test_event(profile, channel)
 
@@ -16757,6 +17034,7 @@ def create_merchant_meta_pilot_test(
 @app.patch("/apps/enquiry/api/merchant/profile")
 def update_merchant_business_profile(
     req: BusinessProfileSettingsUpdate,
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16767,6 +17045,7 @@ def update_merchant_business_profile(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     return update_business_profile_settings(profile["slug"], req)
 
@@ -16774,6 +17053,7 @@ def update_merchant_business_profile(
 @app.delete("/apps/enquiry/api/merchant/enquiries/{enquiry_id}")
 def delete_merchant_enquiry(
     enquiry_id: int,
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16784,6 +17064,7 @@ def delete_merchant_enquiry(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     with db_connection() as connection:
         row = connection.execute(
@@ -16863,6 +17144,7 @@ def update_enquiry_status(
 def update_merchant_enquiry_status(
     enquiry_id: int,
     req: MerchantEnquiryUpdate,
+    request: Request,
     business_slug: str,
     business_key: str | None = None,
     x_business_key: str | None = Header(default=None),
@@ -16881,6 +17163,7 @@ def update_merchant_enquiry_status(
         business_key=business_key,
         x_business_key=x_business_key,
         authorization=authorization,
+        request=request,
     )
     with db_connection() as connection:
         row = connection.execute(

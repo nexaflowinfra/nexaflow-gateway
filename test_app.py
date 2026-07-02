@@ -264,9 +264,53 @@ def test_merchant_login_page_loads():
     assert "Dealer Login" in response.text
     assert "Dealer link name" in response.text
     assert "Inbox password" in response.text
-    assert "nexaflow_business_key_" in response.text
+    assert "/apps/enquiry/api/merchant/login" in response.text
+    assert "secure browser session" in response.text
+    assert "nexaflow_business_key_" not in response.text
     assert "/merchant-signup" in response.text
     assert "/admin/dashboard" not in response.text
+
+
+def test_merchant_login_sets_http_only_session_and_cookie_authenticates():
+    suffix = uuid.uuid4().hex[:8]
+    slug = f"login-session-{suffix}"
+    created = client.post(
+        "/apps/enquiry/api/merchant/signup",
+        json={
+            "business_name": "Session Dealer",
+            "whatsapp_phone": "60123456789",
+            "contact_email": f"session-{suffix}@example.com",
+            "business_type": "used_car_dealer",
+            "preferred_slug": slug,
+            "pdpa_consent": True,
+        },
+    )
+    assert created.status_code == 200
+    business_key = created.json()["business_access_key"]
+
+    session_client = TestClient(main.app)
+    login = session_client.post(
+        "/apps/enquiry/api/merchant/login",
+        json={"business_slug": slug, "business_access_key": business_key},
+    )
+    assert login.status_code == 200
+    cookie = login.headers.get("set-cookie", "")
+    assert "nexaflow_merchant_session" in cookie
+    assert "HttpOnly" in cookie
+    assert "SameSite=lax" in cookie
+
+    listing = session_client.get(f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}")
+    assert listing.status_code == 200
+    assert listing.json()["business"]["slug"] == slug
+
+    export = session_client.get(f"/apps/enquiry/api/merchant/enquiries/export.csv?business_slug={slug}")
+    assert export.status_code == 200
+    assert export.headers["content-type"].startswith("text/csv")
+
+    logout = session_client.post("/apps/enquiry/api/merchant/logout")
+    assert logout.status_code == 200
+    blocked = session_client.get(f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}")
+    assert blocked.status_code == 401
 
 
 def test_merchant_signup_page_and_api_create_workspace():
@@ -287,6 +331,9 @@ def test_merchant_signup_page_and_api_create_workspace():
     assert "Optional setup" in page.text
     assert page.text.index("Create your buyer inbox") < page.text.index("Optional setup")
     assert "/apps/enquiry/api/merchant/signup" in page.text
+    assert "/apps/enquiry/api/merchant/login" in page.text
+    assert "secure browser session" in page.text
+    assert "nexaflow_business_key_" not in page.text
     assert "/admin/dashboard" not in page.text
 
     suffix = str(uuid.uuid4())[:8]
@@ -708,7 +755,9 @@ def test_business_profile_create_and_public_form_loads():
     assert "copyMerchantElement" in inbox.text
     assert "Website widget code" in inbox.text
     assert "Next move" in inbox.text
-    assert "Live inbox status" in inbox.text
+    assert "Today's work" in inbox.text
+    assert "Loan / monthly" in inbox.text
+    assert "Viewing" in inbox.text
     assert "Advanced tools: social sources, buyer link, setup, and settings" in inbox.text
     assert "Social source inbox" in inbox.text
     assert "Assisted capture" in inbox.text
@@ -1857,8 +1906,13 @@ def test_merchant_channel_connections_are_private_and_audited():
     assert meta_channels["whatsapp"]["id_field"]["label"] == "WhatsApp phone_number_id"
     assert meta_channels["whatsapp"]["id_field"]["matched_from"] == "value.metadata.phone_number_id"
     assert meta_channels["whatsapp"]["id_field"]["help"] == "Use the phone number ID that receives buyer messages, not the WABA ID."
+    assert "Phone Number ID" in meta_channels["whatsapp"]["required_permissions"]
     assert meta_channels["facebook"]["id_field"]["meta_name"] == "page_id"
+    assert "Facebook Page ID" in meta_channels["facebook"]["required_permissions"]
     assert meta_channels["instagram"]["id_field"]["meta_name"] == "instagram_account_id"
+    assert "instagram_business_manage_messages" in meta_channels["instagram"]["required_permissions"]
+    assert meta_channels["instagram"]["app_review_required"] is True
+    assert meta_channels["instagram"]["live_dm_requires_meta_approval"] is True
 
     rejected_secret = client.patch(
         f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_one}",
@@ -2048,12 +2102,18 @@ def test_merchant_meta_setup_readiness_requires_meta_secrets_and_https(monkeypat
     assert missing_secret["webhook"]["verify_token_configured"] is True
     assert missing_secret["webhook"]["app_secret_configured"] is False
     assert missing_secret["webhook"]["ready_for_meta_setup"] is False
+    missing_channels = {item["channel"]: item for item in missing_secret["meta_channels"]}
+    assert "META_APP_SECRET missing" in missing_channels["facebook"]["readiness"]["blockers"]
+    assert "META_APP_SECRET missing" in missing_channels["instagram"]["readiness"]["blockers"]
+    assert any("Meta App Review approval" in item for item in missing_channels["instagram"]["readiness"]["blockers"])
 
     monkeypatch.setenv("META_APP_SECRET", "app-secret")
     monkeypatch.setenv("NEXAFLOW_SITE_URL", "http://localhost:8000")
     insecure_url = main.merchant_meta_setup_response(profile)
     assert insecure_url["webhook"]["https_callback_url"] is False
     assert insecure_url["webhook"]["ready_for_meta_setup"] is False
+    insecure_channels = {item["channel"]: item for item in insecure_url["meta_channels"]}
+    assert "Webhook callback URL must use HTTPS" in insecure_channels["whatsapp"]["readiness"]["blockers"]
 
 
 def test_merchant_inbox_includes_action_center_and_pipeline_board():
@@ -2083,7 +2143,9 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert "/apps/enquiry/api/merchant/copilot/analyze" in response.text
     assert "merchantPipelineBoard" in response.text
     assert "Next move" in response.text
-    assert "Live inbox status" in response.text
+    assert "Today's work" in response.text
+    assert "Loan / monthly" in response.text
+    assert "Viewing" in response.text
     assert "Main buyer link" in response.text
     assert "Suggested caption" in response.text
     assert "merchantShareDirectPrimary" in response.text
@@ -2095,7 +2157,8 @@ def test_merchant_inbox_includes_action_center_and_pipeline_board():
     assert "merchantChecklist" in response.text
     assert "markChecklistStep" in response.text
     assert "nexaflow_trial_checklist_" in response.text
-    assert "localStorage.setItem(`nexaflow_business_key_" in response.text
+    assert "nexaflow_business_key_" not in response.text
+    assert 'credentials: "same-origin"' in response.text
     assert "settingsAutoFollowup" in response.text
     assert "settingsDataRetentionDays" in response.text
 
