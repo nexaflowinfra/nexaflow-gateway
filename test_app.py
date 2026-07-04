@@ -808,10 +808,19 @@ def test_business_profile_create_and_public_form_loads():
     assert "Recent Meta webhook activity" in channels.text
     assert "Create local test buyer" in channels.text
     assert "sendMetaPilotTest" in channels.text
+    assert "Meta Review Kit" in channels.text
+    assert "/apps/enquiry/meta-review-kit" in channels.text
+    assert "Data Deletion" in channels.text
+    assert "/apps/enquiry/connection-status/" in channels.text
     assert "/admin/dashboard" not in channels.text
 
     legacy_channels = client.get(f"/apps/enquiry/channels/{slug}")
     assert legacy_channels.status_code == 200
+
+    connection_status = client.get(f"/apps/enquiry/connection-status/{slug}")
+    assert connection_status.status_code == 200
+    assert "Connection Status" in connection_status.text
+    assert "Recent Meta webhook activity" in connection_status.text
 
     embed = client.get(f"/embed/enquiry/{slug}.js")
     assert embed.status_code == 200
@@ -3001,6 +3010,7 @@ def test_legal_pages_load_and_are_linked():
     pages = [
         ("/terms", "Terms of Service"),
         ("/privacy", "Privacy Policy"),
+        ("/data-deletion", "Data Deletion Instructions"),
         ("/refund-policy", "Refund Policy"),
         ("/acceptable-use", "Acceptable Use Policy"),
     ]
@@ -3025,6 +3035,27 @@ def test_legal_pages_load_and_are_linked():
     privacy = client.get("/privacy")
     assert "PDPA-Style Notice for Enquiry Forms" in privacy.text
     assert "consent timestamp" in privacy.text
+
+    deletion = client.get("/data-deletion")
+    assert "customer enquiry records" in deletion.text
+    assert "Do not send passwords, OTPs, access tokens, cookies" in deletion.text
+
+
+def test_meta_app_review_kit_is_public_and_safe():
+    response = client.get("/apps/enquiry/meta-review-kit")
+    assert response.status_code == 200
+    assert "Meta App Review Kit" in response.text
+    assert "instagram_business_basic" in response.text
+    assert "instagram_business_manage_messages" in response.text
+    assert "Human Agent" in response.text
+    assert "Screen Recording Checklist" in response.text
+    assert "https://api.nexaflowinfra.com/data-deletion" in response.text
+    assert "Webhook requests must pass signature verification" in response.text
+    assert "does not ask users to paste access tokens" in response.text
+
+    legacy = client.get("/meta-app-review-kit")
+    assert legacy.status_code == 200
+    assert "Meta App Review Kit" in legacy.text
 
 
 def test_checkout_json_and_redirect_modes():

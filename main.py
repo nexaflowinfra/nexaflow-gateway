@@ -7801,6 +7801,7 @@ def base_html(title, body):
                 <div>
                     <a href="/terms">Terms</a>
                     <a href="/privacy">Privacy</a>
+                    <a href="/data-deletion">Data Deletion</a>
                     <a href="/refund-policy">Refunds</a>
                     <a href="/acceptable-use">Acceptable Use</a>
                 </div>
@@ -9400,9 +9401,19 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     margin: 0 auto;
                     padding: 22px 20px 34px;
                     border-top: 1px solid var(--line);
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 12px;
+                    flex-wrap: wrap;
                     color: var(--muted);
                     font-size: 13px;
                 }}
+                footer a {{
+                    color: var(--muted);
+                    text-decoration: none;
+                    margin-left: 12px;
+                }}
+                footer a:hover {{ color: var(--ink); }}
                 .floating-whatsapp {{
                     position: fixed;
                     right: 22px;
@@ -9504,7 +9515,14 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                 </nav>
             </header>
             <main>{body}</main>
-            <footer>Powered by NexaFlow</footer>
+            <footer>
+                <span>Powered by NexaFlow</span>
+                <span>
+                    <a href="/privacy">Privacy</a>
+                    <a href="/data-deletion">Data Deletion</a>
+                    <a href="/terms">Terms</a>
+                </span>
+            </footer>
             {sales_contact_float}
         </body>
         </html>
@@ -9740,6 +9758,139 @@ def privacy_page():
                 "Customer Choices",
                 [
                     "Customers may request account help, correction, export, or deletion where legally and operationally possible by contacting nexaflowinfra@gmail.com.",
+                ],
+            ),
+        ],
+    )
+
+
+@app.get("/data-deletion", response_class=HTMLResponse)
+def data_deletion_page():
+    return legal_page(
+        "Data Deletion Instructions",
+        "July 5, 2026",
+        [
+            (
+                "How To Request Deletion",
+                [
+                    "Customers, merchants, or authorized business owners may request deletion help by emailing nexaflowinfra@gmail.com with enough information for us to locate the relevant workspace or enquiry.",
+                    [
+                        "Use the subject line: Data deletion request.",
+                        "Include the merchant or business name, enquiry link or inbox URL if available, and the contact detail used in the enquiry.",
+                        "Do not send passwords, OTPs, access tokens, cookies, full identity documents, payment card details, or other unnecessary sensitive data.",
+                    ],
+                ],
+            ),
+            (
+                "What Can Be Deleted",
+                [
+                    "Where legally and operationally possible, NexaFlow can delete customer enquiry records, internal follow-up notes, reply drafts, source labels, webhook event references, and merchant workspace data that is no longer required.",
+                    "Some records may need to be retained for billing, tax, security, audit, dispute, abuse prevention, legal compliance, or backup-retention purposes. Backups may expire according to the scheduled retention window.",
+                ],
+            ),
+            (
+                "Meta Platform Data",
+                [
+                    "For Facebook, Instagram, and WhatsApp integrations, NexaFlow processes platform data only for merchant enquiry follow-up, support, security, and required records.",
+                    "If a connected merchant requests removal of Meta-related enquiry data, NexaFlow will remove the relevant customer enquiry records from the merchant inbox where possible and stop using the data for follow-up.",
+                    "NexaFlow does not ask merchants to paste Meta passwords, OTPs, cookies, app secrets, long-lived access tokens, or customer identity documents into public setup forms.",
+                ],
+            ),
+            (
+                "Response Process",
+                [
+                    "We will review the request, verify that the requester is authorized where needed, and respond with the next step or completion status.",
+                    "If the request should be handled by the merchant directly, we may route the request to the relevant merchant because the merchant controls the customer relationship and follow-up records.",
+                ],
+            ),
+            (
+                "Contact",
+                [
+                    "For deletion, access, correction, or privacy questions, contact nexaflowinfra@gmail.com.",
+                ],
+            ),
+        ],
+    )
+
+
+@app.get("/meta-app-review-kit", response_class=HTMLResponse)
+@app.get("/apps/enquiry/meta-review-kit", response_class=HTMLResponse)
+def meta_app_review_kit_page():
+    return legal_page(
+        "Meta App Review Kit",
+        "July 5, 2026",
+        [
+            (
+                "External Test Links",
+                [
+                    [
+                        "Product homepage: https://api.nexaflowinfra.com/",
+                        "Enquiry product page: https://api.nexaflowinfra.com/enquiry",
+                        "Dealer demo: https://api.nexaflowinfra.com/dealer-demo",
+                        "Test merchant inbox: https://api.nexaflowinfra.com/apps/enquiry/inbox/nexaflow-test-dealer",
+                        "Test channel setup: https://api.nexaflowinfra.com/channels/nexaflow-test-dealer",
+                        "Privacy Policy: https://api.nexaflowinfra.com/privacy",
+                        "Data Deletion Instructions: https://api.nexaflowinfra.com/data-deletion",
+                        "Terms of Service: https://api.nexaflowinfra.com/terms",
+                    ],
+                    "The reviewer inbox password should be provided only in Meta's App Review test credentials field. Reviewers should not need any platform password, OTP, cookie, app secret, or access token.",
+                ],
+            ),
+            (
+                "Requested Permissions",
+                [
+                    [
+                        "instagram_business_basic: used to identify the connected Instagram professional account and route inbound customer enquiries to the correct NexaFlow merchant inbox.",
+                        "instagram_business_manage_messages: used to receive Instagram Direct Message webhook events sent to a connected Instagram professional account and convert them into private enquiry cards.",
+                        "Human Agent: used only so the merchant can continue legitimate customer support and sales follow-up within the platform's allowed support window where applicable.",
+                    ]
+                ],
+            ),
+            (
+                "Step-By-Step Reviewer Flow",
+                [
+                    [
+                        "Open the NexaFlow homepage and confirm the app loads externally.",
+                        "Open the dealer demo to understand the sales queue and follow-up concept.",
+                        "Open the test merchant inbox and enter the reviewer inbox password from Meta's credential field.",
+                        "Send a test Instagram DM to the connected professional account from an allowed test sender account.",
+                        "Refresh the NexaFlow inbox and confirm the real Instagram enquiry appears above the collapsed demo records.",
+                        "Open the buyer card and review the source, original message, missing details, stuck point, next question, follow-up timing, and suggested reply.",
+                        "Open the channel setup page and confirm the webhook activity, saved account ID, and readiness notes.",
+                    ]
+                ],
+            ),
+            (
+                "Screen Recording Checklist",
+                [
+                    [
+                        "Show the public product page, demo page, and private inbox login.",
+                        "Show that real buyer messages are separated from demo records.",
+                        "Show an Instagram DM being sent to the connected professional account.",
+                        "Show the resulting buyer enquiry in NexaFlow, including source, customer request, missing details, and suggested follow-up.",
+                        "Show the Privacy Policy and Data Deletion Instructions.",
+                        "Do not show real customer personal data, app secrets, access tokens, passwords, OTPs, cookies, or long-lived tokens.",
+                    ]
+                ],
+            ),
+            (
+                "Allowed Usage Statement",
+                [
+                    "NexaFlow is a merchant enquiry inbox. It uses Instagram, Facebook, and WhatsApp platform data only to help an authorized business receive, organize, and follow up customer enquiries sent to the business.",
+                    "NexaFlow does not scrape unsupported inboxes, does not collect personal Instagram passwords, does not ask users to paste access tokens, does not sell enquiry data, and does not use platform data for unrelated advertising or profiling.",
+                    "AI features help summarize a buyer message, identify missing details, suggest the next question, and prepare a reply draft. NexaFlow does not guarantee conversion and does not make legal, credit, financing, employment, insurance, medical, or other high-risk decisions.",
+                ],
+            ),
+            (
+                "Security And Data Handling",
+                [
+                    [
+                        "Meta webhooks are received only through HTTPS.",
+                        "Webhook requests must pass signature verification using the server-side Meta app secret.",
+                        "Meta app secret and verify token are stored only as Railway environment variables.",
+                        "Merchant channel setup stores account IDs and connection metadata only, not tokens or passwords.",
+                        "Customer enquiry data is used for enquiry follow-up, support, security, and required records.",
+                    ]
                 ],
             ),
         ],
@@ -14332,6 +14483,7 @@ def merchant_enquiry_inbox_page(business_slug: str):
 
 @app.get("/channels/{business_slug}", response_class=HTMLResponse)
 @app.get("/apps/enquiry/channels/{business_slug}", response_class=HTMLResponse)
+@app.get("/apps/enquiry/connection-status/{business_slug}", response_class=HTMLResponse)
 def merchant_channel_connections_page(business_slug: str):
     profile = get_business_profile(business_slug)
     business_name = escape_html(profile["business_name"])
@@ -14366,6 +14518,11 @@ def merchant_channel_connections_page(business_slug: str):
                 <div>
                     <h2><span data-lang="en">Meta auto-sync setup request</span><span data-lang="zh" class="lang-hidden">Meta 自动同步设置申请</span></h2>
                     <p><span data-lang="en">Use this after Meta Developer access is ready for WhatsApp Business, Facebook Messenger, and Instagram DM. During the pilot, keep using manual DM/call capture in the inbox. NexaFlow stores account IDs only, not tokens or passwords.</span><span data-lang="zh" class="lang-hidden">等 Meta Developer 权限准备好后，用这里接 WhatsApp Business、Facebook Messenger 和 Instagram DM。试用期间先继续在 inbox 手动导入私信/电话内容。NexaFlow 只保存账号 ID，不保存 token 或密码。</span></p>
+                    <div class="actions">
+                        <a class="btn secondary" href="/apps/enquiry/meta-review-kit" target="_blank" rel="noopener"><span data-lang="en">Meta Review Kit</span><span data-lang="zh" class="lang-hidden">Meta 审核包</span></a>
+                        <a class="btn secondary" href="/data-deletion" target="_blank" rel="noopener"><span data-lang="en">Data Deletion</span><span data-lang="zh" class="lang-hidden">资料删除说明</span></a>
+                        <a class="btn secondary" href="/apps/enquiry/connection-status/{slug}"><span data-lang="en">Connection Status</span><span data-lang="zh" class="lang-hidden">连接状态</span></a>
+                    </div>
                 </div>
             </div>
             <div id="metaSetupContent" class="status"><span data-lang="en">Open settings to load Meta setup details.</span><span data-lang="zh" class="lang-hidden">打开设置后会加载 Meta 设置资料。</span></div>
