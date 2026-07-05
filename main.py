@@ -1901,6 +1901,9 @@ def verify_meta_signature(raw_body, signature_header, app_secret):
     return hmac.compare_digest(expected, signature)
 
 
+META_WEBHOOK_MAX_BYTES = 256 * 1024
+
+
 def stripe_plan_from_payment_link(payment_link):
     if not payment_link:
         return None
@@ -2807,12 +2810,135 @@ def list_recent_channel_webhook_events(business_slug, limit=12):
                 "reason": metadata.get("reason") or "",
                 "connection_status": metadata.get("connection_status") or "",
                 "account_id_preview": metadata.get("account_id_preview") or mask_external_account_id(raw_account_id),
-                "external_message_id_preview": mask_external_account_id(metadata.get("external_message_id") or ""),
+                "external_message_id_preview": metadata.get("external_message_id_preview")
+                or mask_external_account_id(metadata.get("external_message_id") or ""),
                 "enquiry_id": metadata.get("enquiry_id"),
                 "created_at": row["created_at"],
             }
         )
     return events
+
+
+def channel_auto_receive_ready(catalog, integration_mode, status, external_account_id, acknowledged):
+    return (
+        integration_mode == "official_api_requested"
+        and status == "connected"
+        and bool(external_account_id)
+        and acknowledged
+        and catalog["official_status"] != "limited"
+    )
+
+
+def channel_connection_guidance(channel, catalog, integration_mode, status, external_account_id, acknowledged, auto_receive_ready):
+    if channel in AUTO_SYNC_ONLY_BLOCKED_SOURCES:
+        return {
+            "setup_phase": "official_api_pending",
+            "next_action": "Wait for official automatic DM sync or approved partner access. Manual capture stays disabled.",
+            "next_action_zh": "等待官方自动收私信或授权合作接入。手动录入会保持关闭。",
+        }
+    if catalog["official_status"] == "limited":
+        return {
+            "setup_phase": "assisted_only",
+            "next_action": "Keep this source in assisted mode until the official messaging API is available.",
+            "next_action_zh": "在官方消息 API 可用前，先保持辅助模式。",
+        }
+    if auto_receive_ready:
+        return {
+            "setup_phase": "auto_receive_ready",
+            "next_action": "Ready for live test. Send one message and confirm it appears as a real buyer.",
+            "next_action_zh": "可以做真实测试。发一条消息，确认它会出现在真实买家列表。",
+        }
+    if not acknowledged:
+        return {
+            "setup_phase": "needs_data_ack",
+            "next_action": "Confirm data-use acknowledgement before saving this source for auto receive.",
+            "next_action_zh": "先确认资料用途声明，然后再保存这个自动收信来源。",
+        }
+    if integration_mode != "official_api_requested":
+        return {
+            "setup_phase": "needs_official_mode",
+            "next_action": "Switch to Meta sync request when you are ready to connect the official API.",
+            "next_action_zh": "准备接官方 API 时，把方式改成 Meta 同步申请。",
+        }
+    if not external_account_id:
+        return {
+            "setup_phase": "needs_account_id",
+            "next_action": f"Save the {channel_external_id_field(channel)['label']} before testing live messages.",
+            "next_action_zh": f"先保存 {channel_external_id_field(channel)['label']}，再测试真实私信。",
+        }
+    if status != "connected":
+        return {
+            "setup_phase": "ready_to_connect",
+            "next_action": "After the webhook subscription is saved in Meta, mark this source as Connected.",
+            "next_action_zh": "Meta webhook 订阅保存后，把这个来源标记为已连接。",
+        }
+    return {
+        "setup_phase": "needs_review",
+        "next_action": "Review webhook subscription, owner key, and saved account ID before live testing.",
+        "next_action_zh": "真实测试前，请检查 webhook 订阅、老板密钥和已保存的账号 ID。",
+    }
+
+
+def build_channel_pilot_next_steps(profile, connections):
+    by_channel = {item["channel"]: item for item in connections}
+    whatsapp = by_channel.get("whatsapp", {})
+    instagram = by_channel.get("instagram", {})
+    main_ready = any(
+        (by_channel.get(channel) or {}).get("auto_receive_ready")
+        for channel in ("whatsapp", "facebook", "instagram")
+    )
+
+    def readiness(done, almost=False):
+        if done:
+            return "done"
+        if almost:
+            return "almost"
+        return "todo"
+
+    return [
+        {
+            "key": "whatsapp_cloud_api",
+            "status": readiness(
+                whatsapp.get("auto_receive_ready"),
+                bool(whatsapp.get("external_account_id")) and whatsapp.get("data_processing_acknowledged"),
+            ),
+            "title": "Connect WhatsApp Cloud API",
+            "title_zh": "接上 WhatsApp Cloud API",
+            "detail": "Save the WhatsApp Phone Number ID, subscribe messages webhooks, then mark WhatsApp as Connected.",
+            "detail_zh": "保存 WhatsApp Phone Number ID，订阅 messages webhook，然后把 WhatsApp 标记为已连接。",
+            "href": f"/apps/enquiry/channels/{profile['slug']}",
+        },
+        {
+            "key": "instagram_review",
+            "status": readiness(
+                instagram.get("auto_receive_ready"),
+                bool(instagram.get("external_account_id")) and instagram.get("data_processing_acknowledged"),
+            ),
+            "title": "Finish Instagram App Review",
+            "title_zh": "完成 Instagram App Review",
+            "detail": "Use the review kit and screen recording to request instagram_business_manage_messages before live IG DMs.",
+            "detail_zh": "用审核包和录屏申请 instagram_business_manage_messages，批准后真实 IG 私信才会进来。",
+            "href": "/apps/enquiry/meta-review-kit",
+        },
+        {
+            "key": "real_dealer_pilot",
+            "status": readiness(main_ready),
+            "title": "Run one real dealer pilot",
+            "title_zh": "跑一个真实车商试点",
+            "detail": "Start with one dealer, one connected source, and one real message. Confirm the buyer appears before scaling.",
+            "detail_zh": "先用一个车商、一个已连接来源、一条真实私信测试。确认买家出现后再扩大。",
+            "href": f"/inbox/{profile['slug']}",
+        },
+        {
+            "key": "security_guardrails",
+            "status": "done",
+            "title": "Keep secrets out of merchant forms",
+            "title_zh": "不要把 secret 放进商家表格",
+            "detail": "NexaFlow stores account IDs only. Tokens, app secrets, cookies, OTPs, and passwords stay in server-side settings.",
+            "detail_zh": "NexaFlow 只保存账号 ID。Token、app secret、cookies、OTP 和密码都只放服务器设置。",
+            "href": "/privacy",
+        },
+    ]
 
 
 def channel_connection_response(profile):
@@ -2837,6 +2963,17 @@ def channel_connection_response(profile):
             notes = ""
             updated_at = ""
 
+        auto_receive_ready = channel_auto_receive_ready(item, integration_mode, status, external_account_id, acknowledged)
+        guidance = channel_connection_guidance(
+            channel,
+            item,
+            integration_mode,
+            status,
+            external_account_id,
+            acknowledged,
+            auto_receive_ready,
+        )
+
         connections.append(
             {
                 "channel": channel,
@@ -2846,13 +2983,10 @@ def channel_connection_response(profile):
                 "status": status,
                 "account_label": account_label,
                 "external_account_id": external_account_id,
-                "auto_receive_ready": (
-                    integration_mode == "official_api_requested"
-                    and status == "connected"
-                    and bool(external_account_id)
-                    and acknowledged
-                    and item["official_status"] != "limited"
-                ),
+                "auto_receive_ready": auto_receive_ready,
+                "setup_phase": guidance["setup_phase"],
+                "next_action": guidance["next_action"],
+                "next_action_zh": guidance["next_action_zh"],
                 "id_field": channel_external_id_field(channel),
                 "capabilities": item["capabilities"],
                 "security_requirements": item["security_requirements"],
@@ -2864,6 +2998,7 @@ def channel_connection_response(profile):
             }
         )
 
+    main_channels = [item for item in connections if item["channel"] in {"whatsapp", "facebook", "instagram"}]
     return {
         "business": {
             "slug": profile["slug"],
@@ -2875,6 +3010,9 @@ def channel_connection_response(profile):
             "official_ready": sum(1 for item in connections if item["official_status"].startswith("available")),
             "limited": sum(1 for item in connections if item["official_status"] == "limited"),
             "configured": sum(1 for item in connections if item["status"] in {"requested", "assisted", "connected"}),
+            "auto_receive_ready": sum(1 for item in main_channels if item["auto_receive_ready"]),
+            "needs_setup": sum(1 for item in main_channels if not item["auto_receive_ready"]),
+            "ready_for_real_dealer_pilot": any(item["auto_receive_ready"] for item in main_channels),
         },
         "security_notice": (
             "NexaFlow stores channel connection metadata only in this setup screen. "
@@ -2884,8 +3022,10 @@ def channel_connection_response(profile):
             "owner_key_required": True,
             "tokens_stored": False,
             "audit_events": True,
+            "secret_screening_enabled": True,
             "retention_days": profile.get("data_retention_days", 365),
         },
+        "pilot_next_steps": build_channel_pilot_next_steps(profile, connections),
         "recent_webhook_events": list_recent_channel_webhook_events(profile["slug"]),
         "connections": connections,
     }
@@ -2995,8 +3135,21 @@ def contains_forbidden_channel_secret(*values):
         "passwd",
         "otp",
         "authorization:",
+        "page access token",
+        "long-lived access token",
+        "user access token",
+        "fb_dtsg",
+        "c_user=",
+        "xs=",
+        "datr=",
+        "session_key",
+        "ig_did",
     ]
-    return any(marker in text for marker in secret_markers)
+    meta_token_pattern = re.compile(
+        r"\b(?:eaa[a-z0-9_-]{20,}|eaab[a-z0-9_-]{20,}|eaag[a-z0-9_-]{20,}|igqvj[a-z0-9_-]{20,})\b",
+        re.IGNORECASE,
+    )
+    return any(marker in text for marker in secret_markers) or bool(meta_token_pattern.search(text))
 
 
 def contains_sensitive_manual_enquiry_content(*values):
@@ -3370,7 +3523,7 @@ def record_channel_message(connection_info, profile, event, enquiry):
             business_slug=profile["slug"],
             metadata={
                 "channel": event["channel"],
-                "external_message_id": event["external_message_id"],
+                "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
                 "enquiry_id": enquiry["id"],
             },
             connection=connection,
@@ -3379,7 +3532,10 @@ def record_channel_message(connection_info, profile, event, enquiry):
 
 def create_enquiry_from_meta_event(connection_info, profile, event, notify_merchant=True):
     if channel_message_exists(event["channel"], event["external_message_id"]):
-        return {"status": "duplicate", "external_message_id": event["external_message_id"]}
+        return {
+            "status": "duplicate",
+            "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
+        }
     phone_or_handle = event["customer_handle"] if event["channel"] == "whatsapp" else f"{event['channel']}:{event['customer_handle'] or event['external_message_id']}"
     enquiry_req = EnquiryCreateRequest(
         business_slug=profile["slug"],
@@ -3418,7 +3574,7 @@ def create_enquiry_from_meta_event(connection_info, profile, event, notify_merch
         "status": "created",
         "enquiry_id": enquiry["id"],
         "record_kind": enquiry.get("record_kind", "real"),
-        "external_message_id": event["external_message_id"],
+        "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
     }
 
 
@@ -3497,7 +3653,7 @@ def process_meta_webhook_payload(payload):
                         "result": "ignored",
                         "reason": "channel_not_connected",
                         "connection_status": candidate_connection["status"],
-                        "external_message_id": event["external_message_id"],
+                        "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
                         "account_id_preview": mask_external_account_id(event["account_id"]),
                     },
                 )
@@ -3507,7 +3663,7 @@ def process_meta_webhook_payload(payload):
                         "reason": "channel_not_connected",
                         "channel": event["channel"],
                         "account_id_preview": mask_external_account_id(event["account_id"]),
-                        "external_message_id": event["external_message_id"],
+                        "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
                     }
                 )
                 continue
@@ -3521,6 +3677,7 @@ def process_meta_webhook_payload(payload):
                     "channel": event["channel"],
                     "result": "unmapped",
                     "account_id_preview": mask_external_account_id(event["account_id"]),
+                    "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
                 },
             )
             result["items"].append(
@@ -3528,7 +3685,7 @@ def process_meta_webhook_payload(payload):
                     "status": "unmapped",
                     "channel": event["channel"],
                     "account_id_preview": mask_external_account_id(event["account_id"]),
-                    "external_message_id": event["external_message_id"],
+                    "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
                 }
             )
             continue
@@ -3548,7 +3705,7 @@ def process_meta_webhook_payload(payload):
                     "channel": event["channel"],
                     "result": "duplicate",
                     "connection_id": connection_info["id"],
-                    "external_message_id": event["external_message_id"],
+                    "external_message_id_preview": mask_external_account_id(event["external_message_id"]),
                 },
             )
         else:
@@ -14513,6 +14670,14 @@ def merchant_channel_connections_page(business_slug: str):
             <p class="mini-note"><span data-lang="en">Never paste platform passwords, OTPs, cookies, access tokens, or customer identity documents here. This setup stores connection metadata only.</span><span data-lang="zh" class="lang-hidden">不要在这里粘贴平台密码、OTP、cookies、access token 或客户身份证件。这里仅保存连接设置资料。</span></p>
         </section>
         <section class="grid" id="channelSummary"></section>
+        <section class="form-card" id="pilotNextSteps">
+            <div class="section-head">
+                <div>
+                    <h2><span data-lang="en">Pilot next steps</span><span data-lang="zh" class="lang-hidden">试点下一步</span></h2>
+                    <p><span data-lang="en">Open settings to see what is ready before giving this to a real dealer.</span><span data-lang="zh" class="lang-hidden">打开设置后会看到交给真实车商前还差什么。</span></p>
+                </div>
+            </div>
+        </section>
         <section class="form-card" id="metaSetupPanel">
             <div class="section-head">
                 <div>
@@ -14694,16 +14859,47 @@ def merchant_channel_connections_page(business_slug: str):
                     target.textContent = error.message;
                 }}
             }}
+            function renderPilotNextSteps(steps = []) {{
+                const target = document.getElementById("pilotNextSteps");
+                if (!target) return;
+                const statusBadge = (status) => {{
+                    if (status === "done") return ["Ready", "已完成", "live"];
+                    if (status === "almost") return ["Almost ready", "接近完成", "hot"];
+                    return ["To do", "待处理", ""];
+                }};
+                target.innerHTML = `
+                    <div class="section-head">
+                        <div>
+                            <h2>${{channelLangSpan("Pilot next steps", "试点下一步")}}</h2>
+                            <p>${{channelLangSpan("This is the short list before giving NexaFlow to a real dealer.", "这是交给真实车商前的短清单。")}}</p>
+                        </div>
+                    </div>
+                    <div class="setup-panel">
+                        ${{(steps || []).map((item, index) => {{
+                            const [enStatus, zhStatus, className] = statusBadge(item.status);
+                            return `
+                                <div class="setup-step">
+                                    <div class="lead-badges"><span class="lead-badge ${{className}}">${{channelLangSpan(enStatus, zhStatus)}}</span></div>
+                                    <strong>${{index + 1}}. ${{channelLangSpan(item.title || item.key, item.title_zh || item.title || item.key)}}</strong>
+                                    <span>${{channelLangSpan(item.detail || "", item.detail_zh || item.detail || "")}}</span>
+                                    <a class="btn secondary" href="${{escapeHtml(item.href || "#")}}">${{channelLangSpan("Open", "打开")}}</a>
+                                </div>
+                            `;
+                        }}).join("")}}
+                    </div>
+                `;
+                setChannelsLang(channelsLang());
+            }}
             function renderChannelConnections(payload) {{
                 const summary = payload.summary || {{}};
-                const protection = payload.data_protection || {{}};
                 const connections = payload.connections || [];
                 const mainChannels = connections.filter(item => ["whatsapp", "facebook", "instagram"].includes(item.channel));
                 const otherChannels = connections.filter(item => !["whatsapp", "facebook", "instagram"].includes(item.channel));
+                renderPilotNextSteps(payload.pilot_next_steps || []);
                 document.getElementById("channelSummary").innerHTML = `
                     <section class="card"><h3>${{channelLangSpan("Main sources", "主要来源")}}</h3><div class="price">${{mainChannels.length}}</div><p>WhatsApp, Facebook, Instagram</p></section>
-                    <section class="card"><h3>${{channelLangSpan("Setup requested", "已请求设置")}}</h3><div class="price">${{summary.configured || 0}}</div><p>${{channelLangSpan("Saved source settings", "已保存来源设置")}}</p></section>
-                    <section class="card"><h3>${{channelLangSpan("Limited sources", "受限来源")}}</h3><div class="price">${{summary.limited || 0}}</div><p>${{channelLangSpan("TikTok assisted, Xiaohongshu pending official sync", "TikTok 辅助，小红书等待官方同步")}}</p></section>
+                    <section class="card"><h3>${{channelLangSpan("Auto receive ready", "自动收信 ready")}}</h3><div class="price">${{summary.auto_receive_ready || 0}}</div><p>${{channelLangSpan("Connected Meta sources", "已连接 Meta 来源")}}</p></section>
+                    <section class="card"><h3>${{channelLangSpan("Needs setup", "还需要设置")}}</h3><div class="price">${{summary.needs_setup || 0}}</div><p>${{channelLangSpan("Finish these before the dealer pilot", "交给车商试点前先完成")}}</p></section>
                 `;
                 function renderReadinessChecklist(item) {{
                     if (item.channel === "whatsapp") {{
@@ -14792,6 +14988,7 @@ def merchant_channel_connections_page(business_slug: str):
                             <span class="lead-badge">${{item.data_processing_acknowledged ? channelLangSpan("Confirmed", "已确认") : channelLangSpan("Needs confirm", "需要确认")}}</span>
                             ${{item.external_account_id ? `<span class="lead-badge live">${{channelLangSpan("ID saved", "ID 已保存")}}</span>` : ""}}
                         </div>
+                        <span class="next-action">${{channelLangSpan("Next", "下一步")}}: ${{channelLangSpan(item.next_action || "", item.next_action_zh || item.next_action || "")}}</span>
                         <label>${{channelLangSpan("Current way", "目前方式")}}
                             <select id="mode-${{item.channel}}">
                                 <option value="official_api_requested" ${{selected(item.integration_mode, "official_api_requested")}}>Request Meta sync later / 之后申请 Meta 同步</option>
@@ -14829,7 +15026,11 @@ def merchant_channel_connections_page(business_slug: str):
                     `;
                 }}
                 document.getElementById("channelCards").innerHTML = `
-                    ${{mainChannels.map(renderChannelCard).join("")}}
+                    <details class="form-card">
+                        <summary>${{channelLangSpan("Advanced source controls", "高级来源设置")}}</summary>
+                        <p class="mini-note">${{channelLangSpan("Most merchants only need the next-step list above. Open this when you are saving IDs or changing connection status.", "多数商家只需要看上面的下一步。只有要保存 ID 或更改连接状态时才打开这里。")}}</p>
+                        <div class="grid">${{mainChannels.map(renderChannelCard).join("")}}</div>
+                    </details>
                     <details class="form-card">
                         <summary>${{channelLangSpan("Other sources: TikTok, Xiaohongshu, website, and assisted capture", "其他来源：TikTok、小红书、网站和辅助导入")}}</summary>
                         <div class="grid">${{otherChannels.map(renderChannelCard).join("")}}</div>
@@ -16452,6 +16653,8 @@ async def meta_webhook(
     if not app_secret:
         raise HTTPException(status_code=503, detail="Server missing META_APP_SECRET")
     raw_body = await request.body()
+    if len(raw_body) > META_WEBHOOK_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Meta webhook payload too large")
     if not verify_meta_signature(raw_body, x_hub_signature_256, app_secret):
         raise HTTPException(status_code=401, detail="Invalid Meta webhook signature")
     try:

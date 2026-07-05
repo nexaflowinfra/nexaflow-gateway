@@ -811,6 +811,13 @@ def test_business_profile_create_and_public_form_loads():
     assert "Meta Review Kit" in channels.text
     assert "/apps/enquiry/meta-review-kit" in channels.text
     assert "Data Deletion" in channels.text
+    assert "Pilot next steps" in channels.text
+    assert "试点下一步" in channels.text
+    assert "renderPilotNextSteps" in channels.text
+    assert "Advanced source controls" in channels.text
+    assert "高级来源设置" in channels.text
+    assert "Auto receive ready" in channels.text
+    assert "Needs setup" in channels.text
     assert "/apps/enquiry/connection-status/" in channels.text
     assert "/admin/dashboard" not in channels.text
 
@@ -1880,12 +1887,24 @@ def test_merchant_channel_connections_are_private_and_audited():
     body = listing.json()
     assert body["data_protection"]["tokens_stored"] is False
     assert body["data_protection"]["owner_key_required"] is True
+    assert body["data_protection"]["secret_screening_enabled"] is True
+    assert body["summary"]["auto_receive_ready"] == 0
+    assert body["summary"]["needs_setup"] == 3
+    assert body["summary"]["ready_for_real_dealer_pilot"] is False
+    assert {step["key"] for step in body["pilot_next_steps"]} == {
+        "whatsapp_cloud_api",
+        "instagram_review",
+        "real_dealer_pilot",
+        "security_guardrails",
+    }
     assert "passwords, OTPs, cookies" in body["security_notice"]
     assert {item["channel"] for item in body["connections"]}.issuperset({"whatsapp", "instagram", "facebook", "tiktok", "xiaohongshu"})
     connections_by_channel = {item["channel"]: item for item in body["connections"]}
     assert connections_by_channel["whatsapp"]["id_field"]["meta_name"] == "phone_number_id"
     assert connections_by_channel["whatsapp"]["id_field"]["matched_from"] == "value.metadata.phone_number_id"
     assert connections_by_channel["whatsapp"]["id_field"]["help"] == "Use the phone number ID that receives buyer messages, not the WABA ID."
+    assert connections_by_channel["whatsapp"]["setup_phase"] == "needs_data_ack"
+    assert "Confirm data-use" in connections_by_channel["whatsapp"]["next_action"]
     assert connections_by_channel["facebook"]["id_field"]["meta_name"] == "page_id"
     assert connections_by_channel["instagram"]["id_field"]["meta_name"] == "instagram_account_id"
     assert connections_by_channel["instagram"]["id_field"]["help"] == "Use the professional Instagram account ID connected to the Meta app."
@@ -1938,6 +1957,20 @@ def test_merchant_channel_connections_are_private_and_audited():
     )
     assert rejected_secret.status_code == 400
 
+    rejected_meta_token = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_one}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "requested",
+            "account_label": "City Cars WABA",
+            "external_account_id": phone_number_id,
+            "data_processing_acknowledged": True,
+            "notes": "Token EAA" + ("A" * 40),
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert rejected_meta_token.status_code == 400
+
     update = client.patch(
         f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_one}",
         json={
@@ -1957,6 +1990,49 @@ def test_merchant_channel_connections_are_private_and_audited():
     assert saved["token_status"] == "not_stored"
     assert "access_token" not in json.dumps(saved)
     assert "secret-token" not in json.dumps(saved)
+
+    listing_after_update = client.get(
+        f"/apps/enquiry/api/merchant/channel-connections?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert listing_after_update.status_code == 200
+    after_body = listing_after_update.json()
+    whatsapp_after = {item["channel"]: item for item in after_body["connections"]}["whatsapp"]
+    assert whatsapp_after["setup_phase"] == "ready_to_connect"
+    assert whatsapp_after["auto_receive_ready"] is False
+    assert any(
+        step["key"] == "whatsapp_cloud_api" and step["status"] == "almost"
+        for step in after_body["pilot_next_steps"]
+    )
+
+    connected = client.patch(
+        f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_one}",
+        json={
+            "integration_mode": "official_api_requested",
+            "status": "connected",
+            "account_label": "City Cars WABA",
+            "external_account_id": phone_number_id,
+            "data_processing_acknowledged": True,
+            "notes": "Cloud API webhook connected.",
+        },
+        headers={"X-Business-Key": business_key},
+    )
+    assert connected.status_code == 200
+    ready_listing = client.get(
+        f"/apps/enquiry/api/merchant/channel-connections?business_slug={slug_one}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert ready_listing.status_code == 200
+    ready_body = ready_listing.json()
+    whatsapp_ready = {item["channel"]: item for item in ready_body["connections"]}["whatsapp"]
+    assert whatsapp_ready["setup_phase"] == "auto_receive_ready"
+    assert whatsapp_ready["auto_receive_ready"] is True
+    assert ready_body["summary"]["auto_receive_ready"] == 1
+    assert ready_body["summary"]["ready_for_real_dealer_pilot"] is True
+    assert any(
+        step["key"] == "real_dealer_pilot" and step["status"] == "done"
+        for step in ready_body["pilot_next_steps"]
+    )
 
     duplicate_external_id = client.patch(
         f"/apps/enquiry/api/merchant/channel-connections/whatsapp?business_slug={slug_two}",
@@ -4027,6 +4103,16 @@ def meta_signature(payload, secret="test-meta-app-secret"):
     return f"sha256={digest}"
 
 
+def test_meta_webhook_rejects_large_payload():
+    raw = json.dumps({"object": "page", "padding": "x" * (main.META_WEBHOOK_MAX_BYTES + 1)})
+    response = client.post(
+        "/webhooks/meta",
+        content=raw,
+        headers={"X-Hub-Signature-256": meta_signature(raw), "Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
 def test_meta_webhook_verify_and_whatsapp_message_creates_enquiry_once():
     verify = client.get(
         "/webhooks/meta",
@@ -4121,6 +4207,7 @@ def test_meta_webhook_verify_and_whatsapp_message_creates_enquiry_once():
     assert first.status_code == 200
     assert first.json()["created"] == 1
     assert first.json()["duplicates"] == 0
+    assert f"wamid.test-{suffix}" not in json.dumps(first.json())
 
     second = client.post(
         "/webhooks/meta",
@@ -4130,6 +4217,15 @@ def test_meta_webhook_verify_and_whatsapp_message_creates_enquiry_once():
     assert second.status_code == 200
     assert second.json()["created"] == 0
     assert second.json()["duplicates"] == 1
+    assert f"wamid.test-{suffix}" not in json.dumps(second.json())
+
+    diagnostics = client.get(
+        f"/apps/enquiry/api/merchant/channel-connections?business_slug={slug}",
+        headers={"X-Business-Key": business_key},
+    )
+    assert diagnostics.status_code == 200
+    recent_payload = json.dumps(diagnostics.json()["recent_webhook_events"])
+    assert f"wamid.test-{suffix}" not in recent_payload
 
     listing = client.get(
         f"/apps/enquiry/api/merchant/enquiries?business_slug={slug}&source=whatsapp",
@@ -4220,6 +4316,8 @@ def test_meta_webhook_ignores_requested_channel_until_connected():
     assert recent[0]["channel"] == "facebook"
     assert recent[0]["reason"] == "channel_not_connected"
     assert recent[0]["connection_status"] == "requested"
+    assert recent[0]["external_message_id_preview"].startswith("m-r...")
+    assert payload["entry"][0]["messaging"][0]["message"]["mid"] not in json.dumps(recent)
 
 
 def test_meta_webhook_facebook_message_does_not_create_whatsapp_link():
