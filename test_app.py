@@ -261,11 +261,17 @@ def test_public_dealer_demo_is_read_only_and_synthetic(monkeypatch):
 def test_merchant_login_page_loads():
     response = client.get("/merchant-login")
     assert response.status_code == 200
-    assert "Dealer Login" in response.text
-    assert "Dealer link name" in response.text
-    assert "Inbox password" in response.text
+    assert "Merchant Login" in response.text
+    assert "Open your sales inbox." in response.text
+    assert "Customers do not need a NexaFlow account" in response.text
+    assert "Merchant link name" in response.text
+    assert "Owner inbox password" in response.text
     assert "/apps/enquiry/api/merchant/login" in response.text
     assert "secure browser session" in response.text
+    assert "No buyer login is required" in response.text
+    assert "Sales team" in response.text
+    assert "Do not ask customers for NexaFlow passwords" in response.text
+    assert "Dealer Login" not in response.text
     assert "nexaflow_business_key_" not in response.text
     assert "/merchant-signup" in response.text
     assert "/admin/dashboard" not in response.text

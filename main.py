@@ -8776,6 +8776,9 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
                     gap: 12px;
                     margin-bottom: 18px;
                 }}
+                .role-access-grid {{
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                }}
                 .setup-step {{
                     border: 1px solid var(--line);
                     border-radius: 8px;
@@ -12734,7 +12737,7 @@ def ui_options_page():
 @app.get("/merchant-login", response_class=HTMLResponse)
 def merchant_login_page():
     return merchant_html(
-        "NexaFlow Dealer Login",
+        "NexaFlow Merchant Login",
         "NexaFlow",
         """
         <section class="hero compact">
@@ -12743,29 +12746,56 @@ def merchant_login_page():
                     <button type="button" class="active" onclick="setLoginLang('en')" id="langEn">EN</button>
                     <button type="button" onclick="setLoginLang('zh')" id="langZh">中文</button>
                 </div>
-                <div class="eyebrow">Dealer Login</div>
-                <h1><span data-lang="en">Open your private dealer inbox.</span><span data-lang="zh" class="lang-hidden">打开你的车商私密 inbox。</span></h1>
-                <p class="lead"><span data-lang="en">Enter your dealer link name and inbox password once. NexaFlow opens a secure browser session, so the password is not stored in localStorage or placed in the URL.</span><span data-lang="zh" class="lang-hidden">输入一次车商链接名称和 inbox 密码。NexaFlow 会打开安全浏览器 session，不会把密码存在 localStorage，也不会放进 URL。</span></p>
+                <div class="eyebrow"><span data-lang="en">Merchant Login</span><span data-lang="zh" class="lang-hidden">商家入口</span></div>
+                <h1><span data-lang="en">Open your sales inbox.</span><span data-lang="zh" class="lang-hidden">打开你的销售 inbox。</span></h1>
+                <p class="lead"><span data-lang="en">For business owners and sales teams. Customers do not need a NexaFlow account; their WhatsApp, Facebook, Instagram, call, or enquiry-link messages are handled from your private inbox.</span><span data-lang="zh" class="lang-hidden">这是给商家老板和销售团队使用的入口。买家不需要 NexaFlow 账号；他们从 WhatsApp、Facebook、Instagram、电话或询盘链接来的消息，会集中到你的私密 inbox。</span></p>
             </div>
         </section>
         <section class="form-card">
+            <div class="section-head compact-section">
+                <div>
+                    <h2><span data-lang="en">Merchant / sales team access</span><span data-lang="zh" class="lang-hidden">商家 / 销售团队登录</span></h2>
+                    <p><span data-lang="en">Enter your merchant link name and inbox password once. NexaFlow opens a secure browser session, so the password is not stored in localStorage or placed in the URL.</span><span data-lang="zh" class="lang-hidden">输入一次商家链接名称和 inbox 密码。NexaFlow 会打开安全浏览器 session，不会把密码存在 localStorage，也不会放进 URL。</span></p>
+                </div>
+            </div>
             <div class="toolbar">
-                <label>Dealer link name<input id="loginSlug" autocomplete="off" placeholder="your-dealer-name"></label>
-                <label>Inbox password<input id="loginKey" type="password" autocomplete="current-password" placeholder="biz_..."></label>
+                <label><span data-lang="en">Merchant link name</span><span data-lang="zh" class="lang-hidden">商家链接名称</span><input id="loginSlug" autocomplete="off" placeholder="your-business-name"></label>
+                <label><span data-lang="en">Owner inbox password</span><span data-lang="zh" class="lang-hidden">老板 inbox 密码</span><input id="loginKey" type="password" autocomplete="current-password" placeholder="biz_..."></label>
             </div>
             <div class="actions">
-                <button class="btn" onclick="openMerchantInbox()"><span data-lang="en">Open Inbox</span><span data-lang="zh" class="lang-hidden">打开 Inbox</span></button>
-                <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create Buyer Inbox</span><span data-lang="zh" class="lang-hidden">创建买家 inbox</span></a>
+                <button class="btn" onclick="openMerchantInbox()"><span data-lang="en">Open sales inbox</span><span data-lang="zh" class="lang-hidden">打开销售 inbox</span></button>
+                <a class="btn secondary" href="/merchant-signup"><span data-lang="en">Create enquiry inbox</span><span data-lang="zh" class="lang-hidden">创建询盘 inbox</span></a>
                 <a class="btn secondary" href="/"><span data-lang="en">Back to Services</span><span data-lang="zh" class="lang-hidden">返回服务页</span></a>
             </div>
-            <div class="status" id="loginStatus"><span data-lang="en">Your inbox password protects buyer enquiries. Do not share it publicly.</span><span data-lang="zh" class="lang-hidden">Inbox 密码会保护买家询盘资料，请不要公开分享。</span></div>
+            <div class="status" id="loginStatus"><span data-lang="en">Your inbox password protects customer enquiries. Do not share it publicly.</span><span data-lang="zh" class="lang-hidden">Inbox 密码会保护客户询盘资料，请不要公开分享。</span></div>
         </section>
-        <div class="section-head">
+        <div class="section-head compact-section">
             <div>
-                <h2><span data-lang="en">Privacy note</span><span data-lang="zh" class="lang-hidden">隐私提示</span></h2>
-                <p><span data-lang="en">Buyer names, phone numbers, messages, notes, and follow-up records are shown only after a valid inbox password is provided.</span><span data-lang="zh" class="lang-hidden">买家姓名、电话、留言、备注和跟进记录，只有输入有效 inbox 密码后才会显示。</span></p>
+                <h2><span data-lang="en">Who needs to log in?</span><span data-lang="zh" class="lang-hidden">谁需要登录？</span></h2>
+                <p><span data-lang="en">No buyer login is required. Keep this page for your internal team only.</span><span data-lang="zh" class="lang-hidden">买家不需要登录。这个页面只给你的内部团队使用。</span></p>
             </div>
         </div>
+        <section class="setup-panel role-access-grid">
+            <div class="setup-step">
+                <strong><span data-lang="en">Merchant owner</span><span data-lang="zh" class="lang-hidden">商家老板</span></strong>
+                <span data-lang="en">Open the queue, review all customers, manage sources, and control follow-up records.</span>
+                <span data-lang="zh" class="lang-hidden">打开队列、查看所有客户、管理来源，并控制跟进记录。</span>
+            </div>
+            <div class="setup-step">
+                <strong><span data-lang="en">Sales team</span><span data-lang="zh" class="lang-hidden">销售团队</span></strong>
+                <span data-lang="en">See who to reply first, what is missing, and the next message to send.</span>
+                <span data-lang="zh" class="lang-hidden">看谁要先回、还缺什么资料，以及下一句该怎么发。</span>
+            </div>
+            <div class="setup-step">
+                <strong><span data-lang="en">Customer / buyer</span><span data-lang="zh" class="lang-hidden">客户 / 买家</span></strong>
+                <span data-lang="en">No NexaFlow login. They message your social channels or submit your enquiry link.</span>
+                <span data-lang="zh" class="lang-hidden">不需要 NexaFlow 登录。他们只需要私信你的社媒，或填写你的询盘链接。</span>
+            </div>
+        </section>
+        <section class="form-card">
+            <h2><span data-lang="en">Security note</span><span data-lang="zh" class="lang-hidden">安全提示</span></h2>
+            <p><span data-lang="en">Do not ask customers for NexaFlow passwords. Do not paste platform passwords, OTPs, cookies, long-lived tokens, or customer identity documents into this page.</span><span data-lang="zh" class="lang-hidden">不要向客户索取 NexaFlow 密码。不要在这个页面粘贴平台密码、OTP、cookies、长期 token 或客户身份证明文件。</span></p>
+        </section>
         <script>
             function normalizeSlug(value) {
                 return String(value || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -12783,7 +12813,7 @@ def merchant_login_page():
                 const slug = normalizeSlug(document.getElementById("loginSlug").value);
                 const key = document.getElementById("loginKey").value.trim();
                 if (!slug || !key) {
-                    status.textContent = "Please enter both dealer link name and inbox password.";
+                    status.textContent = "Please enter both merchant link name and inbox password.";
                     return;
                 }
                 status.textContent = "Opening secure session...";
