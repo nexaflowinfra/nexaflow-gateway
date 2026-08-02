@@ -8028,6 +8028,7 @@ def merchant_html(title, business_name, body, show_sales_contact=False, show_flo
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="facebook-domain-verification" content="a1tnvsy2ojx2z3x5heqe6fsknjkco2">
             <meta name="description" content="NexaFlow Enquiry helps merchants collect scattered enquiries, capture missing customer details, and manage follow-up in a private WhatsApp-ready inbox.">
             <meta property="og:title" content="{safe_title}">
             <meta property="og:description" content="One enquiry workspace for scattered customer enquiries, missing details, reply drafts, and WhatsApp-ready follow-up.">
